@@ -48,17 +48,65 @@ internal enum ImportedChartLibraryChangeKind
     DifficultyRatings = 1 << 1,
 }
 
+internal sealed record ImportedChartLibraryDelta(
+    IReadOnlyList<ImportedChart> UpsertedCharts,
+    IReadOnlyList<string> RemovedChartIds)
+{
+    internal ImportedChartLibraryDelta Merge(
+        ImportedChartLibraryDelta newer)
+    {
+        ArgumentNullException.ThrowIfNull(newer);
+        var upserted = new Dictionary<string, ImportedChart>(
+            StringComparer.OrdinalIgnoreCase);
+        var removed = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase);
+
+        apply(this);
+        apply(newer);
+        return new ImportedChartLibraryDelta(
+            upserted.Values.ToArray(),
+            removed.ToArray());
+
+        void apply(ImportedChartLibraryDelta delta)
+        {
+            foreach (string id in delta.RemovedChartIds)
+            {
+                upserted.Remove(id);
+                removed.Add(id);
+            }
+
+            foreach (ImportedChart chart in delta.UpsertedCharts)
+            {
+                removed.Remove(chart.Id);
+                upserted[chart.Id] = chart;
+            }
+        }
+    }
+}
+
 internal sealed record ImportedChartLibraryChange(
     long Revision,
     long StructureRevision,
-    ImportedChartLibraryChangeKind Kind)
+    ImportedChartLibraryChangeKind Kind,
+    int ChartCount,
+    ImportedChartLibraryDelta Delta = null)
 {
     internal ImportedChartLibraryChange Merge(
-        ImportedChartLibraryChange newer) =>
-        new(
+        ImportedChartLibraryChange newer)
+    {
+        ArgumentNullException.ThrowIfNull(newer);
+        ImportedChartLibraryChange latest = newer.Revision >= Revision
+            ? newer
+            : this;
+        return new ImportedChartLibraryChange(
             Math.Max(Revision, newer.Revision),
             Math.Max(StructureRevision, newer.StructureRevision),
-            Kind | newer.Kind);
+            Kind | newer.Kind,
+            latest.ChartCount,
+            Delta == null || newer.Delta == null
+                ? null
+                : Delta.Merge(newer.Delta));
+    }
 }
 
 internal sealed record ExternalOsuLibraryResult(
@@ -1207,16 +1255,22 @@ internal sealed class ImportedChartLibrary : IDisposable
                                                .ToArray();
             refreshToken.ThrowIfCancellationRequested();
             ImportedChart[] externalCharts = createExternalCharts(entries);
+            bool indexChanged = changed.Count > 0
+                                || cachedDocument == null
+                                || cached.Count != entries.Length;
             msdRatingCache.SaveIfChanged();
             starRatingCache.SaveIfChanged();
 
             try
             {
                 refreshToken.ThrowIfCancellationRequested();
-                ExternalOsuSongsIndex.Save(
-                    externalOsuCachePath,
-                    songsPath,
-                    entries);
+                if (indexChanged)
+                {
+                    ExternalOsuSongsIndex.Save(
+                        externalOsuCachePath,
+                        songsPath,
+                        entries);
+                }
             }
             catch (Exception exception) when (exception is IOException
                                               or UnauthorizedAccessException
@@ -1423,7 +1477,12 @@ internal sealed class ImportedChartLibrary : IDisposable
                 StringComparer.OrdinalIgnoreCase);
             var retainedIds = new HashSet<string>(
                 StringComparer.OrdinalIgnoreCase);
+            var incomingIds = new HashSet<string>(
+                external.Select(chart => chart.Id),
+                StringComparer.OrdinalIgnoreCase);
+            var upserted = new List<ImportedChart>();
             var merged = new ImportedChart[external.Count];
+            bool orderChanged = false;
             ImportedChartLibraryChangeKind actualChangeKind =
                 requestedChangeKind;
 
@@ -1445,6 +1504,7 @@ internal sealed class ImportedChartLibrary : IDisposable
                 else
                 {
                     merged[i] = incoming;
+                    upserted.Add(incoming);
 
                     if (current != null
                         && externalChartEquivalentIgnoringRatings(
@@ -1467,6 +1527,7 @@ internal sealed class ImportedChartLibrary : IDisposable
                         StringComparison.OrdinalIgnoreCase))
                 {
                     actualChangeKind |= ImportedChartLibraryChangeKind.Structure;
+                    orderChanged = true;
                 }
             }
 
@@ -1481,6 +1542,10 @@ internal sealed class ImportedChartLibrary : IDisposable
             charts.RemoveAll(chart =>
                 chart.SourceKind == ImportedChartSourceKind.ExternalOsu);
             charts.AddRange(merged);
+            string[] removedIds = existing
+                                  .Where(chart => !incomingIds.Contains(chart.Id))
+                                  .Select(chart => chart.Id)
+                                  .ToArray();
 
             // Full beatmaps are loaded on demand. Keep LRU entries whose
             // source did not change instead of throwing away all 64 cached
@@ -1499,7 +1564,15 @@ internal sealed class ImportedChartLibrary : IDisposable
                 }
                 node = next;
             }
-            change = advanceRevision(actualChangeKind);
+            change = advanceRevision(
+                actualChangeKind,
+                orderChanged
+                && upserted.Count == 0
+                && removedIds.Length == 0
+                    ? null
+                    : new ImportedChartLibraryDelta(
+                        upserted.ToArray(),
+                        removedIds));
         }
 
         if (changed)
@@ -1713,14 +1786,17 @@ internal sealed class ImportedChartLibrary : IDisposable
 
             lock (syncRoot)
             {
+                var chartIndices = charts
+                                  .Select((chart, index) => (chart.Id, index))
+                                  .ToDictionary(
+                                      item => item.Id,
+                                      item => item.index,
+                                      StringComparer.OrdinalIgnoreCase);
+                var updated = new List<ImportedChart>(completed.Count);
                 foreach (ExternalOsuIndexEntry entry in completed)
                 {
                     string id = $"external-osu\u001f{entry.SourcePath}";
-                    int index = charts.FindIndex(chart =>
-                        chart.Id.Equals(
-                            id,
-                            StringComparison.OrdinalIgnoreCase));
-                    if (index < 0)
+                    if (!chartIndices.TryGetValue(id, out int index))
                         continue;
 
                     ImportedChart current = charts[index];
@@ -1730,18 +1806,21 @@ internal sealed class ImportedChartLibrary : IDisposable
                         continue;
                     }
 
-                    charts[index] = current with
+                    ImportedChart replacement = current with
                     {
                         DifficultyRating = entry.DifficultyRating,
                         StarRating = entry.StarRating,
                     };
+                    charts[index] = replacement;
+                    updated.Add(replacement);
                     changed = true;
                 }
 
                 if (changed)
                 {
                     change = advanceRevision(
-                        ImportedChartLibraryChangeKind.DifficultyRatings);
+                        ImportedChartLibraryChangeKind.DifficultyRatings,
+                        new ImportedChartLibraryDelta(updated.ToArray(), []));
                 }
             }
         }
@@ -2033,14 +2112,20 @@ internal sealed class ImportedChartLibrary : IDisposable
     }
 
     private ImportedChartLibraryChange advanceRevision(
-        ImportedChartLibraryChangeKind kind)
+        ImportedChartLibraryChangeKind kind,
+        ImportedChartLibraryDelta delta = null)
     {
         Debug.Assert(Monitor.IsEntered(syncRoot));
         revision++;
         if ((kind & ImportedChartLibraryChangeKind.Structure) != 0)
             structureRevision++;
 
-        return new ImportedChartLibraryChange(revision, structureRevision, kind);
+        return new ImportedChartLibraryChange(
+            revision,
+            structureRevision,
+            kind,
+            charts.Count,
+            delta);
     }
 
     private void evictMaterialisedCharts(Func<string, bool> predicate)

@@ -4196,19 +4196,38 @@ public partial class SongSelectScreen : Screen
         navigableEntryIndices.Clear();
         for (int index = 0; index < navigableEntries.Count; index++)
             navigableEntryIndices[navigableEntries[index]] = index;
-        var virtualItems = new List<SongSelectVirtualItem>();
+        var virtualItems = new List<SongSelectVirtualItem>(visibleEntries.Count);
 
-        foreach (IGrouping<string, SongSelectEntry> group in visibleEntries.GroupBy(
-                     entry => entry.PackageId,
-                     StringComparer.OrdinalIgnoreCase))
+        // Filter results keep packages contiguous. Walk those ranges directly
+        // so a large library does not allocate a GroupBy lookup and one array
+        // per package on the update thread.
+        for (int groupStart = 0; groupStart < visibleEntries.Count;)
         {
-            SongSelectEntry first = group.First();
-            SongSelectEntry[] groupEntries = group.ToArray();
-            int songCount = groupEntries
-                           .Select(entry =>
-                               $"{entry.Beatmap.Artist}\u001f{entry.Beatmap.Title}")
-                           .Distinct(StringComparer.OrdinalIgnoreCase)
-                           .Count();
+            SongSelectEntry first = visibleEntries[groupStart];
+            int groupEnd = groupStart + 1;
+            while (groupEnd < visibleEntries.Count
+                   && string.Equals(
+                       visibleEntries[groupEnd].PackageId,
+                       first.PackageId,
+                       StringComparison.OrdinalIgnoreCase))
+            {
+                groupEnd++;
+            }
+
+            int chartCount = groupEnd - groupStart;
+            int songCount = 1;
+            if (chartCount > 1)
+            {
+                var songs = new HashSet<string>(
+                    StringComparer.OrdinalIgnoreCase);
+                for (int index = groupStart; index < groupEnd; index++)
+                {
+                    SongSelectEntry entry = visibleEntries[index];
+                    songs.Add(
+                        $"{entry.Beatmap.Artist}\u001f{entry.Beatmap.Title}");
+                }
+                songCount = songs.Count;
+            }
             float sectionSpacing = virtualItems.Count == 0 ? 0 : 12;
             bool collapsed = first.IsPackage
                              && collapsedPackages.Contains(first.PackageId)
@@ -4224,7 +4243,7 @@ public partial class SongSelectScreen : Screen
                         first.PackageName,
                         first.PackageId),
                     SongCount = songCount,
-                    ChartCount = groupEntries.Length,
+                    ChartCount = chartCount,
                     Collapsed = collapsed,
                     VisualHeight = collapsed
                         ? SongSelectPackageHeader.CollapsedHeight
@@ -4234,13 +4253,16 @@ public partial class SongSelectScreen : Screen
             }
 
             if (collapsed)
+            {
+                groupStart = groupEnd;
                 continue;
+            }
 
-            for (int entryIndex = 0;
-                 entryIndex < groupEntries.Length;
+            for (int entryIndex = groupStart;
+                 entryIndex < groupEnd;
                  entryIndex++)
             {
-                SongSelectEntry entry = groupEntries[entryIndex];
+                SongSelectEntry entry = visibleEntries[entryIndex];
                 virtualItems.Add(new SongSelectVirtualItem
                 {
                     Entry = entry,
@@ -4251,11 +4273,13 @@ public partial class SongSelectScreen : Screen
                         ? SongSelectSongRow.CompactHeight
                         : SongSelectSongRow.StandaloneHeight,
                     SectionSpacingBefore = !first.IsPackage
-                                           && entryIndex == 0
+                                           && entryIndex == groupStart
                         ? sectionSpacing
                         : 0,
                 });
             }
+
+            groupStart = groupEnd;
         }
 
         songList.SetItems(
@@ -5213,6 +5237,19 @@ public partial class SongSelectScreen : Screen
 
         bool structureChanged =
             (change.Kind & ImportedChartLibraryChangeKind.Structure) != 0;
+        bool selectNewest = structureChanged
+                            && !preserveSelectionForLibraryReload;
+        if (change.Delta != null
+            && synchroniseImportedChartDelta(
+                change,
+                structureChanged,
+                selectNewest))
+        {
+            if (preserveSelectionForLibraryReload && !libraryReloadInProgress)
+                preserveSelectionForLibraryReload = false;
+            return;
+        }
+
         if (!structureChanged
             && (change.Kind
                 & ImportedChartLibraryChangeKind.DifficultyRatings) != 0
@@ -5222,10 +5259,144 @@ public partial class SongSelectScreen : Screen
         }
 
         synchroniseImportedCharts(
-            selectNewest: structureChanged
-                          && !preserveSelectionForLibraryReload);
+            selectNewest: selectNewest);
         if (preserveSelectionForLibraryReload && !libraryReloadInProgress)
             preserveSelectionForLibraryReload = false;
+    }
+
+    private bool synchroniseImportedChartDelta(
+        ImportedChartLibraryChange change,
+        bool structureChanged,
+        bool selectNewest)
+    {
+        ImportedChartLibraryDelta delta = change.Delta;
+        if (delta == null || change.ChartCount < 0)
+            return false;
+
+        string selectedImportedId = selectedEntry?.ChartId;
+        foreach (string id in delta.RemovedChartIds)
+        {
+            if (!importedEntries.Remove(id, out SongSelectEntry removed))
+                continue;
+
+            importedChartModels.Remove(id);
+            entries.Remove(removed);
+            difficultyRatingsCache.Remove(removed);
+            materialisedImportedCharts.Remove(id);
+            if (string.Equals(
+                    playableBeatmapChartId,
+                    id,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                invalidatePlayableBeatmapRequest();
+            }
+        }
+
+        foreach (ImportedChart chart in delta.UpsertedCharts)
+        {
+            if (importedChartModels.TryGetValue(
+                    chart.Id,
+                    out ImportedChart previousModel)
+                && ReferenceEquals(previousModel, chart))
+            {
+                continue;
+            }
+
+            if (!structureChanged)
+            {
+                if (!importedEntries.TryGetValue(
+                        chart.Id,
+                        out SongSelectEntry ratingEntry))
+                {
+                    return false;
+                }
+
+                importedChartModels[chart.Id] = chart;
+                ratingEntry.DifficultyRating = chart.DifficultyRating;
+                ratingEntry.StarRating = chart.StarRating;
+                difficultyRatingsCache.Remove(ratingEntry);
+                continue;
+            }
+
+            materialisedImportedCharts.Remove(chart.Id);
+            if (string.Equals(
+                    playableBeatmapChartId,
+                    chart.Id,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                invalidatePlayableBeatmapRequest();
+            }
+
+            SongSelectEntry replacement = createImportedEntry(chart);
+            if (importedEntries.TryGetValue(
+                    chart.Id,
+                    out SongSelectEntry previousEntry))
+            {
+                int entryIndex = entries.IndexOf(previousEntry);
+                if (entryIndex < 0)
+                    return false;
+                entries[entryIndex] = replacement;
+                difficultyRatingsCache.Remove(previousEntry);
+            }
+            else
+            {
+                entries.Add(replacement);
+            }
+
+            importedEntries[chart.Id] = replacement;
+            importedChartModels[chart.Id] = chart;
+        }
+
+        // A missed or incomplete delta must never leave Song Select with a
+        // partial library. The caller immediately repairs it from a full
+        // snapshot when the final count does not match.
+        if (importedEntries.Count != change.ChartCount)
+            return false;
+
+        libraryRevision = change.Revision;
+        libraryStructureRevision = change.StructureRevision;
+
+        if (selectedImportedId != null
+            && importedEntries.TryGetValue(
+                selectedImportedId,
+                out SongSelectEntry preservedSelection))
+        {
+            selectedEntry = preservedSelection;
+        }
+
+        if (!structureChanged)
+        {
+            if (sortMode == SongSelectSortMode.Difficulty
+                || MinimumDifficultyFilter > 0)
+            {
+                applyFilters();
+            }
+            else
+            {
+                songList?.UpdateDifficulties();
+                rebuildDetails();
+            }
+            return true;
+        }
+
+        materialisedImportedCharts.IntersectWith(importedEntries.Keys);
+        basicFilterSnapshots = null;
+        if (songList == null)
+            return true;
+
+        if (selectNewest)
+        {
+            keyModeFilter = null;
+            searchQuery = string.Empty;
+            if (searchBox?.Current.Value.Length > 0)
+                searchBox.Current.Value = string.Empty;
+            updateFilters();
+        }
+
+        applyFilters();
+        if (selectNewest && importedEntries.Count > 0)
+            select(entries[^1]);
+        return true;
     }
 
     private bool synchroniseImportedDifficultyRatings()

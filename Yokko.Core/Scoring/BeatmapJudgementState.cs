@@ -327,12 +327,20 @@ public sealed class BeatmapJudgementState
     public void JudgeLanePress(
         int lane,
         double gameplayTimeMilliseconds,
-        List<JudgementEvent> events)
+        List<JudgementEvent> events) =>
+        JudgeLanePress(lane, gameplayTimeMilliseconds, events, null);
+
+    public void JudgeLanePress(
+        int lane,
+        double gameplayTimeMilliseconds,
+        List<JudgementEvent> events,
+        List<JudgementInputEvent>? inputEvents)
     {
         ArgumentNullException.ThrowIfNull(events);
         if ((uint)lane >= laneObjectIndices.Length)
             return;
 
+        int firstJudgement = events.Count;
         int[] laneIndices = laneObjectIndices[lane];
         lanePressedSinceMilliseconds[lane] ??=
             gameplayTimeMilliseconds;
@@ -351,6 +359,7 @@ public sealed class BeatmapJudgementState
                 lane,
                 gameplayTimeMilliseconds,
                 events);
+            appendPressInputEvents(events, firstJudgement, inputEvents);
             return;
         }
 
@@ -358,6 +367,7 @@ public sealed class BeatmapJudgementState
         {
             judgeMinePress(lane, gameplayTimeMilliseconds, events);
             judgeBmsPress(lane, gameplayTimeMilliseconds, events);
+            appendPressInputEvents(events, firstJudgement, inputEvents);
             return;
         }
 
@@ -475,6 +485,8 @@ public sealed class BeatmapJudgementState
             advanceHeadPosition(lane);
             break;
         }
+
+        appendPressInputEvents(events, firstJudgement, inputEvents);
     }
 
     public IReadOnlyList<JudgementEvent> CollectMineJudgements(
@@ -754,7 +766,14 @@ public sealed class BeatmapJudgementState
     public void JudgeLaneRelease(
         int lane,
         double gameplayTimeMilliseconds,
-        List<JudgementEvent> events)
+        List<JudgementEvent> events) =>
+        JudgeLaneRelease(lane, gameplayTimeMilliseconds, events, null);
+
+    public void JudgeLaneRelease(
+        int lane,
+        double gameplayTimeMilliseconds,
+        List<JudgementEvent> events,
+        List<JudgementInputEvent>? inputEvents)
     {
         ArgumentNullException.ThrowIfNull(events);
         if ((uint)lane >= laneObjectIndices.Length)
@@ -773,7 +792,11 @@ public sealed class BeatmapJudgementState
 
         if (Windows.Configuration.Mode == JudgementMode.BmsBeatoraja)
         {
-            resolveBmsRelease(lane, gameplayTimeMilliseconds, events);
+            resolveBmsRelease(
+                lane,
+                gameplayTimeMilliseconds,
+                events,
+                inputEvents);
             return;
         }
 
@@ -789,6 +812,19 @@ public sealed class BeatmapJudgementState
                 || state.TailResolved
                 || hitObject.EndTimeMilliseconds is not double endTime)
                 continue;
+
+            if (Windows.Configuration.Mode == JudgementMode.Etterna
+                && !noRelease)
+            {
+                inputEvents?.Add(new JudgementInputEvent(
+                    index,
+                    hitObject.Lane,
+                    endTime,
+                    gameplayTimeMilliseconds,
+                    gameplayTimeMilliseconds - endTime,
+                    JudgementRating.IgnoreHit,
+                    JudgementPhase.HoldTail));
+            }
 
             if (Windows.Configuration.Mode == JudgementMode.Etterna
                 && hitObject.HoldType == HoldNoteType.Roll)
@@ -818,11 +854,27 @@ public sealed class BeatmapJudgementState
 
             if (Windows.Configuration.Mode == JudgementMode.OsuStable)
             {
+                int judgementCountBeforeRelease = events.Count;
                 resolveOsuStableRelease(
                     index,
                     gameplayTimeMilliseconds,
                     endTime,
                     events);
+                if (!noRelease)
+                {
+                    JudgementRating inputRating =
+                        events.Count > judgementCountBeforeRelease
+                            ? events[^1].Rating
+                            : JudgementRating.None;
+                    inputEvents?.Add(new JudgementInputEvent(
+                        index,
+                        hitObject.Lane,
+                        endTime,
+                        gameplayTimeMilliseconds,
+                        gameplayTimeMilliseconds - endTime,
+                        inputRating,
+                        JudgementPhase.HoldTail));
+                }
                 continue;
             }
 
@@ -866,6 +918,19 @@ public sealed class BeatmapJudgementState
                     state.TailRating.IsHit()
                         ? JudgementRating.IgnoreHit
                         : JudgementRating.IgnoreMiss));
+            }
+
+            if (!noRelease)
+            {
+                inputEvents?.Add(new JudgementInputEvent(
+                    index,
+                    hitObject.Lane,
+                    endTime,
+                    gameplayTimeMilliseconds,
+                    rawError,
+                    rating,
+                    JudgementPhase.HoldTail,
+                    HoldReleaseWindowLenience));
             }
 
             state.Holding = false;
@@ -1006,7 +1071,8 @@ public sealed class BeatmapJudgementState
     private void resolveBmsRelease(
         int lane,
         double gameplayTimeMilliseconds,
-        List<JudgementEvent> events)
+        List<JudgementEvent> events,
+        List<JudgementInputEvent>? inputEvents)
     {
         if (noRelease)
             return;
@@ -1040,6 +1106,14 @@ public sealed class BeatmapJudgementState
             double combinedError = Math.Abs(headError) >= Math.Abs(tailError)
                 ? headError
                 : tailError;
+            inputEvents?.Add(new JudgementInputEvent(
+                index,
+                hitObject.Lane,
+                endTime,
+                gameplayTimeMilliseconds,
+                tailError,
+                tailRating,
+                JudgementPhase.HoldTail));
             events.Add(resolveBmsHold(
                 index,
                 endTime,
@@ -1070,7 +1144,7 @@ public sealed class BeatmapJudgementState
                 events.Add(resolveBmsHold(
                     index,
                     endTime,
-                    endTime,
+                    null,
                     state.BmsHeadErrorMilliseconds ?? 0,
                     state.HeadRating));
             }
@@ -1370,7 +1444,7 @@ public sealed class BeatmapJudgementState
                     events.Add(resolveOsuStableHold(
                         index,
                         endTime,
-                        endTime,
+                        null,
                         0,
                         stableHoldRating(index, 0)));
                     state.Holding = false;
@@ -1380,7 +1454,7 @@ public sealed class BeatmapJudgementState
                 events.Add(resolveBasic(
                     index,
                     endTime,
-                    endTime,
+                    null,
                     0,
                     JudgementRating.Perfect,
                     JudgementPhase.HoldTail));
@@ -2034,6 +2108,70 @@ public sealed class BeatmapJudgementState
             hitErrorMilliseconds,
             rating,
             phase);
+
+    private void appendPressInputEvents(
+        IReadOnlyList<JudgementEvent> judgements,
+        int firstJudgement,
+        List<JudgementInputEvent>? inputEvents)
+    {
+        if (inputEvents == null)
+            return;
+
+        for (int i = firstJudgement; i < judgements.Count; i++)
+        {
+            JudgementEvent judgement = judgements[i];
+            if (judgement.HitTimeMilliseconds is not double hitTime)
+                continue;
+
+            bool deferredHoldHead =
+                judgement.Phase == JudgementPhase.HoldHead
+                && judgement.Rating == JudgementRating.IgnoreHit
+                && Windows.Configuration.Mode is JudgementMode.OsuStable
+                    or JudgementMode.BmsBeatoraja;
+            if (!judgement.Rating.IsScorable() && !deferredHoldHead)
+                continue;
+
+            JudgementPhase inputPhase = judgement.Phase;
+            if (inputPhase == JudgementPhase.Hold)
+            {
+                YokkoHitObject hitObject =
+                    beatmap.HitObjects[judgement.HitObjectIndex];
+                if (judgement.ObjectTimeMilliseconds
+                    == hitObject.StartTimeMilliseconds)
+                {
+                    inputPhase = JudgementPhase.HoldHead;
+                }
+                else if (hitObject.EndTimeMilliseconds is double endTime
+                         && judgement.ObjectTimeMilliseconds == endTime)
+                {
+                    inputPhase = JudgementPhase.HoldTail;
+                }
+                else
+                {
+                    continue;
+                }
+            }
+
+            if (inputPhase is not JudgementPhase.Tap
+                and not JudgementPhase.HoldHead
+                and not JudgementPhase.HoldTail)
+            {
+                continue;
+            }
+
+            JudgementRating inputRating = deferredHoldHead
+                ? states[judgement.HitObjectIndex].HeadRating
+                : judgement.Rating;
+            inputEvents.Add(new JudgementInputEvent(
+                judgement.HitObjectIndex,
+                judgement.Lane,
+                judgement.ObjectTimeMilliseconds,
+                hitTime,
+                hitTime - judgement.ObjectTimeMilliseconds,
+                inputRating,
+                inputPhase));
+        }
+    }
 
     private static bool isStandardJudgementObject(
         YokkoHitObject hitObject)

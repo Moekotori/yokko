@@ -201,23 +201,25 @@ namespace Yokko.Game.Tests
                     ];
                     for (int i = 0; i < presses.Length; i++)
                     {
-                        timingBar.Show(new JudgementEvent(
+                        timingBar.Show(new JudgementInputEvent(
                             i,
                             i % 4,
                             1000 + i * 100,
                             1000 + i * 100 + presses[i].Error,
                             presses[i].Error,
-                            presses[i].Rating));
+                            presses[i].Rating,
+                            JudgementPhase.Tap));
                     }
 
-                    timingBar.Show(new JudgementEvent(
+                    timingBar.Show(new JudgementInputEvent(
                         presses.Length,
                         2,
                         1800,
                         1825,
                         25,
                         JudgementRating.Perfect,
-                        JudgementPhase.HoldTail));
+                        JudgementPhase.HoldTail,
+                        BeatmapJudgementState.HoldReleaseWindowLenience));
                 }, 300);
                 schedulePreviewScreenshot(700);
                 return;

@@ -176,21 +176,23 @@ public partial class GameplayTimingBar : CompositeDrawable
         };
     }
 
-    public void Show(JudgementEvent judgement)
+    public void Show(JudgementInputEvent input)
     {
-        if (judgement.HitTimeMilliseconds is null
-            || judgement.Phase is not JudgementPhase.Tap
+        if (input.Phase is not JudgementPhase.Tap
             and not JudgementPhase.HoldHead
             and not JudgementPhase.HoldTail
-            || !judgement.Rating.IsScorable())
+            || !double.IsFinite(input.HitErrorMilliseconds)
+            || !double.IsFinite(input.TimingWindowScale)
+            || input.TimingWindowScale <= 0)
         {
             return;
         }
 
-        bool release = judgement.Phase == JudgementPhase.HoldTail;
-        double hitError = judgement.HitErrorMilliseconds;
+        bool release = input.Phase == JudgementPhase.HoldTail;
+        double releaseWindowScale = release ? input.TimingWindowScale : 1;
+        double hitError = input.HitErrorMilliseconds;
         double mappedError = release
-            ? hitError / BeatmapJudgementState.HoldReleaseWindowLenience
+            ? hitError / releaseWindowScale
             : hitError;
         float markerPosition = positionFor(mappedError);
 
@@ -207,7 +209,7 @@ public partial class GameplayTimingBar : CompositeDrawable
             markerLayer.Add(marker);
             marker.Show(
                 release,
-                RatingColours.For(judgement.Rating),
+                RatingColours.For(input.Rating),
                 markerLifetimeMilliseconds);
         });
 
@@ -219,8 +221,7 @@ public partial class GameplayTimingBar : CompositeDrawable
                 hitError);
             moveTrendMarker(
                 releaseTrendMarker,
-                releaseTrendMilliseconds
-                / BeatmapJudgementState.HoldReleaseWindowLenience);
+                releaseTrendMilliseconds / releaseWindowScale);
         }
         else
         {
@@ -243,7 +244,7 @@ public partial class GameplayTimingBar : CompositeDrawable
                 ? "gameplay.timing.release"
                 : "gameplay.timing.press"),
             hitError);
-        latestText.Colour = RatingColours.For(judgement.Rating);
+        latestText.Colour = RatingColours.For(input.Rating);
         latestText.FinishTransforms();
         latestText.Alpha = 0;
         latestText.Scale = new Vector2(0.96f);
@@ -258,7 +259,7 @@ public partial class GameplayTimingBar : CompositeDrawable
         RecordedMarkerCount++;
         LatestHitErrorMilliseconds = hitError;
         LatestMarkerPosition = markerPosition;
-        LatestPhase = judgement.Phase;
+        LatestPhase = input.Phase;
     }
 
     public void Clear()

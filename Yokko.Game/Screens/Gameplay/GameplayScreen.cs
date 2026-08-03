@@ -80,6 +80,7 @@ public partial class GameplayScreen : Screen
     private readonly List<GameplayReplayInput> recordedReplayInputs = new();
     private readonly List<JudgementEvent> expiredJudgements = new();
     private readonly List<JudgementEvent> inputJudgements = new(8);
+    private readonly List<JudgementInputEvent> inputTimingEvents = new(8);
     private readonly List<double> resultHitErrors = new(1024);
     [Resolved]
     private YokkoAudioSettings audioSettings { get; set; }
@@ -1980,11 +1981,17 @@ public partial class GameplayScreen : Screen
         }
 
         inputJudgements.Clear();
-        judgementState.JudgeLanePress(lane, inputTime, inputJudgements);
+        inputTimingEvents.Clear();
+        judgementState.JudgeLanePress(
+            lane,
+            inputTime,
+            inputJudgements,
+            inputTimingEvents);
         foreach (JudgementEvent judgement in inputJudgements)
         {
             applyJudgement(judgement);
         }
+        showInputTimings();
         if (!gameplayFailed)
             syncSlidingSamplesForLane(lane);
         if (diagnostics.IsEnabled)
@@ -2377,11 +2384,17 @@ public partial class GameplayScreen : Screen
         }
 
         inputJudgements.Clear();
-        judgementState.JudgeLaneRelease(lane, inputTime, inputJudgements);
+        inputTimingEvents.Clear();
+        judgementState.JudgeLaneRelease(
+            lane,
+            inputTime,
+            inputJudgements,
+            inputTimingEvents);
         foreach (JudgementEvent judgement in inputJudgements)
         {
             applyJudgement(judgement);
         }
+        showInputTimings();
         if (!gameplayFailed)
             syncSlidingSamplesForLane(lane);
         if (diagnostics.IsEnabled)
@@ -2510,8 +2523,6 @@ public partial class GameplayScreen : Screen
         {
             resultHitErrors.Add(realHitErrorMilliseconds);
         }
-        if (gameplaySettings.ShowTimingBar.Value && !isMine)
-            timingBar.Show(judgement);
         adaptiveSpeedState?.Apply(judgement);
         ManiaHealthUpdate healthUpdate = healthState.Apply(
             judgement,
@@ -2533,6 +2544,15 @@ public partial class GameplayScreen : Screen
 
         if (healthUpdate.Failed)
             failGameplay();
+    }
+
+    private void showInputTimings()
+    {
+        if (!gameplaySettings.ShowTimingBar.Value)
+            return;
+
+        foreach (JudgementInputEvent input in inputTimingEvents)
+            timingBar.Show(input);
     }
 
     private void failGameplay()

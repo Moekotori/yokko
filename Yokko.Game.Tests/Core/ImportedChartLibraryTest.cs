@@ -56,6 +56,14 @@ public sealed class ImportedChartLibraryTest
             ImportedChart firstIndexedChart = library.GetCharts().Single();
             long firstRevision = library.Revision;
             int refreshCountAfterDifficulty = refreshCount;
+            string indexPath = Directory.EnumerateFiles(
+                yokkoRoot,
+                "library-index.json",
+                SearchOption.AllDirectories).Single();
+            File.SetLastWriteTimeUtc(
+                indexPath,
+                new DateTime(2020, 1, 2, 3, 4, 5, DateTimeKind.Utc));
+            DateTime indexWriteTime = File.GetLastWriteTimeUtc(indexPath);
             ExternalOsuLibraryResult unchanged =
                 await library.RefreshExternalOsuAsync();
             ImportedChart indexedChart = library.GetCharts().Single();
@@ -74,6 +82,10 @@ public sealed class ImportedChartLibraryTest
                     "An unchanged metadata scan must not publish a new library snapshot.");
                 Assert.That(refreshCount,
                     Is.EqualTo(refreshCountAfterDifficulty));
+                Assert.That(
+                    File.GetLastWriteTimeUtc(indexPath),
+                    Is.EqualTo(indexWriteTime),
+                    "An unchanged metadata scan must not rewrite the full external index.");
                 Assert.That(library.GetCharts().Single(),
                     Is.SameAs(firstIndexedChart),
                     "Unchanged charts must retain object identity for song-select caches.");
@@ -249,6 +261,16 @@ public sealed class ImportedChartLibraryTest
                 Assert.That(
                     publishedChanges[0].Kind,
                     Is.EqualTo(ImportedChartLibraryChangeKind.Structure));
+                Assert.That(publishedChanges[0].ChartCount,
+                    Is.EqualTo(chartCount));
+                Assert.That(publishedChanges[0].Delta, Is.Not.Null);
+                Assert.That(
+                    publishedChanges[0].Delta.UpsertedCharts,
+                    Has.Count.EqualTo(chartCount),
+                    "The initial structure publication should describe the exact rows Song Select must add.");
+                Assert.That(
+                    publishedChanges[0].Delta.RemovedChartIds,
+                    Is.Empty);
                 Assert.That(
                     publishedChanges.Skip(1).All(change =>
                         change.Kind == ImportedChartLibraryChangeKind.DifficultyRatings),
@@ -260,6 +282,13 @@ public sealed class ImportedChartLibraryTest
                         == publishedChanges[0].StructureRevision),
                     Is.True,
                     "Difficulty completion must not invalidate a prepared song list.");
+                Assert.That(
+                    publishedChanges.Skip(1).All(change =>
+                        change.Delta != null
+                        && change.Delta.RemovedChartIds.Count == 0
+                        && change.Delta.UpsertedCharts.Count is > 0 and <= 128),
+                    Is.True,
+                    "Each ratings publication should carry only its completed chart batch.");
                 Assert.That(
                     publishedStarCounts[0],
                     Is.InRange(1, chartCount - 1),
@@ -625,10 +654,21 @@ public sealed class ImportedChartLibraryTest
             var storage = new NativeStorage(yokkoRoot);
             library.Initialise(storage);
             library.ConfigureExternalOsu(storage, settings);
+            var structureChanges = new List<ImportedChartLibraryChange>();
+            library.LibraryChanged += change =>
+            {
+                if ((change.Kind
+                     & ImportedChartLibraryChangeKind.Structure) != 0)
+                {
+                    structureChanges.Add(change);
+                }
+            };
 
             Assert.That(
                 (await library.RefreshExternalOsuAsync()).ChartCount,
                 Is.EqualTo(1));
+            await library.ExternalDifficultyTask;
+            structureChanges.Clear();
 
             writeOsuChart(set, "Second", 3);
             writeOsuChart(set, "Ignored", 2);
@@ -636,6 +676,18 @@ public sealed class ImportedChartLibraryTest
                 (await library.RefreshExternalOsuAsync()).ChartCount,
                 Is.EqualTo(2));
             await library.ExternalDifficultyTask;
+            ImportedChartLibraryChange added = structureChanges.Last();
+            Assert.Multiple(() =>
+            {
+                Assert.That(added.ChartCount, Is.EqualTo(2));
+                Assert.That(
+                    added.Delta.UpsertedCharts
+                         .Select(chart => chart.Result.Beatmap.Title),
+                    Is.EquivalentTo(new[] { "First", "Second" }),
+                    "Adding a difficulty also updates the existing row's package presentation.");
+                Assert.That(added.Delta.RemovedChartIds, Is.Empty);
+            });
+            structureChanges.Clear();
 
             string firstText = File.ReadAllText(firstPath)
                                    .Replace("Mode: 3", "Mode: 0");
@@ -647,12 +699,22 @@ public sealed class ImportedChartLibraryTest
             ExternalOsuLibraryResult refreshed =
                 await library.RefreshExternalOsuAsync();
             await library.ExternalDifficultyTask;
+            ImportedChartLibraryChange removed = structureChanges.Last();
             Assert.Multiple(() =>
             {
                 Assert.That(refreshed.ChartCount, Is.EqualTo(1));
                 Assert.That(
                     library.GetCharts().Single().Result.Beatmap.Title,
                     Is.EqualTo("Second"));
+                Assert.That(removed.ChartCount, Is.EqualTo(1));
+                Assert.That(
+                    removed.Delta.RemovedChartIds,
+                    Has.One.EqualTo($"external-osu\u001f{firstPath}"));
+                Assert.That(
+                    removed.Delta.UpsertedCharts
+                           .Select(chart => chart.Result.Beatmap.Title),
+                    Is.EqualTo(new[] { "Second" }),
+                    "Removing a difficulty should update the surviving row's package presentation.");
             });
         }
         finally
@@ -810,6 +872,98 @@ public sealed class ImportedChartLibraryTest
                 Assert.That(unchanged.ContentReadCount, Is.Zero,
                     "An unchanged large library must use only its metadata index.");
             });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task ExternalOsuManiaDeltaScalesToConfiguredLibrary()
+    {
+        if (!int.TryParse(
+                Environment.GetEnvironmentVariable(
+                    "YOKKO_TEST_EXTERNAL_OSU_MANIA_COUNT"),
+                out int chartCount)
+            || chartCount <= 0)
+        {
+            Assert.Ignore(
+                "Set YOKKO_TEST_EXTERNAL_OSU_MANIA_COUNT to run the large external mania-library benchmark.");
+        }
+
+        string root = createTestRoot("external-osu-mania-large-library");
+        string yokkoRoot = Path.Combine(root, "Yokko");
+        string songs = Path.Combine(root, "osu!", "Songs");
+        try
+        {
+            for (int index = 0; index < chartCount; index++)
+            {
+                string set = Path.Combine(songs, $"{index:D5} Scale Set");
+                Directory.CreateDirectory(set);
+                writeOsuChart(set, $"Chart {index:D5}", 3);
+            }
+
+            var settings = new YokkoExternalOsuSettings();
+            settings.SongsPath.Value = songs;
+            using var library = new ImportedChartLibrary();
+            var storage = new NativeStorage(yokkoRoot);
+            library.Initialise(storage);
+            library.ConfigureExternalOsu(storage, settings);
+            ImportedChartLibraryChange structureChange = null;
+            library.LibraryChanged += change =>
+            {
+                if ((change.Kind
+                     & ImportedChartLibraryChangeKind.Structure) == 0)
+                    return;
+
+                structureChange = change;
+                // This benchmark covers scan, summary publication and warm
+                // validation. Thousands of native difficulty calculations are
+                // a separate workload and would hide the indexing result.
+                library.SetExternalIndexingPaused(true);
+            };
+
+            var cold = Stopwatch.StartNew();
+            ExternalOsuLibraryResult first =
+                await library.RefreshExternalOsuAsync();
+            cold.Stop();
+            Task firstDifficultyTask = library.ExternalDifficultyTask;
+            long firstRevision = library.Revision;
+            var warm = Stopwatch.StartNew();
+            ExternalOsuLibraryResult unchanged =
+                await library.RefreshExternalOsuAsync();
+            warm.Stop();
+            TestContext.Progress.WriteLine(
+                $"External osu!mania library {chartCount}: "
+                + $"cold={cold.Elapsed.TotalMilliseconds:0} ms, "
+                + $"warm={warm.Elapsed.TotalMilliseconds:0} ms.");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.ChartCount, Is.EqualTo(chartCount));
+                Assert.That(first.ContentReadCount, Is.EqualTo(chartCount));
+                Assert.That(unchanged.ChartCount, Is.EqualTo(chartCount));
+                Assert.That(unchanged.ContentReadCount, Is.Zero);
+                Assert.That(library.Revision, Is.EqualTo(firstRevision));
+                Assert.That(structureChange, Is.Not.Null);
+                Assert.That(structureChange.ChartCount, Is.EqualTo(chartCount));
+                Assert.That(
+                    structureChange.Delta.UpsertedCharts,
+                    Has.Count.EqualTo(chartCount));
+                Assert.That(
+                    structureChange.Delta.UpsertedCharts
+                                   .Select(chart => chart.Result.Beatmap.HitObjects.Count),
+                    Is.All.Zero,
+                    "Large external libraries must publish lightweight summaries only.");
+                Assert.That(structureChange.Delta.RemovedChartIds, Is.Empty);
+                Assert.That(warm.Elapsed, Is.LessThan(cold.Elapsed));
+            });
+
+            Task secondDifficultyTask = library.ExternalDifficultyTask;
+            library.Dispose();
+            await Task.WhenAll(firstDifficultyTask, secondDifficultyTask);
         }
         finally
         {

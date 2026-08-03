@@ -606,13 +606,14 @@ namespace Yokko.Game.Tests.Visual
                 readout.DisplayedRating == "PERFECT"
                 && readout.DisplayedError == "+12.5 ms");
             AddStep("show early timing marker", () =>
-                timingBar.Show(new JudgementEvent(
+                timingBar.Show(new JudgementInputEvent(
                     0,
                     0,
                     1000,
                     987.5,
                     -12.5,
-                    JudgementRating.Perfect)));
+                    JudgementRating.Perfect,
+                    JudgementPhase.Tap)));
             AddAssert("early timing is left of centre", () =>
                 timingBar.RecordedMarkerCount == 1
                 && timingBar.DisplayedDirectionKey
@@ -622,13 +623,14 @@ namespace Yokko.Game.Tests.Visual
                 && timingBar.LatestHitErrorMilliseconds == -12.5
                 && timingBar.PressTrendMilliseconds == -12.5);
             AddStep("show late timing marker", () =>
-                timingBar.Show(new JudgementEvent(
+                timingBar.Show(new JudgementInputEvent(
                     1,
                     1,
                     1200,
                     1225,
                     25,
-                    JudgementRating.Great)));
+                    JudgementRating.Great,
+                    JudgementPhase.Tap)));
             AddAssert("late timing is right of centre", () =>
                 timingBar.RecordedMarkerCount == 2
                 && timingBar.DisplayedDirectionKey
@@ -638,13 +640,14 @@ namespace Yokko.Game.Tests.Visual
                 && timingBar.LatestHitErrorMilliseconds == 25
                 && timingBar.PressTrendMilliseconds == -6.875);
             AddStep("show manually pressed miss", () =>
-                timingBar.Show(new JudgementEvent(
+                timingBar.Show(new JudgementInputEvent(
                     2,
                     2,
                     1400,
                     1550,
                     150,
-                    JudgementRating.Miss)));
+                    JudgementRating.Miss,
+                    JudgementPhase.Tap)));
             AddAssert("manual miss uses the full miss axis", () =>
                 timingBar.RecordedMarkerCount == 3
                 && timingBar.LatestMarkerPosition
@@ -652,42 +655,70 @@ namespace Yokko.Game.Tests.Visual
                 && timingBar.LatestMarkerPosition
                 < timingBar.MaximumMarkerPosition);
             AddStep("show late hold release", () =>
-                timingBar.Show(new JudgementEvent(
+                timingBar.Show(new JudgementInputEvent(
                     3,
                     3,
                     1600,
                     1660,
                     60,
                     JudgementRating.Great,
-                    JudgementPhase.HoldTail)));
+                    JudgementPhase.HoldTail,
+                    BeatmapJudgementState.HoldReleaseWindowLenience)));
             AddAssert("hold release has an independent trend", () =>
                 timingBar.RecordedMarkerCount == 4
                 && timingBar.LatestPhase == JudgementPhase.HoldTail
                 && timingBar.ReleaseTrendMilliseconds == 60
                 && timingBar.LatestMarkerPosition
                 > timingBar.CentreMarkerPosition);
-            AddStep("ignore automatic miss without input time", () =>
-                timingBar.Show(new JudgementEvent(
+            AddStep("show stable and BMS LN release input", () =>
+                timingBar.Show(new JudgementInputEvent(
                     4,
                     0,
                     1800,
-                    null,
-                    190,
-                    JudgementRating.Miss)));
-            AddAssert("automatic miss adds no timing marker", () =>
-                timingBar.RecordedMarkerCount == 4);
+                    1782,
+                    -18,
+                    JudgementRating.Great,
+                    JudgementPhase.HoldTail)));
+            AddAssert("stable and BMS LN release is recorded independently", () =>
+                timingBar.RecordedMarkerCount == 5
+                && timingBar.LatestPhase == JudgementPhase.HoldTail
+                && Math.Abs(
+                    timingBar.ReleaseTrendMilliseconds!.Value - 48.3) < 0.001
+                && Math.Abs(
+                    timingBar.PressTrendMilliseconds!.Value - 16.65625) < 0.001
+                && timingBar.LatestMarkerPosition
+                < timingBar.CentreMarkerPosition);
+            AddStep("show stable and BMS LN head input", () =>
+                timingBar.Show(new JudgementInputEvent(
+                    5,
+                    1,
+                    2000,
+                    2010,
+                    10,
+                    JudgementRating.Perfect,
+                    JudgementPhase.HoldHead)));
+            AddAssert("stable and BMS LN head is recorded independently", () =>
+                timingBar.RecordedMarkerCount == 6
+                && timingBar.LatestPhase == JudgementPhase.HoldHead
+                && Math.Abs(
+                    timingBar.PressTrendMilliseconds!.Value - 15.6578125) < 0.001
+                && Math.Abs(
+                    timingBar.ReleaseTrendMilliseconds!.Value - 48.3) < 0.001
+                && timingBar.LatestMarkerPosition
+                > timingBar.CentreMarkerPosition);
             AddStep("fill timing marker history", () =>
             {
                 for (int i = 0; i < 60; i++)
                 {
                     double error = i % 2 == 0 ? -30 : 30;
-                    timingBar.Show(new JudgementEvent(
-                        5 + i,
+                    timingBar.Show(new JudgementInputEvent(
+                        7 + i,
                         i % 4,
-                        2000 + i,
-                        2000 + i + error,
+                        2400 + i,
+                        2400 + i + error,
                         error,
-                        JudgementRating.Great));
+                        JudgementRating.Great,
+                        JudgementPhase.Tap));
                 }
             });
             AddUntilStep("visible marker history stays capped", () =>

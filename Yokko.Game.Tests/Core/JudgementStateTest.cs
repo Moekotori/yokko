@@ -92,6 +92,185 @@ namespace Yokko.Game.Tests.Core
             Assert.That(events, Is.EqualTo(new[] { marker }));
         }
 
+        [TestCase(JudgementMode.Yokko, 1.5)]
+        [TestCase(JudgementMode.Etterna, 1)]
+        [TestCase(JudgementMode.Quaver, 1.5)]
+        [TestCase(JudgementMode.OsuStable, 1)]
+        [TestCase(JudgementMode.BmsBeatoraja, 1)]
+        public void EveryJudgementModeReportsIndependentHoldInputTiming(
+            JudgementMode mode,
+            double expectedTailWindowScale)
+        {
+            YokkoBeatmap beatmap = createHoldBeatmap();
+            JudgementConfiguration configuration = mode switch
+            {
+                JudgementMode.Yokko => JudgementConfiguration.YokkoDefault,
+                JudgementMode.Etterna => JudgementConfiguration.EtternaDefault,
+                JudgementMode.Quaver => JudgementConfiguration.QuaverDefault,
+                JudgementMode.OsuStable =>
+                    JudgementConfiguration.OsuStableDefault,
+                JudgementMode.BmsBeatoraja =>
+                    JudgementConfiguration.BmsBeatorajaDefault,
+                _ => throw new ArgumentOutOfRangeException(nameof(mode)),
+            };
+            var state = new BeatmapJudgementState(
+                beatmap,
+                new JudgementWindows(
+                    beatmap.OverallDifficulty,
+                    configuration: configuration));
+            var judgements = new List<JudgementEvent>();
+            var inputs = new List<JudgementInputEvent>();
+
+            state.JudgeLanePress(1, 1010, judgements, inputs);
+            state.JudgeLaneRelease(1, 1520, judgements, inputs);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    inputs.Select(static input => input.Phase),
+                    Is.EqualTo(new[]
+                    {
+                        JudgementPhase.HoldHead,
+                        JudgementPhase.HoldTail,
+                    }));
+                Assert.That(inputs[0].ObjectTimeMilliseconds, Is.EqualTo(1000));
+                Assert.That(inputs[0].HitTimeMilliseconds, Is.EqualTo(1010));
+                Assert.That(inputs[0].HitErrorMilliseconds, Is.EqualTo(10));
+                Assert.That(inputs[0].Rating, Is.Not.EqualTo(
+                    JudgementRating.IgnoreHit));
+                Assert.That(inputs[1].ObjectTimeMilliseconds, Is.EqualTo(1500));
+                Assert.That(inputs[1].HitTimeMilliseconds, Is.EqualTo(1520));
+                Assert.That(inputs[1].HitErrorMilliseconds, Is.EqualTo(20));
+                Assert.That(
+                    inputs[1].TimingWindowScale,
+                    Is.EqualTo(expectedTailWindowScale));
+            });
+        }
+
+        [Test]
+        public void StableImmediateHoldMissIsStillAHeadInput()
+        {
+            BeatmapJudgementState state = createOsuStableState(
+                createHoldBeatmap());
+            var judgements = new List<JudgementEvent>();
+            var inputs = new List<JudgementInputEvent>();
+
+            state.JudgeLanePress(1, 1120, judgements, inputs);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(inputs, Has.Count.EqualTo(1));
+                Assert.That(inputs[0].Phase, Is.EqualTo(
+                    JudgementPhase.HoldHead));
+                Assert.That(inputs[0].HitErrorMilliseconds, Is.EqualTo(120));
+                Assert.That(inputs[0].Rating, Is.EqualTo(
+                    JudgementRating.Miss));
+            });
+        }
+
+        [Test]
+        public void BmsTailInputKeepsItsOwnErrorAndRating()
+        {
+            BeatmapJudgementState state = createBmsState(
+                createBmsHoldBeatmap(BmsJudgementMetadata.FromRank(3)));
+            var judgements = new List<JudgementEvent>();
+            var inputs = new List<JudgementInputEvent>();
+
+            state.JudgeLanePress(0, 1060, judgements, inputs);
+            state.JudgeLaneRelease(0, 1500, judgements, inputs);
+
+            JudgementInputEvent tail = inputs.Single(input =>
+                input.Phase == JudgementPhase.HoldTail);
+            JudgementEvent combined = judgements.Single(judgement =>
+                judgement.Phase == JudgementPhase.Hold);
+            Assert.Multiple(() =>
+            {
+                Assert.That(tail.HitErrorMilliseconds, Is.Zero);
+                Assert.That(tail.Rating, Is.EqualTo(JudgementRating.Perfect));
+                Assert.That(combined.HitErrorMilliseconds, Is.EqualTo(60));
+                Assert.That(combined.Rating, Is.EqualTo(JudgementRating.Great));
+            });
+        }
+
+        [Test]
+        public void EtternaEarlyReleaseReportsThePhysicalTailInput()
+        {
+            BeatmapJudgementState state = createEtternaState(
+                createHoldBeatmap());
+            var judgements = new List<JudgementEvent>();
+            var inputs = new List<JudgementInputEvent>();
+
+            state.JudgeLanePress(1, 1000, judgements, inputs);
+            state.JudgeLaneRelease(1, 1400, judgements, inputs);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(judgements, Has.Count.EqualTo(1));
+                Assert.That(inputs, Has.Count.EqualTo(2));
+                Assert.That(inputs[1].Phase, Is.EqualTo(
+                    JudgementPhase.HoldTail));
+                Assert.That(inputs[1].HitTimeMilliseconds, Is.EqualTo(1400));
+                Assert.That(inputs[1].HitErrorMilliseconds, Is.EqualTo(-100));
+                Assert.That(inputs[1].Rating, Is.EqualTo(
+                    JudgementRating.IgnoreHit));
+            });
+        }
+
+        [TestCase(JudgementMode.Yokko)]
+        [TestCase(JudgementMode.Quaver)]
+        [TestCase(JudgementMode.OsuStable)]
+        public void UnscoredEarlyReleaseStillReportsThePhysicalTailInput(
+            JudgementMode mode)
+        {
+            JudgementConfiguration configuration = mode switch
+            {
+                JudgementMode.Yokko => JudgementConfiguration.YokkoDefault,
+                JudgementMode.Quaver => JudgementConfiguration.QuaverDefault,
+                JudgementMode.OsuStable =>
+                    JudgementConfiguration.OsuStableDefault,
+                _ => throw new ArgumentOutOfRangeException(nameof(mode)),
+            };
+            YokkoBeatmap beatmap = createHoldBeatmap();
+            var state = new BeatmapJudgementState(
+                beatmap,
+                new JudgementWindows(
+                    beatmap.OverallDifficulty,
+                    configuration: configuration));
+            var judgements = new List<JudgementEvent>();
+            var inputs = new List<JudgementInputEvent>();
+
+            state.JudgeLanePress(1, 1000, judgements, inputs);
+            state.JudgeLaneRelease(1, 1200, judgements, inputs);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(inputs, Has.Count.EqualTo(2));
+                Assert.That(inputs[1].Phase, Is.EqualTo(
+                    JudgementPhase.HoldTail));
+                Assert.That(inputs[1].HitTimeMilliseconds, Is.EqualTo(1200));
+                Assert.That(inputs[1].HitErrorMilliseconds, Is.EqualTo(-300));
+                Assert.That(inputs[1].Rating, Is.EqualTo(
+                    JudgementRating.None));
+            });
+        }
+
+        [Test]
+        public void NoReleaseDoesNotReportPhysicalTailTiming()
+        {
+            var state = new BeatmapJudgementState(
+                createHoldBeatmap(),
+                noRelease: true);
+            var judgements = new List<JudgementEvent>();
+            var inputs = new List<JudgementInputEvent>();
+
+            state.JudgeLanePress(1, 1000, judgements, inputs);
+            state.JudgeLaneRelease(1, 1500, judgements, inputs);
+
+            Assert.That(
+                inputs.Select(static input => input.Phase),
+                Is.EqualTo(new[] { JudgementPhase.HoldHead }));
+        }
+
         [Test]
         public void EmptyInputEdgesDoNotAllocateAfterWarmup()
         {
@@ -604,7 +783,11 @@ namespace Yokko.Game.Tests.Core
             Assert.That(state.CollectExpiredMisses(1500), Is.Empty);
             JudgementEvent tail =
                 state.CollectExpiredMisses(1500.001).Single();
-            Assert.That(tail.Rating, Is.EqualTo(JudgementRating.Great));
+            Assert.Multiple(() =>
+            {
+                Assert.That(tail.Rating, Is.EqualTo(JudgementRating.Great));
+                Assert.That(tail.HitTimeMilliseconds, Is.Null);
+            });
         }
 
         [TestCase(4, 22.5, 45, 90, 135)]
@@ -1728,6 +1911,7 @@ namespace Yokko.Game.Tests.Core
                         JudgementPhase.Hold,
                     }));
                 Assert.That(events[0].Rating, Is.EqualTo(JudgementRating.Perfect));
+                Assert.That(events[0].HitTimeMilliseconds, Is.Null);
                 Assert.That(state.Counts.Perfect, Is.EqualTo(2));
                 Assert.That(state.IsComplete, Is.True);
                 Assert.That(state.Score, Is.EqualTo(1_000_000));
