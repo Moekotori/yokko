@@ -77,8 +77,15 @@ directly when a shared component does not fit.
 
 Migrate components when a page is already being changed or when the component
 is reused by multiple pages. Preserve public behaviour and visual state, then
-add the relevant component state to the UI Lab. The initial editor migration
-uses `YokkoButton` for toolbar actions and `YokkoCard` for the inspector panel.
+add the relevant component state to the UI Lab.
+
+The editor anchors directly on the shared `1920x1080` layout space (its old
+`1122x620` internal canvas and screen-local responsive scale were removed) and
+follows the Song Select navy/ivory language through `EditorTheme`, which
+forwards the shared Song Select and brand colour tokens: a navy header, an
+ivory toolbar built from `YokkoButton` actions, a deep navy signal strip and
+note grid with a 96px time-ruler gutter, an ivory transport row, an ivory
+inspector card, and a deep navy status bar.
 
 Shared state machines do not all belong in the global Presentation namespace.
 `GameplayModSettingsControls` is deliberately scoped to Song Select: it shares

@@ -11,7 +11,7 @@ using osuTK.Graphics;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Editing;
 using Yokko.Core.Timing;
-using Yokko.Game.Presentation;
+using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Editor;
 
@@ -36,10 +36,12 @@ public partial class EditorSignalStrip : CompositeDrawable
         this.waveformProvider = waveformProvider;
         this.seekPreview = seekPreview;
 
-        Width = beatmap.LaneCount == 4 ? 500 : 760;
-        Height = 70;
+        Width = EditorScreen.WorkspaceWidth;
+        Height = EditorScreen.SignalHeight;
         Masking = true;
-        CornerRadius = 6;
+        CornerRadius = EditorTheme.CardRadius;
+        BorderThickness = 1.25f;
+        BorderColour = EditorTheme.SurfaceRaised;
 
         Refresh();
     }
@@ -51,7 +53,7 @@ public partial class EditorSignalStrip : CompositeDrawable
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(0.035f, 0.045f, 0.064f, 1f),
+                Colour = EditorTheme.DeepNavy,
             },
             new Container
             {
@@ -73,7 +75,7 @@ public partial class EditorSignalStrip : CompositeDrawable
                 RelativeSizeAxes = Axes.Y,
                 Width = 2,
                 Alpha = 0,
-                Colour = YokkoPalette.Lime,
+                Colour = EditorTheme.Yellow,
             },
             new SpriteText
             {
@@ -82,8 +84,8 @@ public partial class EditorSignalStrip : CompositeDrawable
                 X = 12,
                 Y = 8,
                 Text = $"{formatSeconds(beatmap.TimeAtRow(viewport.StartRow))} - {formatSeconds(beatmap.TimeAtRow(viewport.EndRowExclusive))}",
-                Font = new FontUsage("PlusJakartaSans").With(size: 16),
-                Colour = YokkoPalette.TextMuted,
+                Font = HomeTypography.Display(12),
+                Colour = EditorTheme.PaleCyan,
             },
             new SpriteText
             {
@@ -92,8 +94,8 @@ public partial class EditorSignalStrip : CompositeDrawable
                 X = -12,
                 Y = 8,
                 Text = waveformProvider().Label,
-                Font = new FontUsage("PlusJakartaSans").With(size: 15),
-                Colour = waveformProvider().HasAudio ? YokkoPalette.Lime : YokkoPalette.TextDim,
+                Font = HomeTypography.Display(11),
+                Colour = waveformProvider().HasAudio ? EditorTheme.Cyan : EditorTheme.Muted,
             },
         };
     }
@@ -146,7 +148,8 @@ public partial class EditorSignalStrip : CompositeDrawable
         float usableWidth = Width - 24;
         float stepWidth = usableWidth / barCount;
         float barWidth = Math.Max(2, stepWidth - 2);
-        float baseY = Height - 12;
+        float baseY = Height - 14;
+        float peakRange = Height - 42;
         double startMilliseconds = beatmap.TimeAtRow(viewport.StartRow);
         double endMilliseconds = beatmap.TimeAtRow(viewport.EndRowExclusive);
         double windowMilliseconds = Math.Max(1, endMilliseconds - startMilliseconds);
@@ -161,7 +164,7 @@ public partial class EditorSignalStrip : CompositeDrawable
             float peak = waveform.HasAudio
                 ? Math.Clamp(audioSample.Peak * 0.9f + notePeak * 0.22f, 0.03f, 1f)
                 : notePeak;
-            float barHeight = 6 + peak * 43;
+            float barHeight = 6 + peak * peakRange;
             Color4 colour = createBarColour(audioSample, notePeak, waveform.HasAudio);
 
             bars[i] = new Box

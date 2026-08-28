@@ -6,10 +6,14 @@ using osu.Framework.Graphics.Sprites;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Editing;
-using Yokko.Game.Presentation;
+using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Editor;
 
+/// <summary>
+/// The ivory transport row under the grid: timeline window information,
+/// playback state, and the navigation/zoom/append buttons.
+/// </summary>
 public partial class EditorTimelineControls : CompositeDrawable
 {
     private readonly EditableBeatmap beatmap;
@@ -34,56 +38,55 @@ public partial class EditorTimelineControls : CompositeDrawable
         this.beatmap = beatmap;
         this.viewport = viewport;
 
-        Width = beatmap.LaneCount == 4 ? 500 : 760;
-        Height = 44;
+        Width = EditorScreen.WorkspaceWidth;
+        Height = EditorScreen.TransportHeight;
         Masking = true;
-        CornerRadius = 6;
+        CornerRadius = 8;
+        BorderThickness = 1.25f;
+        BorderColour = EditorTheme.Border();
 
         InternalChildren = new Drawable[]
         {
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(0.04f, 0.052f, 0.073f, 0.95f),
+                Colour = EditorTheme.Ivory,
             },
             windowText = new SpriteText
             {
-                Anchor = Anchor.TopLeft,
-                Origin = Anchor.TopLeft,
-                X = 12,
-                Y = 4,
-                Font = new FontUsage("PlusJakartaSans").With(size: 16),
-                Colour = YokkoPalette.TextMuted,
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 16,
+                Font = HomeTypography.Display(11),
+                Colour = EditorTheme.NavyText(0.72f),
             },
             playbackText = new SpriteText
             {
-                Anchor = Anchor.TopRight,
-                Origin = Anchor.TopRight,
-                X = -12,
-                Y = 4,
-                Font = new FontUsage("PlusJakartaSans").With(size: 16),
-                Colour = YokkoPalette.TextMuted,
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                X = 40,
+                Font = HomeTypography.Display(11),
+                Colour = EditorTheme.NavyText(0.62f),
             },
             new FillFlowContainer
             {
                 AutoSizeAxes = Axes.Both,
-                Anchor = Anchor.BottomRight,
-                Origin = Anchor.BottomRight,
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(6, 0),
-                X = -8,
-                Y = -4,
+                X = -10,
                 Children = new Drawable[]
                 {
-                    playPauseButton = new EditorStepButton("Play", togglePlayback, 50, YokkoPalette.Lime),
-                    new EditorStepButton("Stop", stopPlayback, 42, YokkoPalette.Rose),
-                    new EditorStepButton("-16", jumpBack, 38),
-                    new EditorStepButton("-4", stepBack, 34),
-                    new EditorStepButton("+4", stepForward, 34),
-                    new EditorStepButton("+16", jumpForward, 38),
-                    new EditorStepButton("Zoom+", zoomIn, 54, YokkoPalette.Rose),
-                    new EditorStepButton("Zoom-", zoomOut, 54, YokkoPalette.Rose),
-                    new EditorStepButton("+32", appendRows, 54, YokkoPalette.Lime),
+                    playPauseButton = new EditorStepButton("Play", togglePlayback, 56, EditorTheme.Cyan),
+                    new EditorStepButton("Stop", stopPlayback, 50, EditorTheme.Pink),
+                    new EditorStepButton("-16", jumpBack, 44),
+                    new EditorStepButton("-4", stepBack, 40),
+                    new EditorStepButton("+4", stepForward, 40),
+                    new EditorStepButton("+16", jumpForward, 44),
+                    new EditorStepButton("Zoom+", zoomIn, 62, EditorTheme.Yellow),
+                    new EditorStepButton("Zoom-", zoomOut, 62, EditorTheme.Yellow),
+                    new EditorStepButton("+32", appendRows, 48, EditorTheme.Cyan),
                 },
             },
         };
@@ -100,7 +103,7 @@ public partial class EditorTimelineControls : CompositeDrawable
     {
         playPauseButton.SetText(isPlaying ? "Pause" : "Play");
         playbackText.Text = $"{formatSeconds(timeMilliseconds)} / {formatSeconds(durationMilliseconds)}";
-        playbackText.Colour = isPlaying ? YokkoPalette.Lime : YokkoPalette.TextMuted;
+        playbackText.Colour = isPlaying ? EditorTheme.Pink : EditorTheme.NavyText(0.62f);
     }
 
     private static string formatSeconds(double milliseconds) => $"{milliseconds / 1000:0.00}s";
@@ -113,30 +116,32 @@ public partial class EditorStepButton : ClickableContainer
     public EditorStepButton(string text, Action action, float width = 48, Color4? accent = null)
     {
         Action = action;
-        Size = new Vector2(width, 22);
+        Size = new Vector2(width, 26);
         Masking = true;
-        CornerRadius = 4;
+        CornerRadius = 5;
+        BorderThickness = 1;
+        BorderColour = EditorTheme.Border(0.24f);
 
         InternalChildren = new Drawable[]
         {
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(0.085f, 0.105f, 0.14f, 1f),
+                Colour = EditorTheme.NavyText(0.05f),
             },
             new Box
             {
                 RelativeSizeAxes = Axes.Y,
                 Width = 3,
-                Colour = accent ?? YokkoPalette.Cyan,
+                Colour = accent ?? EditorTheme.Navy,
             },
             label = new SpriteText
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
                 Text = text,
-                Font = new FontUsage("PlusJakartaSans").With(size: 15),
-                Colour = YokkoPalette.Text,
+                Font = HomeTypography.Display(9),
+                Colour = EditorTheme.Navy,
             },
         };
     }
