@@ -21,6 +21,16 @@ internal sealed class DecodedAudioSource : IDisposable
     private ISampleProvider stereoProvider;
     private SoundTouchWaveProvider? rateProvider;
 
+    // SetPlaybackRate must not contend with an in-flight decode pass: the
+    // feeder thread holds processingLock for a whole Read block, and the
+    // update thread applies rate changes every frame. Requests therefore
+    // land in this lock-free slot (double bits; NaN means "no change
+    // pending") and Read applies the latest value between decode blocks.
+    private long pendingPlaybackRateBits = no_pending_rate_bits;
+
+    private static readonly long no_pending_rate_bits =
+        BitConverter.DoubleToInt64Bits(double.NaN);
+
     private DecodedAudioSource(
         WaveStream stream,
         ISampleProvider rawStereoProvider,
@@ -64,7 +74,10 @@ internal sealed class DecodedAudioSource : IDisposable
     internal int Read(float[] samples)
     {
         lock (processingLock)
+        {
+            applyPendingPlaybackRate();
             return stereoProvider.Read(samples, 0, samples.Length);
+        }
     }
 
     internal void SetPlaybackRate(double playbackRate)
@@ -75,26 +88,21 @@ internal sealed class DecodedAudioSource : IDisposable
             throw new ArgumentOutOfRangeException(nameof(playbackRate));
         }
 
-        lock (processingLock)
+        // Reading rateProvider without processingLock is safe here: sources
+        // without dynamic rate never splice SoundTouch in after Open, and
+        // dynamic sources bypass this check entirely.
+        if (!allowDynamicRate && rateProvider == null)
         {
-            if (rateProvider == null)
-            {
-                if (Math.Abs(playbackRate - 1) <= 0.000001)
-                    return;
+            if (Math.Abs(playbackRate - 1) <= 0.000001)
+                return;
 
-                if (!allowDynamicRate)
-                {
-                    throw new InvalidOperationException(
-                        "This decoder was not opened for dynamic rate changes.");
-                }
-            }
-
-            applyRateAdjustments(
-                ensureRateProvider(),
-                playbackRate,
-                pitchMode,
-                fixedFrequencyScale);
+            throw new InvalidOperationException(
+                "This decoder was not opened for dynamic rate changes.");
         }
+
+        Interlocked.Exchange(
+            ref pendingPlaybackRateBits,
+            BitConverter.DoubleToInt64Bits(playbackRate));
     }
 
     internal static DecodedAudioSource Open(
@@ -181,6 +189,29 @@ internal sealed class DecodedAudioSource : IDisposable
 
     public void Dispose()
         => stream.Dispose();
+
+    private void applyPendingPlaybackRate()
+    {
+        long bits = Interlocked.Exchange(
+            ref pendingPlaybackRateBits,
+            no_pending_rate_bits);
+        if (bits == no_pending_rate_bits)
+            return;
+
+        double playbackRate = BitConverter.Int64BitsToDouble(bits);
+
+        // Keep the lazy SoundTouch bypass: when the latest requested value
+        // is back at unity before any block decoded through it, the provider
+        // never enters the chain and 1x playback stays bit-exact.
+        if (rateProvider == null && Math.Abs(playbackRate - 1) <= 0.000001)
+            return;
+
+        applyRateAdjustments(
+            ensureRateProvider(),
+            playbackRate,
+            pitchMode,
+            fixedFrequencyScale);
+    }
 
     private SoundTouchWaveProvider ensureRateProvider()
     {
