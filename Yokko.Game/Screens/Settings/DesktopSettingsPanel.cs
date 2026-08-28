@@ -18,7 +18,8 @@ using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Settings;
 
-internal partial class DesktopSettingsPanel : CompositeDrawable
+internal partial class DesktopSettingsPanel
+    : CompositeDrawable, ISettingsSearchTarget
 {
     private readonly YokkoDisplaySettings displaySettings;
     private readonly YokkoAudioSettings audioSettings;
@@ -44,6 +45,8 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
         backgroundFrameRateRow.Alpha > 0.99f;
     internal SettingsBooleanToggle DynamicFrameRateToggle =>
         dynamicFrameRateToggle;
+
+    private readonly Container contentRoot;
 
     internal DesktopSettingsPanel(
         YokkoDisplaySettings displaySettings,
@@ -78,36 +81,46 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
             YokkoStrings.Get("settings.desktop.fullscreen_display"),
             displayControlHost);
         dynamicFrameRateToggle = new SettingsBooleanToggle(
-            displaySettings.DynamicBackgroundFrameRate);
-        InternalChildren = new Drawable[]
+            displaySettings.DynamicBackgroundFrameRate,
+            "settings.desktop.enabled",
+            "settings.desktop.disabled");
+        InternalChild = contentRoot = new Container
         {
-            SettingsChrome.CreateHeader(
-                YokkoStrings.Get("settings.desktop.title"),
-                YokkoStrings.Get("settings.desktop.subtitle"),
-                FontAwesome.Solid.Laptop,
-                9),
-            SettingsChrome.CreateStatusCard(
-                174,
-                FontAwesome.Solid.Desktop,
-                YokkoStrings.Get("settings.desktop.current_output"),
-                FontAwesome.Solid.Bolt,
-                out statusMetadata),
-            SettingsChrome.CreateDivider(270),
-            SettingsChrome.CreateSettingRow(
-                274,
-                YokkoStrings.Get("settings.desktop.fast_alt_tab"),
-                new SettingsBooleanToggle(displaySettings.FastAltTab)),
-            SettingsChrome.CreateDivider(334),
-            SettingsChrome.CreateSettingRow(
-                338,
-                YokkoStrings.Get("settings.desktop.dynamic_fps"),
-                dynamicFrameRateToggle),
-            SettingsChrome.CreateDivider(398),
-            backgroundFrameRateRow,
-            postFrameRateDivider,
-            backgroundAudioRow,
-            postAudioDivider,
-            fullscreenDisplayRow,
+            RelativeSizeAxes = Axes.X,
+            AutoSizeAxes = Axes.Y,
+            Children = new Drawable[]
+            {
+                SettingsChrome.CreateHeader(
+                    YokkoStrings.Get("settings.desktop.title"),
+                    YokkoStrings.Get("settings.desktop.subtitle"),
+                    FontAwesome.Solid.Laptop,
+                    9),
+                SettingsChrome.CreateStatusCard(
+                    174,
+                    FontAwesome.Solid.Desktop,
+                    YokkoStrings.Get("settings.desktop.current_output"),
+                    FontAwesome.Solid.Bolt,
+                    out statusMetadata),
+                SettingsChrome.CreateDivider(270),
+                SettingsChrome.CreateSettingRow(
+                    274,
+                    YokkoStrings.Get("settings.desktop.fast_alt_tab"),
+                    new SettingsBooleanToggle(
+                        displaySettings.FastAltTab,
+                        "settings.desktop.enabled",
+                        "settings.desktop.disabled")),
+                SettingsChrome.CreateDivider(334),
+                SettingsChrome.CreateSettingRow(
+                    338,
+                    YokkoStrings.Get("settings.desktop.dynamic_fps"),
+                    dynamicFrameRateToggle),
+                SettingsChrome.CreateDivider(398),
+                backgroundFrameRateRow,
+                postFrameRateDivider,
+                backgroundAudioRow,
+                postAudioDivider,
+                fullscreenDisplayRow,
+            },
         };
 
         rebuildDisplayControls();
@@ -124,6 +137,12 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
         if (window != null)
             window.DisplaysChanged += onDisplaysChanged;
     }
+
+    public bool TryFocusSearchItem(string itemId) =>
+        SettingsSearchScroll.TryFocus(
+            SettingsPageKind.Desktop,
+            itemId,
+            contentRoot: contentRoot);
 
     private void rebuildDisplayControls()
     {
@@ -485,7 +504,7 @@ internal partial class DesktopSettingsSlider : CompositeDrawable
         knob.X = track_x + progress * track_width;
         valueText.Text = kind == DesktopSettingsSliderKind.FrameRate
             ? snapped <= YokkoDisplaySettings.UnlimitedBackgroundFrameRate
-                ? "MAX"
+                ? YokkoStrings.Get("settings.display.fps_max").ToString()
                 : $"{snapped:0} FPS"
             : $"{snapped * 100:0}%";
     }

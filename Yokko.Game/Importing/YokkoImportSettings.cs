@@ -12,4 +12,6 @@ public sealed class YokkoImportSettings
     public readonly BindableBool PreferSscSimfiles = new(true);
     public readonly BindableBool EnableBmsScratch = new(false);
     public readonly BindableBool ShowCompatibilityWarnings = new(true);
+    public readonly BindableBool WatchFolderEnabled = new(false);
+    public readonly Bindable<string> WatchFolderPath = new(string.Empty);
 }

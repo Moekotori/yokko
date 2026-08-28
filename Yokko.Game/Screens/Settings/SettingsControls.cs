@@ -421,6 +421,23 @@ internal partial class SettingsAspectRatioChoiceButton : ClickableContainer
         this.FadeTo(enabled ? 1 : 0.58f, 100, Easing.OutQuint);
     }
 
+    protected override bool OnHover(HoverEvent e)
+    {
+        if (!enabled)
+            return false;
+
+        background.FadeColour(SettingsTheme.PaleCyan, 100, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        if (!enabled)
+            return;
+
+        background.FadeColour(Color4.White, 120, Easing.OutQuint);
+    }
+
     protected override bool OnClick(ClickEvent e)
     {
         if (!enabled)
@@ -838,5 +855,61 @@ internal partial class SettingsResolutionOption : ClickableContainer
         base.OnFocusLost(e);
         focusLine.FadeOut(100, Easing.OutQuint);
         background.FadeColour(Color4.White, 100, Easing.OutQuint);
+    }
+}
+
+internal partial class SettingsStepperSideButton : ClickableContainer
+{
+    private readonly Box background;
+
+    public override bool AcceptsFocus => true;
+
+    public SettingsStepperSideButton(
+        IconUsage icon,
+        Action action,
+        Anchor anchor = Anchor.Centre)
+    {
+        Action = action;
+        Anchor = anchor;
+        Origin = anchor;
+        Width = 72;
+        RelativeSizeAxes = Axes.Y;
+
+        InternalChildren = new Drawable[]
+        {
+            background = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.Transparent,
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Size = new Vector2(16),
+                Icon = icon,
+                Colour = HomeControlColours.Pink,
+            },
+        };
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        background.FadeColour(SettingsTheme.PaleCyan, 100, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e) =>
+        background.FadeColour(Color4.Transparent, 120, Easing.OutQuint);
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
     }
 }

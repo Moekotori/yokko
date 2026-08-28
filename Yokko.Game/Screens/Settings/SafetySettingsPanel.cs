@@ -9,26 +9,34 @@ using osu.Framework.Platform;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
+using Yokko.Game.Diagnostics;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Settings;
 
-internal partial class SafetySettingsPanel : CompositeDrawable
+internal partial class SafetySettingsPanel
+    : CompositeDrawable, ISettingsSearchTarget
 {
     private readonly GameHost host;
+    private readonly YokkoDiagnostics diagnostics;
     private readonly SpriteText statusMetadata;
     private readonly Bindable<double> exitHoldDuration;
+    private readonly SettingsContentScrollContainer contentScroll;
+    private readonly Container contentRoot;
 
     internal string CrashReportDirectory { get; }
 
     public SafetySettingsPanel(
         GameHost host,
+        YokkoDiagnostics diagnostics,
         string crashReportDirectory,
         Bindable<double> exitHoldDuration)
     {
         this.host = host ?? throw new ArgumentNullException(nameof(host));
+        this.diagnostics = diagnostics
+                           ?? throw new ArgumentNullException(nameof(diagnostics));
         this.exitHoldDuration = exitHoldDuration
             ?? throw new ArgumentNullException(nameof(exitHoldDuration));
         CrashReportDirectory = string.IsNullOrWhiteSpace(crashReportDirectory)
@@ -38,49 +46,79 @@ internal partial class SafetySettingsPanel : CompositeDrawable
             : crashReportDirectory;
         RelativeSizeAxes = Axes.Both;
 
-        InternalChildren = new Drawable[]
+        var content = contentRoot = new Container
         {
-            SettingsChrome.CreateHeader(
-                YokkoStrings.Get("settings.safety.title"),
-                YokkoStrings.Get("settings.safety.subtitle"),
-                FontAwesome.Solid.ShieldAlt,
-                11),
-            SettingsChrome.CreateStatusCard(
-                174,
-                FontAwesome.Solid.ExclamationTriangle,
-                YokkoStrings.Get("settings.safety.crash_reports"),
-                FontAwesome.Solid.FolderOpen,
-                out statusMetadata),
-            SettingsChrome.CreateDivider(292),
-            SettingsChrome.CreateSettingRow(
-                318,
-                YokkoStrings.Get("settings.safety.crash_reports"),
-                SettingsChrome.CreateSegmentedControl(
-                [
-                    new SettingsSegmentedChoiceButton(
-                        YokkoStrings.Get("settings.safety.open_crash_reports"),
-                        FontAwesome.Solid.FolderOpen,
-                        () => OpenCrashReportDirectory(),
-                        SettingsChrome.ControlWidth),
-                ])),
-            SettingsChrome.CreateDivider(390),
-            SettingsChrome.CreateSettingRow(
-                402,
-                YokkoStrings.Get("settings.safety.exit_hold_duration"),
-                new HomeExitHoldDurationSlider(exitHoldDuration)),
-            new SpriteText
+            RelativeSizeAxes = Axes.X,
+            AutoSizeAxes = Axes.Y,
+            Children = new Drawable[]
             {
-                Position = new Vector2(SettingsChrome.ContentX, 486),
-                Width = SettingsChrome.ContentWidth,
-                Text = YokkoStrings.Get("settings.safety.note"),
-                Font = HomeTypography.Body(17),
-                Colour = SettingsTheme.MutedNavy,
+                SettingsChrome.CreateHeader(
+                    YokkoStrings.Get("settings.safety.title"),
+                    YokkoStrings.Get("settings.safety.subtitle"),
+                    FontAwesome.Solid.ShieldAlt,
+                    11),
+                SettingsChrome.CreateStatusCard(
+                    174,
+                    FontAwesome.Solid.ExclamationTriangle,
+                    YokkoStrings.Get("settings.safety.crash_reports"),
+                    FontAwesome.Solid.FolderOpen,
+                    out statusMetadata),
+                SettingsChrome.CreateDivider(292),
+                SettingsChrome.CreateSettingRow(
+                    318,
+                    YokkoStrings.Get("settings.safety.crash_reports"),
+                    SettingsChrome.CreateSegmentedControl(
+                    [
+                        new SettingsSegmentedChoiceButton(
+                            YokkoStrings.Get("settings.safety.open_crash_reports"),
+                            FontAwesome.Solid.FolderOpen,
+                            () => OpenCrashReportDirectory(),
+                            SettingsChrome.ControlWidth),
+                    ])),
+                SettingsChrome.CreateDivider(390),
+                SettingsChrome.CreateSettingRow(
+                    402,
+                    YokkoStrings.Get("settings.safety.export_diagnostics"),
+                    SettingsChrome.CreateSegmentedControl(
+                    [
+                        new SettingsSegmentedChoiceButton(
+                            YokkoStrings.Get("settings.safety.export_diagnostics"),
+                            FontAwesome.Solid.FileArchive,
+                            () => ExportDiagnosticsBundle(),
+                            SettingsChrome.ControlWidth),
+                    ])),
+                SettingsChrome.CreateDivider(474),
+                SettingsChrome.CreateSettingRow(
+                    486,
+                    YokkoStrings.Get("settings.safety.exit_hold_duration"),
+                    new HomeExitHoldDurationSlider(exitHoldDuration)),
+                new SpriteText
+                {
+                    Position = new Vector2(SettingsChrome.ContentX, 570),
+                    Width = SettingsChrome.ContentWidth,
+                    Text = YokkoStrings.Get("settings.safety.note"),
+                    Font = HomeTypography.Body(17),
+                    Colour = SettingsTheme.MutedNavy,
+                },
             },
+        };
+
+        InternalChild = contentScroll = new SettingsContentScrollContainer
+        {
+            RelativeSizeAxes = Axes.Both,
+            Child = content,
         };
 
         statusMetadata.Text = YokkoStrings.Get(
             "settings.safety.crash_reports_ready");
     }
+
+    public bool TryFocusSearchItem(string itemId) =>
+        SettingsSearchScroll.TryFocus(
+            SettingsPageKind.Safety,
+            itemId,
+            contentScroll,
+            contentRoot);
 
     internal double ExitHoldDurationMilliseconds => exitHoldDuration.Value;
 
@@ -100,6 +138,26 @@ internal partial class SafetySettingsPanel : CompositeDrawable
             opened
                 ? "settings.safety.opened"
                 : "settings.safety.open_failed");
+        return opened;
+    }
+
+    internal bool ExportDiagnosticsBundle()
+    {
+        bool opened;
+        try
+        {
+            string exportPath = diagnostics.ExportBundle();
+            opened = host.OpenFileExternally(exportPath);
+        }
+        catch
+        {
+            opened = false;
+        }
+
+        statusMetadata.Text = YokkoStrings.Get(
+            opened
+                ? "settings.safety.exported"
+                : "settings.safety.export_failed");
         return opened;
     }
 }
@@ -219,6 +277,22 @@ internal partial class HomeExitHoldDurationSlider : CompositeDrawable
     {
         track.FadeColour(SettingsTheme.Divider, 120, Easing.OutQuint);
         knob.ScaleTo(1, 120, Easing.OutQuint);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        valueText.FadeColour(HomeControlColours.Pink, 100, Easing.OutQuint);
+        knob.BorderColour = HomeControlColours.Cyan;
+        knob.ScaleTo(1.18f, 100, Easing.OutQuint);
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        valueText.FadeColour(HomeControlColours.Navy, 100, Easing.OutQuint);
+        knob.BorderColour = HomeControlColours.Pink;
+        knob.ScaleTo(1, 100, Easing.OutQuint);
     }
 
     private void updateFrom(float localX) =>
