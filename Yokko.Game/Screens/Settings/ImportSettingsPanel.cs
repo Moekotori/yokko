@@ -42,6 +42,7 @@ internal partial class ImportSettingsPanel
     private readonly ResourceDirectorySelectorOverlay externalDirectorySelector;
     private readonly ResourceDirectorySelectorOverlay watchFolderSelector;
     private readonly SettingsContentScrollContainer contentScroll;
+    private readonly Container contentRoot;
     private bool migrationInProgress;
     private bool externalScanInProgress;
     private bool directoryPickerOpen;
@@ -72,7 +73,7 @@ internal partial class ImportSettingsPanel
         this.importedChartLibrary = importedChartLibrary;
         RelativeSizeAxes = Axes.Both;
 
-        var content = new Container
+        var content = contentRoot = new Container
         {
             RelativeSizeAxes = Axes.X,
             AutoSizeAxes = Axes.Y,
@@ -310,7 +311,8 @@ internal partial class ImportSettingsPanel
         SettingsSearchScroll.TryFocus(
             SettingsPageKind.Import,
             itemId,
-            contentScroll);
+            contentScroll,
+            contentRoot);
 
     private Drawable createWatchFolderCard() => new ClickableContainer
     {

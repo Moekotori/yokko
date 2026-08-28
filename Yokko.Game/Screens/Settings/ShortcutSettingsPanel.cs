@@ -345,7 +345,8 @@ internal partial class ShortcutSettingsPanel
         SettingsSearchScroll.TryFocus(
             SettingsPageKind.Shortcuts,
             itemId,
-            contentHost);
+            contentHost,
+            contentHost.Child as Container);
 
     private Drawable createShortcutsSection()
     {

@@ -19,6 +19,7 @@ internal partial class ModPreferencesSettingsPanel
     private readonly YokkoStartupSettings startupSettings;
     private readonly YokkoManiaModPreferences modPreferences;
     private readonly SettingsContentScrollContainer contentScroll;
+    private readonly Container contentRoot;
     private readonly SpriteText statusMetadata;
 
     public ModPreferencesSettingsPanel(
@@ -31,7 +32,7 @@ internal partial class ModPreferencesSettingsPanel
             ?? throw new ArgumentNullException(nameof(modPreferences));
         RelativeSizeAxes = Axes.Both;
 
-        var content = new Container
+        var content = contentRoot = new Container
         {
             RelativeSizeAxes = Axes.X,
             AutoSizeAxes = Axes.Y,
@@ -97,7 +98,8 @@ internal partial class ModPreferencesSettingsPanel
         SettingsSearchScroll.TryFocus(
             SettingsPageKind.Mods,
             itemId,
-            contentScroll);
+            contentScroll,
+            contentRoot);
 
     internal void ClearModConfiguration() => clearModConfiguration();
 

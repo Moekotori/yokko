@@ -629,6 +629,22 @@ internal partial class GameplayStepperModeButton : ClickableContainer
         return base.OnKeyDown(e);
     }
 
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        BorderColour = HomeControlColours.Pink;
+        BorderThickness = prominent ? 2.4f : 2f;
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        BorderColour = prominent
+            ? HomeControlColours.Navy
+            : SettingsTheme.Divider;
+        BorderThickness = prominent ? 1.5f : 1f;
+    }
+
     protected override void Dispose(bool isDisposing)
     {
         if (isDisposing)
@@ -997,6 +1013,7 @@ internal partial class GameplayStepperButton : ClickableContainer
 internal partial class GameplayInlineToggle : ClickableContainer
 {
     private readonly BindableBool value;
+    private readonly Box hoverBackground;
     private readonly Box switchTrack;
     private readonly Circle switchThumb;
     private readonly SpriteText stateText;
@@ -1014,6 +1031,11 @@ internal partial class GameplayInlineToggle : ClickableContainer
 
         InternalChildren = new Drawable[]
         {
+            hoverBackground = new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.Transparent,
+            },
             titleText = new SpriteText
             {
                 Anchor = Anchor.CentreLeft,
@@ -1104,6 +1126,18 @@ internal partial class GameplayInlineToggle : ClickableContainer
     {
         base.OnFocusLost(e);
         titleText.FadeColour(HomeControlColours.Navy, 100);
+        hoverBackground.FadeColour(Color4.Transparent, 100, Easing.OutQuint);
+    }
+
+    protected override bool OnHover(HoverEvent e)
+    {
+        hoverBackground.FadeColour(SettingsTheme.PaleCyan, 100, Easing.OutQuint);
+        return true;
+    }
+
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        hoverBackground.FadeColour(Color4.Transparent, 120, Easing.OutQuint);
     }
 
     protected override void Dispose(bool isDisposing)

@@ -24,6 +24,7 @@ internal partial class EditorSettingsPanel
 {
     private readonly YokkoEditorSettings settings;
     private readonly SettingsContentScrollContainer contentScroll;
+    private readonly Container contentRoot;
     private readonly List<SettingsSegmentedChoiceButton> keyModeButtons = new();
     private readonly SettingsIntegerStepper autosaveIntervalStepper;
 
@@ -42,7 +43,7 @@ internal partial class EditorSettingsPanel
                 "settings.editor.autosave_interval_value",
                 seconds));
 
-        var content = new Container
+        var content = contentRoot = new Container
         {
             RelativeSizeAxes = Axes.X,
             AutoSizeAxes = Axes.Y,
@@ -114,7 +115,8 @@ internal partial class EditorSettingsPanel
         SettingsSearchScroll.TryFocus(
             SettingsPageKind.Editor,
             itemId,
-            contentScroll);
+            contentScroll,
+            contentRoot);
 
     private Drawable createKeyModeControl()
     {
@@ -179,6 +181,7 @@ internal partial class SettingsIntegerStepper : CompositeDrawable
     private readonly int maximum;
     private readonly Func<int, LocalisableString> formatter;
     private readonly SpriteText valueText;
+    private readonly Container body;
     private bool isEnabled = true;
 
     public override bool AcceptsFocus => isEnabled;
@@ -227,7 +230,7 @@ internal partial class SettingsIntegerStepper : CompositeDrawable
                         0.4f),
                 },
             },
-            new Container
+            body = new Container
             {
                 RelativeSizeAxes = Axes.Both,
                 Masking = true,
@@ -260,31 +263,23 @@ internal partial class SettingsIntegerStepper : CompositeDrawable
         this.FadeTo(enabled ? 1 : 0.58f, 100, Easing.OutQuint);
     }
 
-    private ClickableContainer createButton(
+    private SettingsStepperSideButton createButton(
         IconUsage icon,
         Anchor anchor,
-        int delta) => new ClickableContainer
+        int delta)
     {
-        Anchor = anchor,
-        Origin = anchor,
-        Width = 72,
-        RelativeSizeAxes = Axes.Y,
-        Action = () =>
-        {
-            if (!isEnabled)
-                return;
+        var button = new SettingsStepperSideButton(
+            icon,
+            () =>
+            {
+                if (!isEnabled)
+                    return;
 
-            value.Value = Math.Clamp(value.Value + delta, minimum, maximum);
-        },
-        Child = new SpriteIcon
-        {
-            Anchor = Anchor.Centre,
-            Origin = Anchor.Centre,
-            Size = new Vector2(16),
-            Icon = icon,
-            Colour = HomeControlColours.Pink,
-        },
-    };
+                value.Value = Math.Clamp(value.Value + delta, minimum, maximum);
+            },
+            anchor);
+        return button;
+    }
 
     protected override bool OnKeyDown(KeyDownEvent e)
     {
@@ -310,14 +305,15 @@ internal partial class SettingsIntegerStepper : CompositeDrawable
     protected override void OnFocus(FocusEvent e)
     {
         base.OnFocus(e);
-        BorderColour = HomeControlColours.Pink;
-        BorderThickness = 2.4f;
+        body.BorderColour = HomeControlColours.Pink;
+        body.BorderThickness = 2.4f;
     }
 
     protected override void OnFocusLost(FocusLostEvent e)
     {
         base.OnFocusLost(e);
-        BorderThickness = 0;
+        body.BorderColour = HomeControlColours.Navy;
+        body.BorderThickness = 1.6f;
     }
 
     private void onValueChanged(ValueChangedEvent<int> change) =>

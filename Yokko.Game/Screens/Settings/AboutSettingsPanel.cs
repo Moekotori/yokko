@@ -18,6 +18,7 @@ internal partial class AboutSettingsPanel
     : CompositeDrawable, ISettingsSearchTarget
 {
     private readonly CancellationTokenSource updateCheckCancellation = new();
+    private readonly Container contentRoot;
     private SpriteText updateStatusText;
     private bool checkingForUpdates;
     private bool disposed;
@@ -30,32 +31,37 @@ internal partial class AboutSettingsPanel
                                  .GetName().Version?.ToString()
                          ?? "development";
 
-        InternalChildren = new Drawable[]
+        InternalChild = contentRoot = new Container
         {
-            SettingsChrome.CreateHeader(
-                YokkoStrings.Get("settings.about.title"),
-                YokkoStrings.Get("settings.about.subtitle"),
-                FontAwesome.Solid.InfoCircle,
-                (int)SettingsPageKind.About + 1),
-            createInformationCard(
-                174,
-                FontAwesome.Solid.InfoCircle,
-                YokkoStrings.Get("settings.about.section_version"),
-                version,
-                SettingsTheme.StatusCyan),
-            createUpdateCard(),
-            createInformationCard(
-                382,
-                FontAwesome.Solid.Pen,
-                YokkoStrings.Get("settings.about.section_credits"),
-                YokkoStrings.Get("settings.about.creator"),
-                SettingsTheme.PaleCyan),
-            createInformationCard(
-                486,
-                FontAwesome.Solid.Heart,
-                YokkoStrings.Get("settings.about.section_acknowledgements"),
-                YokkoStrings.Get("settings.about.acknowledgements"),
-                Color4.White),
+            RelativeSizeAxes = Axes.X,
+            AutoSizeAxes = Axes.Y,
+            Children = new Drawable[]
+            {
+                SettingsChrome.CreateHeader(
+                    YokkoStrings.Get("settings.about.title"),
+                    YokkoStrings.Get("settings.about.subtitle"),
+                    FontAwesome.Solid.InfoCircle,
+                    (int)SettingsPageKind.About + 1),
+                createInformationCard(
+                    174,
+                    FontAwesome.Solid.InfoCircle,
+                    YokkoStrings.Get("settings.about.section_version"),
+                    version,
+                    SettingsTheme.StatusCyan),
+                createUpdateCard(),
+                createInformationCard(
+                    382,
+                    FontAwesome.Solid.Pen,
+                    YokkoStrings.Get("settings.about.section_credits"),
+                    YokkoStrings.Get("settings.about.creator"),
+                    SettingsTheme.PaleCyan),
+                createInformationCard(
+                    486,
+                    FontAwesome.Solid.Heart,
+                    YokkoStrings.Get("settings.about.section_acknowledgements"),
+                    YokkoStrings.Get("settings.about.acknowledgements"),
+                    Color4.White),
+            },
         };
     }
 
@@ -72,8 +78,10 @@ internal partial class AboutSettingsPanel
     }
 
     public bool TryFocusSearchItem(string itemId) =>
-        SettingsSearchScroll.GetScrollY(SettingsPageKind.About, itemId)
-            .HasValue;
+        SettingsSearchScroll.TryFocus(
+            SettingsPageKind.About,
+            itemId,
+            contentRoot: contentRoot);
 
     private async Task runUpdateCheckAsync(CancellationToken cancellationToken)
     {

@@ -24,6 +24,7 @@ internal partial class SafetySettingsPanel
     private readonly SpriteText statusMetadata;
     private readonly Bindable<double> exitHoldDuration;
     private readonly SettingsContentScrollContainer contentScroll;
+    private readonly Container contentRoot;
 
     internal string CrashReportDirectory { get; }
 
@@ -45,7 +46,7 @@ internal partial class SafetySettingsPanel
             : crashReportDirectory;
         RelativeSizeAxes = Axes.Both;
 
-        var content = new Container
+        var content = contentRoot = new Container
         {
             RelativeSizeAxes = Axes.X,
             AutoSizeAxes = Axes.Y,
@@ -116,7 +117,8 @@ internal partial class SafetySettingsPanel
         SettingsSearchScroll.TryFocus(
             SettingsPageKind.Safety,
             itemId,
-            contentScroll);
+            contentScroll,
+            contentRoot);
 
     internal double ExitHoldDurationMilliseconds => exitHoldDuration.Value;
 
@@ -275,6 +277,22 @@ internal partial class HomeExitHoldDurationSlider : CompositeDrawable
     {
         track.FadeColour(SettingsTheme.Divider, 120, Easing.OutQuint);
         knob.ScaleTo(1, 120, Easing.OutQuint);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        valueText.FadeColour(HomeControlColours.Pink, 100, Easing.OutQuint);
+        knob.BorderColour = HomeControlColours.Cyan;
+        knob.ScaleTo(1.18f, 100, Easing.OutQuint);
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        valueText.FadeColour(HomeControlColours.Navy, 100, Easing.OutQuint);
+        knob.BorderColour = HomeControlColours.Pink;
+        knob.ScaleTo(1, 100, Easing.OutQuint);
     }
 
     private void updateFrom(float localX) =>

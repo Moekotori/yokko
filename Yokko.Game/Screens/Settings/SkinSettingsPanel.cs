@@ -18,11 +18,12 @@ using Yokko.Game.Skinning.OsuMania;
 namespace Yokko.Game.Screens.Settings;
 
 internal partial class SkinSettingsPanel
-    : CompositeDrawable, ISettingsSearchTarget
+    : CompositeDrawable, ISettingsSearchTarget, ISettingsTransientUi
 {
     private readonly OsuManiaSkinLibrary library;
     private readonly FillFlowContainer skinList;
     private readonly SettingsContentScrollContainer contentScroll;
+    private readonly Container contentRoot;
 
     internal int SkinCount { get; private set; }
 
@@ -31,7 +32,7 @@ internal partial class SkinSettingsPanel
         this.library = library;
         RelativeSizeAxes = Axes.Both;
 
-        var content = new Container
+        var content = contentRoot = new Container
         {
             RelativeSizeAxes = Axes.X,
             AutoSizeAxes = Axes.Y,
@@ -103,7 +104,19 @@ internal partial class SkinSettingsPanel
         SettingsSearchScroll.TryFocus(
             SettingsPageKind.Skins,
             itemId,
-            contentScroll);
+            contentScroll,
+            contentRoot);
+
+    public bool DismissTransientUi()
+    {
+        foreach (SkinLibraryRow row in skinList.Children.OfType<SkinLibraryRow>())
+        {
+            if (row.CancelDeleteConfirmation())
+                return true;
+        }
+
+        return false;
+    }
 
     private Drawable createDropCard() => new Container
     {
@@ -517,6 +530,16 @@ internal partial class SkinLibraryRow : CompositeDrawable
     private readonly SettingsSkinActionButton deleteButton;
     private readonly Action onDelete;
     private bool awaitingDeleteConfirmation;
+
+    internal bool CancelDeleteConfirmation()
+    {
+        if (!awaitingDeleteConfirmation)
+            return false;
+
+        awaitingDeleteConfirmation = false;
+        deleteButton.SetLabel(YokkoStrings.Get("settings.skins.delete"));
+        return true;
+    }
 
     public SkinLibraryRow(
         OsuManiaSkinEntry entry,

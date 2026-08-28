@@ -25,13 +25,15 @@ namespace Yokko.Game.Screens.Settings;
 /// subsystem. Locale remains backed by osu!framework's persistent config.
 /// </summary>
 internal partial class GeneralSettingsPanel
-    : CompositeDrawable, ISettingsSearchTarget
+    : CompositeDrawable, ISettingsSearchTarget, ISettingsTransientUi
 {
     private readonly Bindable<string> locale;
     private readonly Bindable<string> playerDisplayName;
     private readonly Bindable<string> playerId;
     private readonly List<SettingsSegmentedChoiceButton> languageButtons = new();
     private readonly SettingsContentScrollContainer contentScroll;
+    private readonly Container contentRoot;
+    private readonly SettingsPlayerNameField playerNameField;
     private readonly SpriteText currentLanguage;
     private readonly SpriteText playerIdText;
     private readonly SpriteText versionText;
@@ -58,7 +60,7 @@ internal partial class GeneralSettingsPanel
                                  .GetName().Version?.ToString()
                          ?? "development";
 
-        var content = new Container
+        var content = contentRoot = new Container
         {
             RelativeSizeAxes = Axes.X,
             AutoSizeAxes = Axes.Y,
@@ -92,7 +94,7 @@ internal partial class GeneralSettingsPanel
                 SettingsChrome.CreateSettingRow(
                     412,
                     YokkoStrings.Get("settings.general.player_name"),
-                    new SettingsPlayerNameField(playerDisplayName)),
+                    playerNameField = new SettingsPlayerNameField(playerDisplayName)),
                 playerIdText = new SpriteText
                 {
                     Position = new Vector2(378, 468),
@@ -196,7 +198,17 @@ internal partial class GeneralSettingsPanel
         SettingsSearchScroll.TryFocus(
             SettingsPageKind.General,
             itemId,
-            contentScroll);
+            contentScroll,
+            contentRoot);
+
+    public bool DismissTransientUi()
+    {
+        if (!playerNameField.HasFocus)
+            return false;
+
+        GetContainingFocusManager()?.ChangeFocus(this);
+        return true;
+    }
 
     internal string CurrentPlayerId => playerId.Value;
 

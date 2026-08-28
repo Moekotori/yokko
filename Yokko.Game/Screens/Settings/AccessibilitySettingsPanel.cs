@@ -17,6 +17,7 @@ internal partial class AccessibilitySettingsPanel
 {
     private readonly YokkoAccessibilitySettings settings;
     private readonly SettingsContentScrollContainer contentScroll;
+    private readonly Container contentRoot;
     private readonly List<SettingsSegmentedChoiceButton> textScaleButtons = new();
 
     public AccessibilitySettingsPanel(YokkoAccessibilitySettings settings)
@@ -25,7 +26,7 @@ internal partial class AccessibilitySettingsPanel
             ?? throw new ArgumentNullException(nameof(settings));
         RelativeSizeAxes = Axes.Both;
 
-        var content = new Container
+        var content = contentRoot = new Container
         {
             RelativeSizeAxes = Axes.X,
             AutoSizeAxes = Axes.Y,
@@ -73,7 +74,8 @@ internal partial class AccessibilitySettingsPanel
         SettingsSearchScroll.TryFocus(
             SettingsPageKind.Accessibility,
             itemId,
-            contentScroll);
+            contentScroll,
+            contentRoot);
 
     private Drawable createTextScaleControl()
     {

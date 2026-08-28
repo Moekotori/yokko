@@ -305,8 +305,13 @@ internal partial class SettingsSidebar : CompositeDrawable
         SettingsPageKind? currentPage,
         int offset)
     {
-        SettingsNavItem[] visible =
-            orderedNavigationItems
+        bool searching = !string.IsNullOrWhiteSpace(SearchQuery);
+        SettingsNavItem[] visible = searching
+            ? orderedNavigationItems
+                .Where(item => item.IsFilteredVisible)
+                .OrderByDescending(item => item.SearchScore)
+                .ToArray()
+            : orderedNavigationItems
                 .Where(item => item.IsFilteredVisible)
                 .ToArray();
         if (visible.Length == 0 || offset == 0)

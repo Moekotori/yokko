@@ -46,6 +46,8 @@ internal partial class DesktopSettingsPanel
     internal SettingsBooleanToggle DynamicFrameRateToggle =>
         dynamicFrameRateToggle;
 
+    private readonly Container contentRoot;
+
     internal DesktopSettingsPanel(
         YokkoDisplaySettings displaySettings,
         YokkoAudioSettings audioSettings,
@@ -82,38 +84,43 @@ internal partial class DesktopSettingsPanel
             displaySettings.DynamicBackgroundFrameRate,
             "settings.desktop.enabled",
             "settings.desktop.disabled");
-        InternalChildren = new Drawable[]
+        InternalChild = contentRoot = new Container
         {
-            SettingsChrome.CreateHeader(
-                YokkoStrings.Get("settings.desktop.title"),
-                YokkoStrings.Get("settings.desktop.subtitle"),
-                FontAwesome.Solid.Laptop,
-                9),
-            SettingsChrome.CreateStatusCard(
-                174,
-                FontAwesome.Solid.Desktop,
-                YokkoStrings.Get("settings.desktop.current_output"),
-                FontAwesome.Solid.Bolt,
-                out statusMetadata),
-            SettingsChrome.CreateDivider(270),
-            SettingsChrome.CreateSettingRow(
-                274,
-                YokkoStrings.Get("settings.desktop.fast_alt_tab"),
-                new SettingsBooleanToggle(
-                    displaySettings.FastAltTab,
-                    "settings.desktop.enabled",
-                    "settings.desktop.disabled")),
-            SettingsChrome.CreateDivider(334),
-            SettingsChrome.CreateSettingRow(
-                338,
-                YokkoStrings.Get("settings.desktop.dynamic_fps"),
-                dynamicFrameRateToggle),
-            SettingsChrome.CreateDivider(398),
-            backgroundFrameRateRow,
-            postFrameRateDivider,
-            backgroundAudioRow,
-            postAudioDivider,
-            fullscreenDisplayRow,
+            RelativeSizeAxes = Axes.X,
+            AutoSizeAxes = Axes.Y,
+            Children = new Drawable[]
+            {
+                SettingsChrome.CreateHeader(
+                    YokkoStrings.Get("settings.desktop.title"),
+                    YokkoStrings.Get("settings.desktop.subtitle"),
+                    FontAwesome.Solid.Laptop,
+                    9),
+                SettingsChrome.CreateStatusCard(
+                    174,
+                    FontAwesome.Solid.Desktop,
+                    YokkoStrings.Get("settings.desktop.current_output"),
+                    FontAwesome.Solid.Bolt,
+                    out statusMetadata),
+                SettingsChrome.CreateDivider(270),
+                SettingsChrome.CreateSettingRow(
+                    274,
+                    YokkoStrings.Get("settings.desktop.fast_alt_tab"),
+                    new SettingsBooleanToggle(
+                        displaySettings.FastAltTab,
+                        "settings.desktop.enabled",
+                        "settings.desktop.disabled")),
+                SettingsChrome.CreateDivider(334),
+                SettingsChrome.CreateSettingRow(
+                    338,
+                    YokkoStrings.Get("settings.desktop.dynamic_fps"),
+                    dynamicFrameRateToggle),
+                SettingsChrome.CreateDivider(398),
+                backgroundFrameRateRow,
+                postFrameRateDivider,
+                backgroundAudioRow,
+                postAudioDivider,
+                fullscreenDisplayRow,
+            },
         };
 
         rebuildDisplayControls();
@@ -132,8 +139,10 @@ internal partial class DesktopSettingsPanel
     }
 
     public bool TryFocusSearchItem(string itemId) =>
-        SettingsSearchScroll.GetScrollY(SettingsPageKind.Desktop, itemId)
-            .HasValue;
+        SettingsSearchScroll.TryFocus(
+            SettingsPageKind.Desktop,
+            itemId,
+            contentRoot: contentRoot);
 
     private void rebuildDisplayControls()
     {

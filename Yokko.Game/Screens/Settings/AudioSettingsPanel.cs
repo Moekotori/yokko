@@ -51,6 +51,7 @@ internal partial class AudioSettingsPanel
     private bool synchronizingDeviceId;
     private bool testPlaying;
     private readonly SettingsContentScrollContainer contentScroll;
+    private readonly Container contentRoot;
 
     internal bool ShowsNativeOutputControls { get; }
 
@@ -91,7 +92,7 @@ internal partial class AudioSettingsPanel
             () => StartAudioTest(AudioSettingsTestKind.Music),
             () => StartAudioTest(AudioSettingsTestKind.HitSound));
 
-        var content = new Container
+        var content = contentRoot = new Container
         {
             RelativeSizeAxes = Axes.X,
             AutoSizeAxes = Axes.Y,
@@ -301,7 +302,8 @@ internal partial class AudioSettingsPanel
         SettingsSearchScroll.TryFocus(
             SettingsPageKind.Audio,
             itemId,
-            contentScroll);
+            contentScroll,
+            contentRoot);
 
     private Drawable createBackendControl()
     {
@@ -1526,23 +1528,11 @@ internal partial class SettingsOffsetStepper : CompositeDrawable
     }
 
     private Drawable createButton(IconUsage icon, Anchor anchor, double delta) =>
-        new ClickableContainer
-        {
-            Anchor = anchor,
-            Origin = anchor,
-            Width = 72,
-            RelativeSizeAxes = Axes.Y,
-            Action = () => offset.Value =
+        new SettingsStepperSideButton(
+            icon,
+            () => offset.Value =
                 Math.Clamp(Math.Round(offset.Value + delta), -200, 200),
-            Child = new SpriteIcon
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Size = new Vector2(16),
-                Icon = icon,
-                Colour = HomeControlColours.Pink,
-            },
-        };
+            anchor);
 
     internal static double AdjustForKey(
         double value,

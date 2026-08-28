@@ -104,6 +104,7 @@ internal partial class DisplaySettingsPanel
 
     private SpriteText currentDisplayMetadata;
     private readonly SettingsResolutionDropdown resolutionDropdown;
+    private readonly Container contentRoot;
 
     internal bool IsResolutionMenuOpen => resolutionDropdown.IsOpen;
     internal bool IsResolutionSelectionEnabled => resolutionDropdown.IsEnabled;
@@ -141,7 +142,12 @@ internal partial class DisplaySettingsPanel
             setWindowedSize,
             286);
 
-        InternalChildren = buildChildren(showPerformanceReadout);
+        InternalChild = contentRoot = new Container
+        {
+            RelativeSizeAxes = Axes.X,
+            AutoSizeAxes = Axes.Y,
+            Children = buildChildren(showPerformanceReadout),
+        };
 
         windowedSize.BindValueChanged(onWindowedSizeChanged, true);
         windowMode.BindValueChanged(onWindowModeChanged, true);
@@ -496,8 +502,10 @@ internal partial class DisplaySettingsPanel
     internal void SelectUiScale(YokkoUiScale scale) => uiScale.Value = scale;
 
     public bool TryFocusSearchItem(string itemId) =>
-        SettingsSearchScroll.GetScrollY(SettingsPageKind.Display, itemId)
-            .HasValue;
+        SettingsSearchScroll.TryFocus(
+            SettingsPageKind.Display,
+            itemId,
+            contentRoot: contentRoot);
 
     protected override void Dispose(bool isDisposing)
     {

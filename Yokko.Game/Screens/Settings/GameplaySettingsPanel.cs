@@ -247,32 +247,70 @@ internal partial class GameplaySettingsPanel
         {
             case "keys":
                 SelectSection(GameplaySettingsSection.Input);
+                pulseSectionTab(GameplaySettingsSection.Input);
+                highlightSectionContent(itemId);
                 return true;
 
             case "scroll-speed":
             case "input-offset":
                 SelectSection(GameplaySettingsSection.Timing);
+                pulseSectionTab(GameplaySettingsSection.Timing);
+                highlightSectionContent(itemId);
                 return true;
 
             case "judgement":
                 SelectSection(GameplaySettingsSection.Judgement);
+                pulseSectionTab(GameplaySettingsSection.Judgement);
+                highlightSectionContent(itemId);
                 return true;
 
             case "layout-preset":
             case "pause-unfocused":
                 SelectSection(GameplaySettingsSection.Feedback);
-                if (SettingsSearchScroll.GetScrollY(
-                        SettingsPageKind.Gameplay,
-                        itemId) is float y)
-                {
-                    contentHost.ScrollTo(y, true);
-                }
-
+                pulseSectionTab(GameplaySettingsSection.Feedback);
+                highlightSectionContent(itemId);
                 return true;
 
             default:
                 return false;
         }
+    }
+
+    private void highlightSectionContent(string itemId)
+    {
+        if (contentHost.Child is not Container sectionContent)
+            return;
+
+        float? y = SettingsSearchScroll.GetScrollY(
+            SettingsPageKind.Gameplay,
+            itemId);
+        if (!y.HasValue)
+            return;
+
+        contentHost.ScrollTo(y.Value, true);
+        SettingsSearchHighlight.PulseRow(sectionContent, y.Value);
+    }
+
+    private void pulseSectionTab(GameplaySettingsSection section)
+    {
+        GameplaySectionTab tab = sectionTabs.FirstOrDefault(
+            candidate => (GameplaySettingsSection)candidate.Value == section);
+        if (tab != null)
+            SettingsSearchHighlight.Pulse(tab);
+    }
+
+    private bool navigateSectionTabs(int offset)
+    {
+        int currentIndex = sectionTabs.FindIndex(
+            tab => (GameplaySettingsSection)tab.Value == CurrentSection);
+        int nextIndex = currentIndex + offset;
+        if (nextIndex < 0 || nextIndex >= sectionTabs.Count)
+            return false;
+
+        GameplaySectionTab nextTab = sectionTabs[nextIndex];
+        showSection((GameplaySettingsSection)nextTab.Value, true);
+        GetContainingFocusManager()?.ChangeFocus(nextTab);
+        return true;
     }
 
     internal void ScrollContentBy(double offset) =>
@@ -744,7 +782,8 @@ internal partial class GameplaySettingsPanel
             label,
             icon,
             () => showSection(section, true),
-            width);
+            width,
+            navigateSectionTabs);
         tab.Value = section;
         sectionTabs.Add(tab);
         flow.Add(tab);
@@ -2383,6 +2422,7 @@ internal partial class SettingsContentScrollContainer
 
 internal partial class GameplaySectionTab : ClickableContainer
 {
+    private readonly Func<int, bool> navigate;
     private readonly Box background;
     private readonly SpriteIcon icon;
     private readonly SpriteText text;
@@ -2391,12 +2431,16 @@ internal partial class GameplaySectionTab : ClickableContainer
 
     public object Value { get; set; }
 
+    public override bool AcceptsFocus => true;
+
     public GameplaySectionTab(
         LocalisableString label,
         IconUsage itemIcon,
         Action action,
-        float width)
+        float width,
+        Func<int, bool> navigate)
     {
+        this.navigate = navigate;
         Action = action;
         Size = new Vector2(width, 44);
         Masking = true;
@@ -2469,6 +2513,43 @@ internal partial class GameplaySectionTab : ClickableContainer
     {
         if (!selected)
             background.FadeColour(Color4.White, 120, Easing.OutQuint);
+    }
+
+    protected override bool OnKeyDown(KeyDownEvent e)
+    {
+        if (e.Key == Key.Right)
+            return navigate(1) || base.OnKeyDown(e);
+
+        if (e.Key == Key.Left)
+            return navigate(-1) || base.OnKeyDown(e);
+
+        if (e.Key is Key.Enter or Key.Space)
+        {
+            Action?.Invoke();
+            return true;
+        }
+
+        return base.OnKeyDown(e);
+    }
+
+    protected override void OnFocus(FocusEvent e)
+    {
+        base.OnFocus(e);
+        if (!selected)
+        {
+            BorderColour = HomeControlColours.Pink;
+            BorderThickness = 2f;
+        }
+    }
+
+    protected override void OnFocusLost(FocusLostEvent e)
+    {
+        base.OnFocusLost(e);
+        if (!selected)
+        {
+            BorderColour = SettingsTheme.Divider;
+            BorderThickness = 1.2f;
+        }
     }
 }
 

@@ -1,3 +1,5 @@
+using osu.Framework.Graphics.Containers;
+
 namespace Yokko.Game.Screens.Settings;
 
 /// <summary>
@@ -26,16 +28,22 @@ internal static class SettingsSearchScroll
     internal static bool TryFocus(
         SettingsPageKind page,
         string itemId,
-        SettingsContentScrollContainer scroll)
+        SettingsContentScrollContainer scroll = null,
+        Container contentRoot = null)
     {
-        if (scroll == null)
-            return GetScrollY(page, itemId).HasValue;
-
         float? y = GetScrollY(page, itemId);
         if (!y.HasValue)
             return false;
 
-        scroll.ScrollTo(y.Value, true);
+        if (scroll != null)
+        {
+            scroll.ScrollTo(y.Value, true);
+            contentRoot ??= scroll.Child as Container;
+        }
+
+        if (contentRoot != null)
+            SettingsSearchHighlight.PulseRow(contentRoot, y.Value);
+
         return true;
     }
 }
