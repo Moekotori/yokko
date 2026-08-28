@@ -5287,7 +5287,7 @@ HitPosition: 400
             AddUntilStep("resume completes", () =>
                 !gameplayScreen.IsPaused
                 && !gameplayScreen.PauseTransitionInProgress
-                && audioEngine.SeekCount == 1);
+                && audioEngine.ResumeCount == 1);
             AddAssert("pause overlay is removed", () =>
                 gameplayScreen
                     .ChildrenOfType<GameplayPauseOverlay>()
@@ -5421,7 +5421,7 @@ HitPosition: 400
             });
             AddAssert("repeat never resumes", () =>
                 gameplayScreen.IsPaused
-                && audioEngine.SeekCount == 0);
+                && audioEngine.ResumeCount == 0);
             AddStep("press escape again", () =>
                 gameplayScreen.HandleKeyDownInput(
                     Key.Escape,
@@ -5431,7 +5431,7 @@ HitPosition: 400
             AddUntilStep("resume completes", () =>
                 !gameplayScreen.IsPaused
                 && !gameplayScreen.PauseTransitionInProgress
-                && audioEngine.SeekCount == 1);
+                && audioEngine.ResumeCount == 1);
             AddStep("hold ctrl plus into auto-repeat", () =>
             {
                 gameplayScreen.HandleKeyDownInput(
@@ -5521,7 +5521,7 @@ HitPosition: 400
             AddAssert("countdown buffers the resume", () =>
                 gameplayScreen.ResumeCountdownInProgress
                 && gameplayScreen.IsPaused
-                && audioEngine.SeekCount == 0);
+                && audioEngine.ResumeCount == 0);
             AddStep("cancel resume with escape", () =>
                 gameplayScreen.HandleKeyDownInput(
                     Key.Escape,
@@ -5534,13 +5534,13 @@ HitPosition: 400
                 && gameplayScreen
                     .ChildrenOfType<GameplayPauseOverlay>()
                     .Any()
-                && audioEngine.SeekCount == 0);
+                && audioEngine.ResumeCount == 0);
             AddStep("resume for real", () =>
                 gameplayScreen.TogglePause());
             AddUntilStep("countdown completes and resumes", () =>
                 !gameplayScreen.ResumeCountdownInProgress
                 && !gameplayScreen.IsPaused
-                && audioEngine.SeekCount == 1);
+                && audioEngine.ResumeCount == 1);
             AddStep("restore countdown", () =>
                 gameplayScreen.ResumeCountdownMillisecondsOverride = null);
         }
@@ -5577,7 +5577,7 @@ HitPosition: 400
                 gameplayScreen.TogglePause());
             AddUntilStep("resume is immediate", () =>
                 !gameplayScreen.IsPaused
-                && audioEngine.SeekCount == 1);
+                && audioEngine.ResumeCount == 1);
             AddAssert("countdown never engaged", () =>
                 !gameplayScreen.ResumeCountdownInProgress
                 && gameplayScreen
@@ -5864,6 +5864,8 @@ StageHint: stage-hint
 
             public int PauseCount { get; private set; }
 
+            public int ResumeCount { get; private set; }
+
             public int SeekCount { get; private set; }
 
             public int StopCount { get; private set; }
@@ -5899,6 +5901,9 @@ StageHint: stage-hint
             public ValueTask ResumeAsync(
                 CancellationToken cancellationToken = default)
             {
+                // Model an engine that continues the paused core in place:
+                // the playback clock keeps its paused position.
+                ResumeCount++;
                 status = createStatus(true);
                 return ValueTask.CompletedTask;
             }

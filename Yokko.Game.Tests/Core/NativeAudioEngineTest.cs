@@ -300,7 +300,29 @@ namespace Yokko.Game.Tests.Core
             Assert.That(
                 engine.TriggerPreparedSample(sampleHandle, 1),
                 Is.True,
-                "Prepared handles must survive a native core rebuild on seek.");
+                "Prepared handles must stay registered across a seek that reuses the core.");
+
+            await engine.PauseAsync();
+            Assert.That(engine.Status.IsRunning, Is.False);
+            double pausedPosition = engine.PlaybackTimeMilliseconds;
+            await Task.Delay(200);
+            Assert.That(
+                engine.PlaybackTimeMilliseconds,
+                Is.EqualTo(pausedPosition).Within(5),
+                "A paused engine must freeze the playback clock.");
+            await engine.ResumeAsync();
+            Assert.That(
+                engine.Status.IsRunning,
+                Is.True,
+                "Resume must reopen the output for the paused core.");
+            Assert.That(
+                engine.PlaybackTimeMilliseconds,
+                Is.InRange(pausedPosition - 5, pausedPosition + 500),
+                "Resume must continue from the paused position instead of rebuilding.");
+            Assert.That(
+                engine.TriggerPreparedSample(sampleHandle, 1),
+                Is.True,
+                "Prepared handles must survive a pause/resume cycle.");
 
             await engine.PrepareSamplesAsync([audioPath]);
             Assert.That(

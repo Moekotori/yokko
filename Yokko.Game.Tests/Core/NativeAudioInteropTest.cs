@@ -63,6 +63,11 @@ namespace Yokko.Game.Tests.Core
             core.Pause();
             Assert.That(core.GetStatus().State, Is.EqualTo(NativeAudioState.Paused));
 
+            // Resume support: a paused core restarts in place without
+            // repriming its ring buffer.
+            core.Start();
+            Assert.That(core.GetStatus().State, Is.EqualTo(NativeAudioState.Running));
+
             core.Stop();
             NativeAudioStatus stopped = core.GetStatus();
             Assert.That(stopped.State, Is.EqualTo(NativeAudioState.Idle));

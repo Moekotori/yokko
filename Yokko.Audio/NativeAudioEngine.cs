@@ -875,17 +875,7 @@ public sealed class NativeAudioEngine :
         core.SetMusicSamplePlaybackRate((float)request.PlaybackRate);
         metronomeSampleId = core.RegisterMetronomeSample(
             createMetronomeClick(sampleRate));
-        PreparedSampleSet prepared = Volatile.Read(ref preparedSampleSet);
-        var sampleIds = new uint[prepared.Samples.Length];
-        for (int slot = 0; slot < prepared.Samples.Length; slot++)
-        {
-            DecodedAudioSample sample = prepared.Samples[slot].Sample;
-            float[] pcm = PrepareHitSampleForOutput(sample, sampleRate);
-            sampleIds[slot] = core.RegisterSample(pcm);
-        }
-        Volatile.Write(
-            ref activeSampleSet,
-            new ActiveSampleSet(prepared.Generation, core, sampleIds));
+        ensureActiveSampleSet(core, request);
 
         await restartFeederAndOutputAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -902,6 +892,9 @@ public sealed class NativeAudioEngine :
                 "The native audio core is not available.");
         }
 
+        // Samples registered on the reused core stay valid across a seek;
+        // only a newly prepared set still needs to be registered.
+        ensureActiveSampleSet(core, request);
         if (source != null)
         {
             playbackBaseMilliseconds =
@@ -915,6 +908,35 @@ public sealed class NativeAudioEngine :
 
         await restartFeederAndOutputAsync(cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    private void ensureActiveSampleSet(
+        NativeAudioCore core,
+        AudioEngineStartRequest request)
+    {
+        PreparedSampleSet prepared = Volatile.Read(ref preparedSampleSet);
+        ActiveSampleSet? active = Volatile.Read(ref activeSampleSet);
+        if (active != null
+            && active.Core == core
+            && active.Generation == prepared.Generation)
+        {
+            return;
+        }
+
+        int sampleRate = source?.SampleRate
+                         ?? (request.PreferredSampleRate > 0
+                             ? request.PreferredSampleRate
+                             : 48000);
+        var sampleIds = new uint[prepared.Samples.Length];
+        for (int slot = 0; slot < prepared.Samples.Length; slot++)
+        {
+            DecodedAudioSample sample = prepared.Samples[slot].Sample;
+            float[] pcm = PrepareHitSampleForOutput(sample, sampleRate);
+            sampleIds[slot] = core.RegisterSample(pcm);
+        }
+        Volatile.Write(
+            ref activeSampleSet,
+            new ActiveSampleSet(prepared.Generation, core, sampleIds));
     }
 
     private async Task restartFeederAndOutputAsync(
