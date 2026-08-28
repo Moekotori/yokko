@@ -454,6 +454,9 @@ public partial class SettingsScreen : Screen
 
     internal void OpenPage(SettingsPageKind page)
     {
+        if (!SettingsNavigation.IsVisible(page))
+            page = SettingsPageKind.Display;
+
         if (contentHost == null)
         {
             CurrentPage = page;

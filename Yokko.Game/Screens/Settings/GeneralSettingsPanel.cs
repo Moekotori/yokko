@@ -28,8 +28,10 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
 {
     private readonly Bindable<string> locale;
     private readonly Bindable<string> playerDisplayName;
+    private readonly Bindable<string> playerId;
     private readonly List<SettingsSegmentedChoiceButton> languageButtons = new();
     private readonly SpriteText currentLanguage;
+    private readonly SpriteText playerIdText;
     private readonly SpriteText versionText;
 
     internal string CurrentLocale => locale.Value;
@@ -43,6 +45,7 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
         this.locale = locale;
         playerDisplayName = yokkoConfig.GetBindable<string>(
             YokkoSetting.PlayerDisplayName);
+        playerId = yokkoConfig.GetBindable<string>(YokkoSetting.PlayerId);
         RelativeSizeAxes = Axes.Both;
 
         string version = Assembly.GetEntryAssembly()?
@@ -77,9 +80,16 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
                 412,
                 YokkoStrings.Get("settings.general.player_name"),
                 new SettingsPlayerNameField(playerDisplayName)),
-            SettingsChrome.CreateDivider(474),
+            playerIdText = new SpriteText
+            {
+                Position = new Vector2(378, 468),
+                Width = 840,
+                Font = HomeTypography.Body(15),
+                Colour = SettingsTheme.MutedNavy,
+            },
+            SettingsChrome.CreateDivider(494),
             SettingsChrome.CreateSettingRow(
-                480,
+                500,
                 YokkoStrings.Get("settings.general.version"),
                 versionText = new SpriteText
                 {
@@ -91,15 +101,15 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
                 }),
             new SpriteText
             {
-                Position = new Vector2(378, 536),
+                Position = new Vector2(378, 556),
                 Width = 840,
                 Text = YokkoStrings.Get("settings.general.updates_note"),
                 Font = HomeTypography.Body(15),
                 Colour = SettingsTheme.MutedNavy,
             },
-            SettingsChrome.CreateDivider(562),
+            SettingsChrome.CreateDivider(582),
             SettingsChrome.CreateSettingRow(
-                568,
+                588,
                 YokkoStrings.Get("settings.general.debug_console"),
                 new SettingsBooleanToggle(showDebugConsole)),
             new HomeDotCross
@@ -112,7 +122,10 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
         };
 
         locale.BindValueChanged(onLocaleChanged, true);
+        playerId.BindValueChanged(onPlayerIdChanged, true);
     }
+
+    internal string CurrentPlayerId => playerId.Value;
 
     internal void SelectLanguage(string language)
     {
@@ -157,6 +170,11 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
 
     private void onLocaleChanged(ValueChangedEvent<string> _) => refreshSelection();
 
+    private void onPlayerIdChanged(ValueChangedEvent<string> change) =>
+        playerIdText.Text = YokkoStrings.Get(
+            "settings.general.player_id_value",
+            change.NewValue);
+
     private void refreshSelection()
     {
         currentLanguage.Text = locale.Value switch
@@ -173,7 +191,10 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
     protected override void Dispose(bool isDisposing)
     {
         if (isDisposing)
+        {
             locale.ValueChanged -= onLocaleChanged;
+            playerId.ValueChanged -= onPlayerIdChanged;
+        }
 
         base.Dispose(isDisposing);
     }
@@ -197,10 +218,8 @@ internal partial class SettingsPlayerNameField : BasicTextBox
         BackgroundUnfocused = Color4.White;
         BackgroundFocused = SettingsTheme.PaleCyan;
         FontSize = 18;
-        MaxLength = 32;
 
         playerDisplayName.BindValueChanged(onPlayerNameChanged, true);
-        Current.BindValueChanged(onTextChanged);
     }
 
     protected override Drawable GetDrawableCharacter(char c) => new SpriteText
@@ -238,20 +257,12 @@ internal partial class SettingsPlayerNameField : BasicTextBox
 
     private void onPlayerNameChanged(ValueChangedEvent<string> change)
     {
-        if (synchronizing)
+        if (synchronizing || HasFocus)
             return;
 
         synchronizing = true;
         Current.Value = change.NewValue ?? string.Empty;
         synchronizing = false;
-    }
-
-    private void onTextChanged(ValueChangedEvent<string> change)
-    {
-        if (synchronizing)
-            return;
-
-        commit(change.NewValue);
     }
 
     private void commit() => commit(Current.Value);
@@ -268,16 +279,16 @@ internal partial class SettingsPlayerNameField : BasicTextBox
     private static string normalize(string value)
     {
         string trimmed = (value ?? string.Empty).Trim();
+        if (trimmed.Length > 32)
+            trimmed = trimmed[..32];
+
         return trimmed.Length == 0 ? "LOCAL PLAYER" : trimmed.ToUpperInvariant();
     }
 
     protected override void Dispose(bool isDisposing)
     {
         if (isDisposing)
-        {
             playerDisplayName.ValueChanged -= onPlayerNameChanged;
-            Current.ValueChanged -= onTextChanged;
-        }
 
         base.Dispose(isDisposing);
     }

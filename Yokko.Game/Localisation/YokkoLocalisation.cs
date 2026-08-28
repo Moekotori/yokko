@@ -1142,6 +1142,10 @@ internal static class YokkoStrings
                 "Display name",
                 "显示名称",
                 "表示名"),
+            ["settings.general.player_id_value"] = new(
+                "Player ID: {0}",
+                "玩家 ID：{0}",
+                "プレイヤー ID: {0}"),
             ["settings.general.version"] = new(
                 "Current version",
                 "当前版本",
@@ -1184,18 +1188,10 @@ internal static class YokkoStrings
                 "Performance readout",
                 "性能读数",
                 "パフォーマンス表示"),
-            ["settings.display.difficulty_rating"] = new(
-                "Difficulty rating",
-                "难度显示",
-                "難易度表示"),
-            ["settings.display.difficulty_rating.etterna"] = new(
-                "Etterna MSD",
-                "Etterna MSD",
-                "Etterna MSD"),
-            ["settings.display.difficulty_rating.rebirth"] = new(
-                "Rebirth stars",
-                "Rebirth 星级",
-                "Rebirth 星評価"),
+            ["settings.display.mobile_note"] = new(
+                "Window and resolution options are managed by your device on this platform.",
+                "此平台的窗口与分辨率由系统管理。",
+                "このプラットフォームではウィンドウと解像度は端末側で管理されます。"),
             ["settings.display.enabled"] = new("Enabled", "已开启", "オン"),
             ["settings.display.disabled"] = new("Disabled", "已关闭", "オフ"),
             ["settings.display.windowed"] = new("Windowed", "窗口化", "ウィンドウ"),
@@ -1285,6 +1281,10 @@ internal static class YokkoStrings
             ["settings.audio.enabled"] = new("Enabled", "已开启", "オン"),
             ["settings.audio.disabled"] = new("Disabled", "已关闭", "オフ"),
             ["settings.audio.offset"] = new("Timing offset", "时序偏移", "タイミングオフセット"),
+            ["settings.audio.offset_note"] = new(
+                "Shared with Gameplay timing so offset has one source of truth.",
+                "与玩法时序设置共享，确保偏移只有一个真源。",
+                "ゲームプレイのタイミング設定と共有し、オフセットを一元管理します。"),
             ["settings.audio.exclusive"] = new("WASAPI Exclusive", "WASAPI 独占", "WASAPI 排他"),
             ["settings.audio.shared"] = new("WASAPI Shared", "WASAPI 共享", "WASAPI 共有"),
             ["settings.audio.asio"] = new("ASIO", "ASIO", "ASIO"),

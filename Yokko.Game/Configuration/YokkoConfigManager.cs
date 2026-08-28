@@ -711,10 +711,26 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
                 YokkoSetting.GameplayDifficultyRatingMode,
                 legacyDifficultyRating);
         }
+        else if (legacyDifficultyRating != gameplayDifficultyRating)
+        {
+            // Prefer the explicit gameplay value when both keys disagree.
+            SetValue(
+                YokkoSetting.DisplayDifficultyRatingMode,
+                gameplayDifficultyRating);
+            legacyDifficultyRating = gameplayDifficultyRating;
+        }
 
         BindWith(
             YokkoSetting.GameplayDifficultyRatingMode,
             settings.DifficultyRatingMode);
+
+        if (legacyDifficultyRating
+            != ManiaDifficultyRatingMode.RebirthStars)
+        {
+            SetValue(
+                YokkoSetting.DisplayDifficultyRatingMode,
+                ManiaDifficultyRatingMode.RebirthStars);
+        }
         BindWith(
             YokkoSetting.GameplayJudgementMode,
             settings.JudgementMode);

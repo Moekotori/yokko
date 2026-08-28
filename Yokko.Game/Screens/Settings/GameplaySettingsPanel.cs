@@ -105,6 +105,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal ManiaDifficultyRatingMode CurrentDifficultyRatingMode =>
         settings.DifficultyRatingMode.Value;
 
+    internal const float TimingSectionPanelHeight = 384;
+
     internal ScrollSpeedAdjustmentMode CurrentScrollSpeedAdjustmentMode =>
         settings.ScrollSpeedAdjustmentMode.Value;
 
@@ -1091,7 +1093,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     private Drawable createTimingSection()
     {
-        var panel = createPanel();
+        var panel = createPanel(TimingSectionPanelHeight);
         setPanelChildren(panel, new Drawable[]
         {
             createControlLabel(

@@ -123,6 +123,14 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
                 YokkoStrings.Get("settings.audio.offset"),
                 new SettingsOffsetStepper(
                     settings.UserOffsetMilliseconds)),
+            new SpriteText
+            {
+                Position = new Vector2(378, 582),
+                Width = 840,
+                Text = YokkoStrings.Get("settings.audio.offset_note"),
+                Font = HomeTypography.Body(14),
+                Colour = SettingsTheme.MutedNavy,
+            },
         };
 
         selectedDeviceId.BindValueChanged(

@@ -230,32 +230,32 @@ namespace Yokko.Game
                     0,
                     60,
                     0));
-            windowSizeGuard = new YokkoWindowSizeGuard(
-                windowedSize,
-                currentDisplayMode,
-                () => host.Window?.Scale ?? 1,
-                (requested, corrected) => Logger.Log(
-                    $"Repaired unsafe window size {requested.Width}x{requested.Height} "
-                    + $"to {corrected.Width}x{corrected.Height}.",
-                    LoggingTarget.Runtime,
-                    LogLevel.Important));
-
-            frameworkConfig.SetValue(
-                FrameworkSetting.ExecutionMode,
-                ExecutionMode.MultiThreaded);
             YokkoLatencyThreadPolicy.Apply(host);
             frameRateController = new YokkoFrameRateController(
                 frameworkConfig,
                 displaySettings.FrameLimit,
                 currentDisplayMode,
                 frameRateAdaptation);
-            desktopBehaviourController = new YokkoDesktopBehaviourController(
-                host,
-                frameworkConfig,
-                displaySettings,
-                audioSettings,
-                displayModeController,
-                yokkoConfig);
+
+            if (YokkoPlatformCapabilities.SupportsWindowManagement)
+            {
+                windowSizeGuard = new YokkoWindowSizeGuard(
+                    windowedSize,
+                    currentDisplayMode,
+                    () => host.Window?.Scale ?? 1,
+                    (requested, corrected) => Logger.Log(
+                        $"Repaired unsafe window size {requested.Width}x{requested.Height} "
+                        + $"to {corrected.Width}x{corrected.Height}.",
+                        LoggingTarget.Runtime,
+                        LogLevel.Important));
+                desktopBehaviourController = new YokkoDesktopBehaviourController(
+                    host,
+                    frameworkConfig,
+                    displaySettings,
+                    audioSettings,
+                    displayModeController,
+                    yokkoConfig);
+            }
 
             string configuredLocale = frameworkConfig.Get<string>(FrameworkSetting.Locale);
             string normalizedLocale = YokkoLocale.Normalize(configuredLocale);

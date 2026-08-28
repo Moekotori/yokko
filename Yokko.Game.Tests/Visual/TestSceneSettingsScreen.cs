@@ -1016,6 +1016,66 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestHiddenSettingsPageFallsBackToDisplay()
+        {
+            AddStep("open hidden Editor page", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Editor));
+            AddAssert("Editor falls back to Display", () =>
+                settingsScreen.CurrentPage == SettingsPageKind.Display);
+
+            AddStep("open hidden Accessibility page", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Accessibility));
+            AddAssert("Accessibility falls back to Display", () =>
+                settingsScreen.CurrentPage == SettingsPageKind.Display);
+        }
+
+        [Test]
+        public void TestGeneralPageShowsPlayerId()
+        {
+            GeneralSettingsPanel general = null;
+
+            AddStep("open General", () =>
+                settingsScreen.OpenPage(SettingsPageKind.General));
+            AddStep("capture General", () =>
+                general = (GeneralSettingsPanel)settingsScreen.ActivePanel);
+            AddAssert("player id is available", () =>
+                !string.IsNullOrWhiteSpace(general.CurrentPlayerId));
+        }
+
+        [Test]
+        public void TestDisplayPageMatchesPlatformWindowControls()
+        {
+            DisplaySettingsPanel display = null;
+
+            AddStep("open Display", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Display));
+            AddStep("capture Display", () =>
+                display = (DisplaySettingsPanel)settingsScreen.ActivePanel);
+            AddAssert("window controls match platform", () =>
+                display.ShowsWindowControls
+                == SettingsPlatform.SupportsWindowManagement);
+        }
+
+        [Test]
+        public void TestGameplayTimingSectionUsesExpandedPanel()
+        {
+            GameplaySettingsPanel gameplay = null;
+
+            AddStep("open Gameplay timing", () =>
+            {
+                settingsScreen.OpenPage(SettingsPageKind.Gameplay);
+                gameplay =
+                    (GameplaySettingsPanel)settingsScreen.ActivePanel;
+                gameplay.SelectSection(GameplaySettingsSection.Timing);
+            });
+            AddAssert("timing section panel is tall enough", () =>
+                gameplay.ChildrenOfType<Container>()
+                    .Any(container =>
+                        container.Height
+                        == GameplaySettingsPanel.TimingSectionPanelHeight));
+        }
+
+        [Test]
         public void TestLanguageCanBeChangedImmediately()
         {
             GeneralSettingsPanel general = null;

@@ -101,13 +101,15 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         aspectRatioButtons = new();
     private readonly List<SettingsFrameLimitChoiceButton> frameLimitButtons = new();
 
-    private readonly SpriteText currentDisplayMetadata;
+    private SpriteText currentDisplayMetadata;
     private readonly SettingsResolutionDropdown resolutionDropdown;
 
     internal bool IsResolutionMenuOpen => resolutionDropdown.IsOpen;
     internal bool IsResolutionSelectionEnabled => resolutionDropdown.IsEnabled;
     internal Size DisplayedResolution => resolutionDropdown.SelectedSize;
     internal YokkoUiScale CurrentUiScale => uiScale.Value;
+
+    internal bool ShowsWindowControls { get; }
 
     internal static bool IsFrameLimitSelectable(YokkoFrameLimit limit) =>
         supportedFrameLimits.Contains(limit);
@@ -130,6 +132,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         this.setWindowedSize = setWindowedSize;
         this.setWindowMode = setWindowMode;
         RelativeSizeAxes = Axes.Both;
+        ShowsWindowControls = SettingsPlatform.SupportsWindowManagement;
 
         WindowAspectRatio initialAspect = GetAspectRatio(windowedSize.Value);
         resolutionDropdown = new SettingsResolutionDropdown(
@@ -137,43 +140,93 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             setWindowedSize,
             286);
 
-        InternalChildren = new Drawable[]
-        {
-            SettingsChrome.CreateHeader(
-                YokkoStrings.Get("settings.display.title"),
-                YokkoStrings.Get("settings.display.subtitle"),
-                FontAwesome.Solid.Desktop,
-                2),
-            SettingsChrome.CreateStatusCard(
-                174,
-                FontAwesome.Solid.Desktop,
-                YokkoStrings.Get("settings.display.current_display"),
-                FontAwesome.Solid.Heartbeat,
-                out currentDisplayMetadata),
-            SettingsChrome.CreateDivider(270),
-            SettingsChrome.CreateSettingRow(276, YokkoStrings.Get("settings.display.window_mode"), createModeControl()),
-            SettingsChrome.CreateDivider(337),
-            SettingsChrome.CreateSettingRow(
-                338,
-                YokkoStrings.Get("settings.display.ratio_resolution"),
-                createGeometryControl(),
-                -10),
-            SettingsChrome.CreateDivider(399),
-            SettingsChrome.CreateSettingRow(400, YokkoStrings.Get("settings.display.frame_limit"), createFrameLimitControl()),
-            SettingsChrome.CreateDivider(461),
-            SettingsChrome.CreateSettingRow(462, YokkoStrings.Get("settings.display.interface_scale"), createScaleControl()),
-            SettingsChrome.CreateDivider(523),
-            SettingsChrome.CreateSettingRow(
-                524,
-                YokkoStrings.Get("settings.display.performance_readout"),
-                new SettingsBooleanToggle(showPerformanceReadout)),
-        };
+        InternalChildren = buildChildren(showPerformanceReadout);
 
         windowedSize.BindValueChanged(onWindowedSizeChanged, true);
         windowMode.BindValueChanged(onWindowModeChanged, true);
         uiScale.BindValueChanged(onUiScaleChanged, true);
         frameLimit.BindValueChanged(onFrameLimitChanged, true);
         currentDisplayMode.BindValueChanged(onCurrentDisplayModeChanged, true);
+    }
+
+    private Drawable[] buildChildren(BindableBool showPerformanceReadout)
+    {
+        var children = new List<Drawable>
+        {
+            SettingsChrome.CreateHeader(
+                YokkoStrings.Get("settings.display.title"),
+                YokkoStrings.Get("settings.display.subtitle"),
+                FontAwesome.Solid.Desktop,
+                2),
+        };
+
+        if (ShowsWindowControls)
+        {
+            children.Add(SettingsChrome.CreateStatusCard(
+                174,
+                FontAwesome.Solid.Desktop,
+                YokkoStrings.Get("settings.display.current_display"),
+                FontAwesome.Solid.Heartbeat,
+                out currentDisplayMetadata));
+            children.Add(SettingsChrome.CreateDivider(270));
+            children.Add(SettingsChrome.CreateSettingRow(
+                276,
+                YokkoStrings.Get("settings.display.window_mode"),
+                createModeControl()));
+            children.Add(SettingsChrome.CreateDivider(337));
+            children.Add(SettingsChrome.CreateSettingRow(
+                338,
+                YokkoStrings.Get("settings.display.ratio_resolution"),
+                createGeometryControl(),
+                -10));
+            children.Add(SettingsChrome.CreateDivider(399));
+            children.Add(SettingsChrome.CreateSettingRow(
+                400,
+                YokkoStrings.Get("settings.display.frame_limit"),
+                createFrameLimitControl()));
+            children.Add(SettingsChrome.CreateDivider(461));
+            children.Add(SettingsChrome.CreateSettingRow(
+                462,
+                YokkoStrings.Get("settings.display.interface_scale"),
+                createScaleControl()));
+            children.Add(SettingsChrome.CreateDivider(523));
+            children.Add(SettingsChrome.CreateSettingRow(
+                524,
+                YokkoStrings.Get("settings.display.performance_readout"),
+                new SettingsBooleanToggle(showPerformanceReadout)));
+            return children.ToArray();
+        }
+
+        currentDisplayMetadata = new SpriteText
+        {
+            Text = "—",
+            Font = HomeTypography.Body(18),
+            Colour = HomeControlColours.Navy,
+        };
+        children.Add(new SpriteText
+        {
+            Position = new Vector2(378, 174),
+            Width = 840,
+            Text = YokkoStrings.Get("settings.display.mobile_note"),
+            Font = HomeTypography.Body(17),
+            Colour = SettingsTheme.MutedNavy,
+        });
+        children.Add(SettingsChrome.CreateDivider(230));
+        children.Add(SettingsChrome.CreateSettingRow(
+            236,
+            YokkoStrings.Get("settings.display.frame_limit"),
+            createFrameLimitControl()));
+        children.Add(SettingsChrome.CreateDivider(298));
+        children.Add(SettingsChrome.CreateSettingRow(
+            304,
+            YokkoStrings.Get("settings.display.interface_scale"),
+            createScaleControl()));
+        children.Add(SettingsChrome.CreateDivider(366));
+        children.Add(SettingsChrome.CreateSettingRow(
+            372,
+            YokkoStrings.Get("settings.display.performance_readout"),
+            new SettingsBooleanToggle(showPerformanceReadout)));
+        return children.ToArray();
     }
 
     private Drawable createModeControl()
@@ -307,6 +360,9 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
 
     private void refreshSelection()
     {
+        if (!ShowsWindowControls)
+            return;
+
         DisplayMode displayMode = currentDisplayMode.Value;
         Size displaySize = displayMode.Size.Width > 0 && displayMode.Size.Height > 0
             ? displayMode.Size
@@ -452,7 +508,7 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
 
 internal partial class SettingsBooleanToggle : ClickableContainer
 {
-    private readonly BindableBool value;
+    private readonly Bindable<bool> value;
     private readonly Container cardBody;
     private readonly Box background;
     private readonly Box switchTrack;
@@ -461,7 +517,7 @@ internal partial class SettingsBooleanToggle : ClickableContainer
 
     public override bool AcceptsFocus => true;
 
-    public SettingsBooleanToggle(BindableBool value)
+    public SettingsBooleanToggle(Bindable<bool> value)
     {
         this.value = value;
         Action = () => value.Value = !value.Value;

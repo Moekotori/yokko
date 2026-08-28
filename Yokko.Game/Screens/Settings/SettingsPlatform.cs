@@ -1,11 +1,12 @@
-using System;
+using Yokko.Game.Presentation;
 
 namespace Yokko.Game.Screens.Settings;
 
 internal static class SettingsPlatform
 {
     internal static bool SupportsDesktopSettings =>
-        OperatingSystem.IsWindows()
-        || OperatingSystem.IsMacOS()
-        || OperatingSystem.IsLinux();
+        YokkoPlatformCapabilities.SupportsWindowManagement;
+
+    internal static bool SupportsWindowManagement =>
+        YokkoPlatformCapabilities.SupportsWindowManagement;
 }

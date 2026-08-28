@@ -1405,4 +1405,48 @@ public sealed class GameplaySettingsTest
                 Directory.Delete(directory, true);
         }
     }
+
+    [Test]
+    public void ConflictingDifficultyRatingKeysPreferGameplayValue()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "conflicting-difficulty-rating-config",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            using (var legacyConfig =
+                   new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                legacyConfig.SetValue(
+                    YokkoSetting.DisplayDifficultyRatingMode,
+                    ManiaDifficultyRatingMode.RebirthStars);
+                legacyConfig.SetValue(
+                    YokkoSetting.GameplayDifficultyRatingMode,
+                    ManiaDifficultyRatingMode.EtternaMsd);
+                Assert.That(legacyConfig.Save(), Is.True);
+            }
+
+            var restoredSettings = new YokkoGameplaySettings();
+            using (var restoredConfig =
+                   new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                restoredConfig.BindGameplaySettings(restoredSettings);
+                Assert.That(
+                    restoredSettings.DifficultyRatingMode.Value,
+                    Is.EqualTo(ManiaDifficultyRatingMode.EtternaMsd));
+                Assert.That(
+                    restoredConfig.Get<ManiaDifficultyRatingMode>(
+                        YokkoSetting.DisplayDifficultyRatingMode),
+                    Is.EqualTo(ManiaDifficultyRatingMode.RebirthStars));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
 }
