@@ -733,6 +733,17 @@ public sealed class NativeAudioEngine :
                     "The audio engine is not paused.");
             }
 
+            PreparedSampleSet prepared = Volatile.Read(ref preparedSampleSet);
+            ActiveSampleSet? active = Volatile.Read(ref activeSampleSet);
+            if (active == null || active.Generation != prepared.Generation)
+            {
+                core.Stop();
+                ensureActiveSampleSet(core, activeRequest);
+                await restartFeederAndOutputAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
+
             core.Start();
             await openOutputAsync(
                     activeRequest,

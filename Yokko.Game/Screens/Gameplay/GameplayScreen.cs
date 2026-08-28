@@ -3433,8 +3433,20 @@ public partial class GameplayScreen : Screen
         {
             if (hasAudioClock)
             {
-                await audioEngine.ResumeAsync().ConfigureAwait(true);
-                lastAppliedPlaybackRate = double.NaN;
+                try
+                {
+                    await audioEngine.ResumeAsync().ConfigureAwait(true);
+                }
+                catch (Exception resumeFailure)
+                {
+                    Logger.Error(
+                        resumeFailure,
+                        "Fast audio resume failed; falling back to seek.",
+                        LoggingTarget.Runtime);
+                    await audioEngine.SeekAsync(pausedAudioPosition)
+                                     .ConfigureAwait(true);
+                    lastAppliedPlaybackRate = double.NaN;
+                }
             }
             else
             {
@@ -3463,6 +3475,8 @@ public partial class GameplayScreen : Screen
                 ex,
                 "The audio engine could not resume paused gameplay.",
                 LoggingTarget.Runtime);
+            isPaused = true;
+            AddInternal(pauseOverlay = createPauseOverlay());
         }
     }
 
