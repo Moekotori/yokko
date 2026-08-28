@@ -22,6 +22,9 @@ internal sealed class GameplayMutedAudioController
     private int observedCombo;
     private double lastGameplayTime = double.NaN;
     private int nextBeatRow;
+    private double appliedMusicVolume = double.NaN;
+    private double appliedHitSoundVolume = double.NaN;
+    private double appliedMetronomeVolume = double.NaN;
 
     internal GameplayMutedAudioController(
         YokkoBeatmap beatmap,
@@ -129,11 +132,26 @@ internal sealed class GameplayMutedAudioController
         lastGameplayTime = gameplayTime;
     }
 
-    private void apply(ManiaMutedMix mix) =>
-        audio.SetMixVolumes(
-            mix.MusicVolume * musicVolume,
-            mix.HitSoundVolume * hitSoundVolume,
-            mix.MetronomeVolume * metronomeVolume);
+    private void apply(ManiaMutedMix mix)
+    {
+        double music = mix.MusicVolume * musicVolume;
+        double hitSounds = mix.HitSoundVolume * hitSoundVolume;
+        double metronome = mix.MetronomeVolume * metronomeVolume;
+
+        // Update runs every frame, but the mix only moves during the short
+        // combo transitions; skip the engine call while nothing changed.
+        if (music == appliedMusicVolume
+            && hitSounds == appliedHitSoundVolume
+            && metronome == appliedMetronomeVolume)
+        {
+            return;
+        }
+
+        appliedMusicVolume = music;
+        appliedHitSoundVolume = hitSounds;
+        appliedMetronomeVolume = metronome;
+        audio.SetMixVolumes(music, hitSounds, metronome);
+    }
 
     private static double validateVolume(double volume, string name)
     {

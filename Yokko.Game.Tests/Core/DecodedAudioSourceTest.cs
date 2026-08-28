@@ -208,6 +208,39 @@ public sealed class DecodedAudioSourceTest
     }
 
     [Test]
+    public void DynamicRateAtUnityBypassesTimeStretchProcessing()
+    {
+        string path = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            $"{TestContext.CurrentContext.Test.ID}.wav");
+        createSineWave(path, 48000, 440, 500);
+
+        try
+        {
+            using DecodedAudioSource dynamicSource = DecodedAudioSource.Open(
+                path,
+                1,
+                AudioPitchMode.Preserve,
+                dynamicPlaybackRate: true);
+            using DecodedAudioSource passthrough = DecodedAudioSource.Open(
+                path);
+
+            float[] dynamicSamples = readAll(dynamicSource);
+            float[] passthroughSamples = readAll(passthrough);
+
+            Assert.That(
+                dynamicSamples,
+                Is.EqualTo(passthroughSamples),
+                "A dynamic-rate source playing at 1x must decode bit-exact, "
+                + "without SoundTouch in the chain.");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
     public void DynamicRateCanChangeDuringDecode()
     {
         string path = Path.Combine(

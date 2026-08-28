@@ -9,24 +9,31 @@ namespace Yokko.Audio.Decoding;
 internal sealed class DecodedAudioSource : IDisposable
 {
     private readonly WaveStream stream;
-    private readonly ISampleProvider stereoProvider;
-    private readonly SoundTouchWaveProvider? rateProvider;
+    private readonly ISampleProvider rawStereoProvider;
+    private readonly bool allowDynamicRate;
     private readonly AudioPitchMode pitchMode;
     private readonly double? fixedFrequencyScale;
     private readonly object processingLock = new();
 
+    // SoundTouch costs a full time-stretch pass per Read even at 1x, so it
+    // stays bypassed until a non-unity adjustment is actually requested.
+    // Dynamic-rate sources splice it in lazily on the first real change.
+    private ISampleProvider stereoProvider;
+    private SoundTouchWaveProvider? rateProvider;
+
     private DecodedAudioSource(
         WaveStream stream,
-        ISampleProvider stereoProvider,
-        SoundTouchWaveProvider? rateProvider,
+        ISampleProvider rawStereoProvider,
+        bool allowDynamicRate,
         AudioPitchMode pitchMode,
         double? fixedFrequencyScale)
     {
         this.stream = stream;
-        this.stereoProvider = stereoProvider;
-        this.rateProvider = rateProvider;
+        this.rawStereoProvider = rawStereoProvider;
+        this.allowDynamicRate = allowDynamicRate;
         this.pitchMode = pitchMode;
         this.fixedFrequencyScale = fixedFrequencyScale;
+        stereoProvider = rawStereoProvider;
     }
 
     // SoundTouch advertises a rate-adjusted WaveFormat sample rate. Its Read()
@@ -72,16 +79,18 @@ internal sealed class DecodedAudioSource : IDisposable
         {
             if (rateProvider == null)
             {
-                if (Math.Abs(playbackRate - 1) > 0.000001)
+                if (Math.Abs(playbackRate - 1) <= 0.000001)
+                    return;
+
+                if (!allowDynamicRate)
                 {
                     throw new InvalidOperationException(
                         "This decoder was not opened for dynamic rate changes.");
                 }
-                return;
             }
 
             applyRateAdjustments(
-                rateProvider,
+                ensureRateProvider(),
                 playbackRate,
                 pitchMode,
                 fixedFrequencyScale);
@@ -144,29 +153,24 @@ internal sealed class DecodedAudioSource : IDisposable
                 2 => samples,
                 _ => new FirstTwoChannelsSampleProvider(samples),
             };
-            SoundTouchWaveProvider? rateProvider = null;
-            if (dynamicPlaybackRate
-                || Math.Abs(playbackRate - 1) > 0.000001
+            var source = new DecodedAudioSource(
+                stream,
+                stereo,
+                dynamicPlaybackRate,
+                pitchMode,
+                fixedFrequencyScale);
+            if (Math.Abs(playbackRate - 1) > 0.000001
                 || fixedFrequencyScale is double fixedFrequency
                 && Math.Abs(fixedFrequency - 1) > 0.000001)
             {
-                rateProvider = new SoundTouchWaveProvider(
-                    stereo.ToWaveProvider());
                 applyRateAdjustments(
-                    rateProvider,
+                    source.ensureRateProvider(),
                     playbackRate,
                     pitchMode,
                     fixedFrequencyScale);
-
-                stereo = rateProvider.ToSampleProvider();
             }
 
-            return new DecodedAudioSource(
-                stream,
-                stereo,
-                rateProvider,
-                pitchMode,
-                fixedFrequencyScale);
+            return source;
         }
         catch
         {
@@ -177,6 +181,18 @@ internal sealed class DecodedAudioSource : IDisposable
 
     public void Dispose()
         => stream.Dispose();
+
+    private SoundTouchWaveProvider ensureRateProvider()
+    {
+        if (rateProvider == null)
+        {
+            rateProvider = new SoundTouchWaveProvider(
+                rawStereoProvider.ToWaveProvider());
+            stereoProvider = rateProvider.ToSampleProvider();
+        }
+
+        return rateProvider;
+    }
 
     private static void applyRateAdjustments(
         SoundTouchWaveProvider provider,
