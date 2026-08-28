@@ -72,6 +72,7 @@ public partial class MainScreen : Screen
     private FillFlowContainer secondaryActionRow;
     private HomeMultiplayerAction multiplayerAction;
     private Sprite mascot;
+    private Sprite mascotGlow;
     private SpriteText watermark;
     private Box heroHighlight;
     private HomeMascotBubble bubble;
@@ -161,13 +162,17 @@ public partial class MainScreen : Screen
                                         .Crop(new RectangleF(80, 1840, 1200, 1360));
         Texture logoTexture = textures.Get("home-logo-light");
         Texture bubbleStickerTexture = textures.Get("Home/home-mascot-bubble-sticker");
+        Texture mascotGlowTexture = textures.Get("Home/home-mascot-glow");
 
         InternalChildren = new Drawable[]
         {
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = cyan,
+                // 顶部略亮、底部略沉的微渐变，让大面积青色有空气感而不再死平。
+                Colour = osu.Framework.Graphics.Colour.ColourInfo.GradientVertical(
+                    new Color4(0.35f, 0.85f, 0.96f, 1f),
+                    new Color4(0.22f, 0.74f, 0.91f, 1f)),
             },
             createIvoryStage(),
             content = new Container
@@ -191,7 +196,10 @@ public partial class MainScreen : Screen
                     rightStageLayout = new Container
                     {
                         Size = new Vector2(designedWidth, designedHeight),
-                        Child = rightStage = createRightStage(mascotTexture, bubbleStickerTexture),
+                        Child = rightStage = createRightStage(
+                            mascotTexture,
+                            bubbleStickerTexture,
+                            mascotGlowTexture),
                     },
                     // 贴底整曲波形带：横贯舞台底边，立柱压在底部框线上生长，
                     // 盖在右舞台之上、左侧卡片之下，与顶部字幕带一起给构图收口。
@@ -797,7 +805,7 @@ public partial class MainScreen : Screen
             multiplayerAction.Y = 366;
             playerProgressCard.Position = new Vector2(72, compactPlayerCardY);
             // 键位试玩盘上移到播放器左侧，给贴底波形带让位。
-            keyTestPad.Position = new Vector2(620, 588);
+            keyTestPad.Position = new Vector2(600, 588);
             statusBar.Alpha = 0;
             return;
         }
@@ -858,7 +866,7 @@ public partial class MainScreen : Screen
 
         waveform.SetObstacles(
             (playerLeft, playerLeft + 456, bandBottom - playerBottom - 6),
-            (keypadLeft, keypadLeft + 166, bandBottom - keypadBottom - 6));
+            (keypadLeft, keypadLeft + 186, bandBottom - keypadBottom - 6));
     }
 
     private void cancelExitHold()
@@ -883,6 +891,11 @@ public partial class MainScreen : Screen
         watermark.FadeTo(0.22f, 2600, Easing.InOutSine)
                  .Then().FadeTo(0.1f, 2600, Easing.InOutSine)
                  .Loop();
+
+        // 光晕缓慢呼吸，与角色的浮动错开节奏。
+        mascotGlow.ScaleTo(1.05f, 2800, Easing.InOutSine)
+                  .Then().ScaleTo(1f, 2800, Easing.InOutSine)
+                  .Loop();
 
         for (int i = 0; i < stageLines.Length; i++)
         {
@@ -1047,7 +1060,10 @@ public partial class MainScreen : Screen
         return stripe;
     }
 
-    private Drawable createRightStage(Texture mascotTexture, Texture bubbleStickerTexture) => new Container
+    private Drawable createRightStage(
+        Texture mascotTexture,
+        Texture bubbleStickerTexture,
+        Texture mascotGlowTexture) => new Container
     {
         RelativeSizeAxes = Axes.Both,
         Child = rightParallax = new Container
@@ -1205,6 +1221,16 @@ public partial class MainScreen : Screen
                 new HomeRing(900, 1.5f, new Color4(1f, 1f, 1f, 0.14f))
                 {
                     Position = mascotCentre,
+                },
+                // 柔光光晕（Yokko.Resources/Textures/Home/home-mascot-glow.png）：
+                // 把角色从大面积青色底上轻轻托起，增加纵深。
+                mascotGlow = new Sprite
+                {
+                    Origin = Anchor.Centre,
+                    Position = mascotCentre + new Vector2(0, -70),
+                    Size = new Vector2(1060),
+                    Texture = mascotGlowTexture,
+                    Colour = new Color4(1f, 1f, 1f, 0.5f),
                 },
                 new HomeDashedRing(420)
                 {
@@ -1528,14 +1554,16 @@ public partial class MainScreen : Screen
                         AutoSizeAxes = Axes.Both,
                         Children = new Drawable[]
                         {
+                            // 马克笔式高亮：压在字形下半段，而不是悬在基线以下。
                             heroHighlight = new Box
                             {
                                 Anchor = Anchor.BottomLeft,
                                 Origin = Anchor.BottomLeft,
                                 RelativeSizeAxes = Axes.X,
-                                Width = 1.04f,
+                                X = 5,
+                                Width = 1.02f,
                                 Height = 26,
-                                Y = 2,
+                                Y = -24,
                                 Rotation = -1.2f,
                                 Colour = new Color4(yellow.R, yellow.G, yellow.B, 0.5f),
                                 Scale = new Vector2(0, 1),
