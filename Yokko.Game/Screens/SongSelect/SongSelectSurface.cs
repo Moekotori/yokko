@@ -18,22 +18,38 @@ internal static class SongSelectSurface
     public static Drawable CreateShadow(
         float cornerRadius = CardRadius,
         float opacity = 0.18f,
+        float yOffset = 3) => CreateShadow(
+        out _,
+        cornerRadius,
+        opacity,
+        yOffset);
+
+    /// <summary>
+    /// Variant exposing the tinted fill so pooled consumers can retune the
+    /// shadow opacity per bind without rebuilding the container.
+    /// </summary>
+    public static Drawable CreateShadow(
+        out Box fill,
+        float cornerRadius = CardRadius,
+        float opacity = 0.18f,
         float yOffset = 3) => new Container
     {
         RelativeSizeAxes = Axes.Both,
         Position = new Vector2(0, yOffset),
         Masking = true,
         CornerRadius = cornerRadius,
-        Child = new Box
+        Child = fill = new Box
         {
             RelativeSizeAxes = Axes.Both,
-            Colour = new Color4(
-                SongSelectTheme.DeepNavy.R,
-                SongSelectTheme.DeepNavy.G,
-                SongSelectTheme.DeepNavy.B,
-                opacity),
+            Colour = ShadowTint(opacity),
         },
     };
+
+    public static Color4 ShadowTint(float opacity) => new(
+        SongSelectTheme.DeepNavy.R,
+        SongSelectTheme.DeepNavy.G,
+        SongSelectTheme.DeepNavy.B,
+        opacity);
 
     public static Container CreateCard(
         out Box fill,
