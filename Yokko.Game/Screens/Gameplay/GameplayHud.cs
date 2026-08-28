@@ -36,6 +36,8 @@ public partial class GameplayHud : CompositeDrawable
     private readonly Container informationContainer;
     private AudioReadoutState displayedAudioState;
     private bool hasDisplayedAudioState;
+    private ScoreReadoutState displayedScoreState;
+    private bool hasDisplayedScoreState;
 
     internal string DisplayedAudioStatus =>
         audioText?.Text.ToString() ?? string.Empty;
@@ -250,6 +252,38 @@ public partial class GameplayHud : CompositeDrawable
         ManiaHealthState healthState = null)
     {
         performanceDisplay.UpdateState(gameplayTimeMilliseconds, state);
+
+        // Same skip-if-unchanged pattern as UpdateAudioStatus: rebuilding the
+        // readout strings every frame is the expensive part, so only do it
+        // when a value that feeds any of them actually changed.
+        var nextState = new ScoreReadoutState(
+            state.Score,
+            state.MaxCombo,
+            state.MissCombo,
+            state.ComboBreaks,
+            state.Rank,
+            state.Accuracy,
+            state.MaximumAchievableAccuracy,
+            state.Counts.Perfect,
+            state.Counts.Great,
+            state.Counts.Good,
+            state.Counts.Ok,
+            state.Counts.Meh,
+            state.Counts.Miss);
+        if (!hasDisplayedScoreState
+            || nextState != displayedScoreState)
+        {
+            displayedScoreState = nextState;
+            hasDisplayedScoreState = true;
+            updateScoreReadouts(state);
+        }
+
+        if (healthState != null)
+            updateHealth(healthState);
+    }
+
+    private void updateScoreReadouts(BeatmapJudgementState state)
+    {
         bool etterna =
             judgementConfiguration.Mode == JudgementMode.Etterna;
         comboText.Text = etterna
@@ -281,9 +315,6 @@ public partial class GameplayHud : CompositeDrawable
                 : $"P {state.Counts.Perfect}  G {state.Counts.Great}  "
                   + $"Good {state.Counts.Good}  Ok {state.Counts.Ok}  "
                   + $"Meh {state.Counts.Meh}  M {state.Counts.Miss}";
-
-        if (healthState != null)
-            updateHealth(healthState);
     }
 
     private void updateAccuracyChallenge(
@@ -504,6 +535,21 @@ public partial class GameplayHud : CompositeDrawable
             + (practice ? " · PRACTICE" : string.Empty);
         rateText.Colour = YokkoPalette.Cyan;
     }
+
+    private readonly record struct ScoreReadoutState(
+        long Score,
+        int MaxCombo,
+        int MissCombo,
+        int ComboBreaks,
+        ScoreRank Rank,
+        double Accuracy,
+        double MaximumAchievableAccuracy,
+        int PerfectCount,
+        int GreatCount,
+        int GoodCount,
+        int OkCount,
+        int MehCount,
+        int MissCount);
 
     private readonly record struct AudioReadoutState(
         AudioBackendKind RequestedBackend,

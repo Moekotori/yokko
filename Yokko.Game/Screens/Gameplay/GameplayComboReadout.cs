@@ -33,6 +33,9 @@ internal partial class GameplayComboReadout : CompositeDrawable
 
     public void UpdateState(int combo)
     {
+        if (combo == DisplayedCombo)
+            return;
+
         DisplayedCombo = combo;
         if (editorPreview)
             return;
