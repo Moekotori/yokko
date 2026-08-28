@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using osu.Framework.Graphics.Textures;
 using osu.Framework.IO.Stores;
 using osu.Framework.Logging;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
 namespace Yokko.Game.Skinning.OsuMania;
@@ -19,21 +21,27 @@ internal enum OversizedLongNoteBodyMode
 }
 
 /// <summary>
-/// Keeps legacy skin images within the active renderer's texture limits.
+/// Keeps decoded textures within the active renderer's texture limits.
 /// Some osu! skins use extremely tall hold-body images which are valid image
-/// files but cannot be uploaded by Direct3D 11 without resizing.
+/// files but cannot be uploaded by Direct3D 11 without resizing, and chart
+/// artwork is bounded to thumbnail-sized uploads for song select.
+/// Constraining happens on the already-decoded <see cref="TextureUpload"/>
+/// pixels so oversized images are decoded exactly once, without the previous
+/// PNG re-encode/re-decode round trip. The wrapping approach follows
+/// ppy/osu osu.Game/Skinning/MaxDimensionLimitedTextureLoaderStore.cs
+/// (MIT, master @ 2026-08).
 /// </summary>
-internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
+internal sealed class ConstrainedTextureLoaderStore : IResourceStore<TextureUpload>
 {
-    private readonly IResourceStore<byte[]> source;
+    private readonly IResourceStore<TextureUpload> source;
     private readonly int maximumDimension;
     private readonly long maximumPixelCount;
     private readonly long maximumLongNoteBodyPixelCount;
     private readonly IReadOnlyDictionary<string, OversizedLongNoteBodyMode>
         longNoteBodyModes;
 
-    internal ConstrainedTextureResourceStore(
-        IResourceStore<byte[]> source,
+    internal ConstrainedTextureLoaderStore(
+        IResourceStore<TextureUpload> source,
         int maximumDimension,
         IReadOnlyDictionary<string, OversizedLongNoteBodyMode>
             longNoteBodyModes = null,
@@ -52,16 +60,10 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
                 StringComparer.OrdinalIgnoreCase);
     }
 
-    public byte[] Get(string name) =>
+    public TextureUpload Get(string name) =>
         constrain(name, source.Get(name));
 
-    public Stream GetStream(string name)
-    {
-        byte[] data = Get(name);
-        return data == null ? null : new MemoryStream(data, writable: false);
-    }
-
-    public async Task<byte[]> GetAsync(
+    public async Task<TextureUpload> GetAsync(
         string name,
         CancellationToken cancellationToken = default) =>
         constrain(
@@ -69,28 +71,22 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
             await source.GetAsync(name, cancellationToken)
                         .ConfigureAwait(false));
 
+    public Stream GetStream(string name) =>
+        source.GetStream(name);
+
     public IEnumerable<string> GetAvailableResources() =>
         source.GetAvailableResources();
 
     public void Dispose() =>
         source.Dispose();
 
-    private byte[] constrain(string name, byte[] data)
+    private TextureUpload constrain(string name, TextureUpload upload)
     {
-        if (data == null)
+        if (upload == null)
             return null;
 
-        ImageInfo info;
-
-        try
-        {
-            info = Image.Identify(data);
-        }
-        catch
-        {
-            // TextureLoaderStore provides the normal decode error handling.
-            return data;
-        }
+        int sourceWidth = upload.Width;
+        int sourceHeight = upload.Height;
 
         OversizedLongNoteBodyMode bodyMode =
             OversizedLongNoteBodyMode.Resize;
@@ -102,22 +98,21 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
                 maximumPixelCount,
                 maximumLongNoteBodyPixelCount)
             : maximumPixelCount;
-        long sourcePixelCount = (long)info.Width * info.Height;
+        long sourcePixelCount = (long)sourceWidth * sourceHeight;
 
-        if (info.Width <= maximumDimension
-            && info.Height <= maximumDimension
+        if (sourceWidth <= maximumDimension
+            && sourceHeight <= maximumDimension
             && sourcePixelCount <= pixelLimit)
         {
-            return data;
+            return upload;
         }
 
-        using Image image = Image.Load(data);
         int targetWidth;
         int targetHeight;
 
-        if (isLongNoteBody && info.Width <= maximumDimension)
+        if (isLongNoteBody && sourceWidth <= maximumDimension)
         {
-            targetWidth = info.Width;
+            targetWidth = sourceWidth;
             targetHeight = Math.Min(
                 maximumDimension,
                 Math.Max(1, (int)Math.Min(
@@ -129,8 +124,8 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
             double scale = Math.Min(
                 1,
                 Math.Min(
-                    maximumDimension / (double)Math.Max(1, info.Width),
-                    maximumDimension / (double)Math.Max(1, info.Height)));
+                    maximumDimension / (double)Math.Max(1, sourceWidth),
+                    maximumDimension / (double)Math.Max(1, sourceHeight)));
             if (sourcePixelCount > pixelLimit)
             {
                 scale = Math.Min(
@@ -138,42 +133,52 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
                     Math.Sqrt(pixelLimit / (double)sourcePixelCount));
             }
 
-            targetWidth = Math.Max(1, (int)Math.Floor(info.Width * scale));
-            targetHeight = Math.Max(1, (int)Math.Floor(info.Height * scale));
+            targetWidth = Math.Max(1, (int)Math.Floor(sourceWidth * scale));
+            targetHeight = Math.Max(1, (int)Math.Floor(sourceHeight * scale));
         }
 
-        if (isLongNoteBody
-            && bodyMode != OversizedLongNoteBodyMode.Resize)
+        bool crop = isLongNoteBody
+                    && bodyMode != OversizedLongNoteBodyMode.Resize;
+        Image<Rgba32> constrained;
+
+        if (crop)
         {
             int sourceY = bodyMode switch
             {
                 OversizedLongNoteBodyMode.CropEnd =>
-                    info.Height - targetHeight,
+                    sourceHeight - targetHeight,
                 OversizedLongNoteBodyMode.CropCentre =>
-                    (info.Height - targetHeight) / 2,
+                    (sourceHeight - targetHeight) / 2,
                 _ => 0,
             };
-            image.Mutate(context => context.Crop(new Rectangle(
-                0,
-                sourceY,
-                info.Width,
-                targetHeight)));
+            // Rows are contiguous in the upload, so a full-width vertical
+            // crop is a plain slice copy without any resampling.
+            constrained = Image.LoadPixelData<Rgba32>(
+                upload.Data.Slice(
+                    sourceY * sourceWidth,
+                    targetHeight * sourceWidth),
+                sourceWidth,
+                targetHeight);
+            targetWidth = sourceWidth;
         }
         else
         {
-            image.Mutate(context => context.Resize(new ResizeOptions
+            constrained = Image.LoadPixelData<Rgba32>(
+                upload.Data,
+                sourceWidth,
+                sourceHeight);
+            constrained.Mutate(context => context.Resize(new ResizeOptions
             {
                 Size = new Size(targetWidth, targetHeight),
                 Mode = ResizeMode.Stretch,
             }));
         }
 
-        using var output = new MemoryStream();
-        image.SaveAsPng(output);
+        upload.Dispose();
 
         Logger.Log(
-            $"{(isLongNoteBody && bodyMode != OversizedLongNoteBodyMode.Resize ? "Cropped" : "Resized")} oversized osu! skin texture '{name}' from "
-            + $"{info.Width}x{info.Height} to {image.Width}x{image.Height} "
+            $"{(crop ? "Cropped" : "Resized")} oversized texture '{name}' from "
+            + $"{sourceWidth}x{sourceHeight} to {targetWidth}x{targetHeight} "
             + $"for the renderer's {maximumDimension}px / {pixelLimit} pixel texture limits"
             + (isLongNoteBody
                 ? " while preserving long-note body pixels."
@@ -181,6 +186,6 @@ internal sealed class ConstrainedTextureResourceStore : IResourceStore<byte[]>
             LoggingTarget.Runtime,
             LogLevel.Important);
 
-        return output.ToArray();
+        return new TextureUpload(constrained);
     }
 }

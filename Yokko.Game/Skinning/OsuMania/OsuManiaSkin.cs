@@ -78,14 +78,14 @@ internal sealed class OsuManiaSkin : IDisposable
                     source,
                     configuration,
                     fallbackConfiguration);
-            var constrainedSource = new ConstrainedTextureResourceStore(
-                source,
+            var constrainedSource = new ConstrainedTextureLoaderStore(
+                new TextureLoaderStore(source),
                 renderer.MaxTextureSize,
                 holdBodyTextureModes,
                 maximumLongNoteBodyPixelCount: 1024L * 1024);
             var textureStore = new TextureStore(
                 renderer,
-                new TextureLoaderStore(constrainedSource),
+                constrainedSource,
                 scaleAdjust: 1);
             return new OsuManiaSkin(
                 path,

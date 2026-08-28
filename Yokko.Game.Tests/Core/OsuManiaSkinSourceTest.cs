@@ -5,6 +5,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
+using osu.Framework.Graphics.Textures;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Tiff;
 using SixLabors.ImageSharp.PixelFormats;
@@ -197,16 +198,17 @@ public sealed class OsuManiaSkinSourceTest
         using (var image = new Image<Rgba32>(10, 100))
             image.Save(texturePath, new TiffEncoder());
 
-        using var store = new ConstrainedTextureResourceStore(
-            new OsuManiaSkinSource(directory),
+        using var store = new ConstrainedTextureLoaderStore(
+            new TextureLoaderStore(new OsuManiaSkinSource(directory)),
             64);
 
-        byte[] constrained = store.Get("hold-body.png");
-        ImageInfo info = Image.Identify(constrained);
+        using TextureUpload constrained = store.Get("hold-body.png");
 
-        Assert.That(info.Width, Is.LessThanOrEqualTo(64));
-        Assert.That(info.Height, Is.EqualTo(64));
-        Assert.That(info.Width / (double)info.Height, Is.EqualTo(0.1).Within(0.02));
+        Assert.That(constrained.Width, Is.LessThanOrEqualTo(64));
+        Assert.That(constrained.Height, Is.EqualTo(64));
+        Assert.That(
+            constrained.Width / (double)constrained.Height,
+            Is.EqualTo(0.1).Within(0.02));
     }
 
     [Test]
@@ -225,8 +227,8 @@ public sealed class OsuManiaSkinSourceTest
             image.Save(texturePath, new TiffEncoder());
         }
 
-        using var store = new ConstrainedTextureResourceStore(
-            new OsuManiaSkinSource(directory),
+        using var store = new ConstrainedTextureLoaderStore(
+            new TextureLoaderStore(new OsuManiaSkinSource(directory)),
             64,
             new Dictionary<string, OversizedLongNoteBodyMode>(
                 StringComparer.OrdinalIgnoreCase)
@@ -234,16 +236,14 @@ public sealed class OsuManiaSkinSourceTest
                 ["hold-body.png"] = OversizedLongNoteBodyMode.CropEnd,
             });
 
-        byte[] constrained = store.Get("HOLD-BODY.PNG");
-        ImageInfo info = Image.Identify(constrained);
-        using Image<Rgba32> result = Image.Load<Rgba32>(constrained);
+        using TextureUpload constrained = store.Get("HOLD-BODY.PNG");
 
         Assert.Multiple(() =>
         {
-            Assert.That(info.Width, Is.EqualTo(10));
-            Assert.That(info.Height, Is.EqualTo(64));
-            Assert.That(result[0, 0].R, Is.EqualTo(36));
-            Assert.That(result[0, 63].R, Is.EqualTo(99));
+            Assert.That(constrained.Width, Is.EqualTo(10));
+            Assert.That(constrained.Height, Is.EqualTo(64));
+            Assert.That(constrained.Data[0].R, Is.EqualTo(36));
+            Assert.That(constrained.Data[63 * 10].R, Is.EqualTo(99));
         });
     }
 
@@ -263,8 +263,8 @@ public sealed class OsuManiaSkinSourceTest
             image.Save(texturePath, new TiffEncoder());
         }
 
-        using var store = new ConstrainedTextureResourceStore(
-            new OsuManiaSkinSource(directory),
+        using var store = new ConstrainedTextureLoaderStore(
+            new TextureLoaderStore(new OsuManiaSkinSource(directory)),
             64,
             new Dictionary<string, OversizedLongNoteBodyMode>(
                 StringComparer.OrdinalIgnoreCase)
@@ -272,15 +272,14 @@ public sealed class OsuManiaSkinSourceTest
                 ["hold-body.png"] = OversizedLongNoteBodyMode.CropStart,
             });
 
-        using Image<Rgba32> result = Image.Load<Rgba32>(
-            store.Get("hold-body.png"));
+        using TextureUpload constrained = store.Get("hold-body.png");
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.Width, Is.EqualTo(10));
-            Assert.That(result.Height, Is.EqualTo(64));
-            Assert.That(result[0, 0].R, Is.EqualTo(0));
-            Assert.That(result[0, 63].R, Is.EqualTo(63));
+            Assert.That(constrained.Width, Is.EqualTo(10));
+            Assert.That(constrained.Height, Is.EqualTo(64));
+            Assert.That(constrained.Data[0].R, Is.EqualTo(0));
+            Assert.That(constrained.Data[63 * 10].R, Is.EqualTo(63));
         });
     }
 
@@ -300,8 +299,8 @@ public sealed class OsuManiaSkinSourceTest
             image.Save(texturePath, new TiffEncoder());
         }
 
-        using var store = new ConstrainedTextureResourceStore(
-            new OsuManiaSkinSource(directory),
+        using var store = new ConstrainedTextureLoaderStore(
+            new TextureLoaderStore(new OsuManiaSkinSource(directory)),
             64,
             new Dictionary<string, OversizedLongNoteBodyMode>(
                 StringComparer.OrdinalIgnoreCase)
@@ -309,15 +308,14 @@ public sealed class OsuManiaSkinSourceTest
                 ["hold-body.png"] = OversizedLongNoteBodyMode.CropCentre,
             });
 
-        using Image<Rgba32> result = Image.Load<Rgba32>(
-            store.Get("hold-body.png"));
+        using TextureUpload constrained = store.Get("hold-body.png");
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.Width, Is.EqualTo(10));
-            Assert.That(result.Height, Is.EqualTo(64));
-            Assert.That(result[0, 0].R, Is.EqualTo(18));
-            Assert.That(result[0, 63].R, Is.EqualTo(81));
+            Assert.That(constrained.Width, Is.EqualTo(10));
+            Assert.That(constrained.Height, Is.EqualTo(64));
+            Assert.That(constrained.Data[0].R, Is.EqualTo(18));
+            Assert.That(constrained.Data[63 * 10].R, Is.EqualTo(81));
         });
     }
 
@@ -331,17 +329,17 @@ public sealed class OsuManiaSkinSourceTest
         using (var image = new Image<Rgba32>(100, 100))
             image.SaveAsPng(texturePath);
 
-        using var store = new ConstrainedTextureResourceStore(
-            new OsuManiaSkinSource(directory),
+        using var store = new ConstrainedTextureLoaderStore(
+            new TextureLoaderStore(new OsuManiaSkinSource(directory)),
             100,
             maximumPixelCount: 2500);
-        ImageInfo info = Image.Identify(store.Get("background.png"));
+        using TextureUpload constrained = store.Get("background.png");
 
         Assert.Multiple(() =>
         {
-            Assert.That(info.Width, Is.EqualTo(50));
-            Assert.That(info.Height, Is.EqualTo(50));
-            Assert.That((long)info.Width * info.Height,
+            Assert.That(constrained.Width, Is.EqualTo(50));
+            Assert.That(constrained.Height, Is.EqualTo(50));
+            Assert.That((long)constrained.Width * constrained.Height,
                 Is.LessThanOrEqualTo(2500));
         });
     }

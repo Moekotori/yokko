@@ -3866,11 +3866,10 @@ public partial class GameplayScreen : Screen
         {
             artworkTextures = new TextureStore(
                 renderer,
-                new TextureLoaderStore(
-                    new ConstrainedTextureResourceStore(
-                        new ChartArtworkResourceStore(),
-                        renderer.MaxTextureSize,
-                        maximumPixelCount: 1920L * 1080)),
+                new ConstrainedTextureLoaderStore(
+                    new TextureLoaderStore(new ChartArtworkResourceStore()),
+                    renderer.MaxTextureSize,
+                    maximumPixelCount: 1920L * 1080),
                 scaleAdjust: 1);
             return artworkTextures.Get(artworkPath);
         }

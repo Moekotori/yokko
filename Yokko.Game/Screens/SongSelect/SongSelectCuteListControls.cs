@@ -38,6 +38,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
     private SpriteIcon arrow;
     private Sprite selectedSticker;
     private Container standaloneArtworkFrame;
+    private Sprite artworkSprite;
     private SongSelectProgressiveModePill compactModePill;
     private SpriteText compactPrimaryText;
     private SpriteText compactSecondaryText;
@@ -135,6 +136,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         compactSecondaryText = null;
         patternSummary = null;
         standaloneArtworkFrame = null;
+        artworkSprite = null;
         leadingAccent = null;
         selectionSignalRail = null;
         selected = false;
@@ -316,6 +318,22 @@ internal partial class SongSelectSongRow : PoolableDrawable
         }
 
         InternalChildren = children;
+    }
+
+    /// <summary>
+    /// Swaps the placeholder for asynchronously decoded artwork with a fade.
+    /// Compact (package chart) rows have no artwork and ignore the call.
+    /// </summary>
+    internal void SetArtwork(Texture texture)
+    {
+        if (artworkSprite == null || texture == null)
+            return;
+
+        artworkSprite.Texture = texture;
+        artworkSprite.Size = SongSelectArtworkCrop.CalculateFitSize(
+            new Vector2(texture.DisplayWidth, texture.DisplayHeight),
+            StandaloneArtworkSize);
+        artworkSprite.FadeInFromZero(180, Easing.OutQuint);
     }
 
     public void SetDifficulty(
@@ -617,6 +635,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
         compactSecondaryText = null;
         patternSummary = null;
         standaloneArtworkFrame = null;
+        artworkSprite = null;
         leadingAccent = null;
         selectionSignalRail = null;
         ClearInternal(true);
@@ -712,7 +731,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
                     RelativeSizeAxes = Axes.Both,
                     Colour = SongSelectTheme.DeepNavy,
                 },
-                SongSelectArtworkCrop.CreateFit(
+                artworkSprite = SongSelectArtworkCrop.CreateFit(
                     wallpaper,
                     StandaloneArtworkSize),
             ],
@@ -1053,6 +1072,8 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
     private SpriteIcon selectedIndicator;
     private Container artworkFrame;
     private Container artworkImageFrame;
+    private Sprite artworkSprite;
+    private Vector2 artworkSpriteFrameSize;
     private Container chevronFrame;
     private Container packageSummaryLayer;
     private Container selectedSummaryLayer;
@@ -1151,6 +1172,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             : SongSelectSongRow.StandaloneArtworkSize;
         float contentStart = collapsed ? 209 : content_start;
         PackageContentStart = contentStart;
+        artworkSpriteFrameSize = artworkSize;
         Size = new Vector2(SongSelectSongRow.RowWidth, headerHeight);
         Masking = true;
         CornerRadius = 10;
@@ -1201,7 +1223,7 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                             RelativeSizeAxes = Axes.Both,
                             Colour = SongSelectTheme.DeepNavy,
                         },
-                        SongSelectArtworkCrop.CreateFit(
+                        artworkSprite = SongSelectArtworkCrop.CreateFit(
                             wallpaper,
                             artworkSize),
                     ],
@@ -1310,6 +1332,21 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
                 Colour = SongSelectTheme.Cyan,
             },
         ];
+    }
+
+    /// <summary>
+    /// Swaps the placeholder for asynchronously decoded artwork with a fade.
+    /// </summary>
+    internal void SetArtwork(Texture texture)
+    {
+        if (artworkSprite == null || texture == null)
+            return;
+
+        artworkSprite.Texture = texture;
+        artworkSprite.Size = SongSelectArtworkCrop.CalculateFitSize(
+            new Vector2(texture.DisplayWidth, texture.DisplayHeight),
+            artworkSpriteFrameSize);
+        artworkSprite.FadeInFromZero(180, Easing.OutQuint);
     }
 
     public void SetSelected(bool selected) => SetSelected(
@@ -1501,6 +1538,8 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         favouriteIcon = null;
         artworkFrame = null;
         artworkImageFrame = null;
+        artworkSprite = null;
+        artworkSpriteFrameSize = Vector2.Zero;
         chevronFrame = null;
         packageSummaryLayer = null;
         selectedSummaryLayer = null;
