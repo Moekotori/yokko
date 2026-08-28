@@ -1086,15 +1086,15 @@ internal partial class SettingsVolumeMixer : CompositeDrawable
                 Children = new Drawable[]
                 {
                     new SettingsVolumeSlider(
-                        "MASTER",
+                        YokkoStrings.Get("settings.audio.label_master").ToString(),
                         master,
                         true),
                     new SettingsVolumeSlider(
-                        "MUSIC",
+                        YokkoStrings.Get("settings.audio.label_music").ToString(),
                         music,
                         true),
                     new SettingsVolumeSlider(
-                        "HIT",
+                        YokkoStrings.Get("settings.audio.label_hit").ToString(),
                         hitSound,
                         false),
                 },
@@ -1339,11 +1339,11 @@ internal partial class SettingsAudioTestControl : CompositeDrawable
                 Children = new Drawable[]
                 {
                     musicButton = new SettingsAudioTestButton(
-                        "MUSIC",
+                        YokkoStrings.Get("settings.audio.label_music").ToString(),
                         FontAwesome.Solid.Music,
                         playMusic),
                     hitSoundButton = new SettingsAudioTestButton(
-                        "HIT",
+                        YokkoStrings.Get("settings.audio.label_hit").ToString(),
                         FontAwesome.Solid.VolumeUp,
                         playHitSound),
                 },

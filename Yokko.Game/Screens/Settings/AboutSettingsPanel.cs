@@ -14,7 +14,8 @@ using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Settings;
 
-internal partial class AboutSettingsPanel : CompositeDrawable
+internal partial class AboutSettingsPanel
+    : CompositeDrawable, ISettingsSearchTarget
 {
     private readonly CancellationTokenSource updateCheckCancellation = new();
     private SpriteText updateStatusText;
@@ -69,6 +70,10 @@ internal partial class AboutSettingsPanel : CompositeDrawable
         updateStatusText.Text = YokkoStrings.Get("settings.about.checking_updates");
         _ = runUpdateCheckAsync(updateCheckCancellation.Token);
     }
+
+    public bool TryFocusSearchItem(string itemId) =>
+        SettingsSearchScroll.GetScrollY(SettingsPageKind.About, itemId)
+            .HasValue;
 
     private async Task runUpdateCheckAsync(CancellationToken cancellationToken)
     {

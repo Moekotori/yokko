@@ -24,7 +24,8 @@ namespace Yokko.Game.Screens.Settings;
 /// Presents importer capabilities from the registry and owns the preferences
 /// that affect package selection, keysound preservation and warning display.
 /// </summary>
-internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransientUi
+internal partial class ImportSettingsPanel
+    : CompositeDrawable, ISettingsTransientUi, ISettingsSearchTarget
 {
     private readonly YokkoImportSettings settings;
     private readonly YokkoResourceStorage resourceStorage;
@@ -40,6 +41,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
     private readonly ResourceDirectorySelectorOverlay directorySelector;
     private readonly ResourceDirectorySelectorOverlay externalDirectorySelector;
     private readonly ResourceDirectorySelectorOverlay watchFolderSelector;
+    private readonly SettingsContentScrollContainer contentScroll;
     private bool migrationInProgress;
     private bool externalScanInProgress;
     private bool directoryPickerOpen;
@@ -70,33 +72,47 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
         this.importedChartLibrary = importedChartLibrary;
         RelativeSizeAxes = Axes.Both;
 
+        var content = new Container
+        {
+            RelativeSizeAxes = Axes.X,
+            AutoSizeAxes = Axes.Y,
+            Children = new Drawable[]
+            {
+                SettingsChrome.CreateHeader(
+                    YokkoStrings.Get("settings.import.title"),
+                    YokkoStrings.Get("settings.import.subtitle"),
+                    FontAwesome.Solid.FolderOpen,
+                    8),
+                createImporterStatus(),
+                new SpriteText
+                {
+                    Position = new Vector2(378, 251),
+                    Text = YokkoStrings.Get("settings.import.section_formats"),
+                    Font = HomeTypography.Display(23),
+                    Colour = HomeControlColours.Navy,
+                },
+                createFormatCards(),
+                new SpriteText
+                {
+                    Position = new Vector2(378, 380),
+                    Text = YokkoStrings.Get("settings.import.section_behaviour"),
+                    Font = HomeTypography.Display(23),
+                    Colour = HomeControlColours.Navy,
+                },
+                createBehaviourCards(),
+                createWatchFolderCard(),
+                createLocationCard(),
+                createExternalOsuCard(),
+            },
+        };
+
         InternalChildren = new Drawable[]
         {
-            SettingsChrome.CreateHeader(
-                YokkoStrings.Get("settings.import.title"),
-                YokkoStrings.Get("settings.import.subtitle"),
-                FontAwesome.Solid.FolderOpen,
-                8),
-            createImporterStatus(),
-            new SpriteText
+            contentScroll = new SettingsContentScrollContainer
             {
-                Position = new Vector2(378, 251),
-                Text = YokkoStrings.Get("settings.import.section_formats"),
-                Font = HomeTypography.Display(23),
-                Colour = HomeControlColours.Navy,
+                RelativeSizeAxes = Axes.Both,
+                Child = content,
             },
-            createFormatCards(),
-            new SpriteText
-            {
-                Position = new Vector2(378, 380),
-                Text = YokkoStrings.Get("settings.import.section_behaviour"),
-                Font = HomeTypography.Display(23),
-                Colour = HomeControlColours.Navy,
-            },
-            createBehaviourCards(),
-            createWatchFolderCard(),
-            createLocationCard(),
-            createExternalOsuCard(),
             directorySelector = new ResourceDirectorySelectorOverlay(
                 migrateTo,
                 migrateToDefault),
@@ -227,7 +243,14 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
         };
 
         float[] widths = [140, 140, 140, 210, 170];
-        string[] names = ["osu!mania", "Quaver", "Malody", "Etterna / StepMania", "BMS"];
+        string[] names =
+        [
+            YokkoStrings.Get("settings.import.format_osumania").ToString(),
+            YokkoStrings.Get("settings.import.format_quaver").ToString(),
+            YokkoStrings.Get("settings.import.format_malody").ToString(),
+            YokkoStrings.Get("settings.import.format_etterna").ToString(),
+            YokkoStrings.Get("settings.import.format_bms").ToString(),
+        ];
         ChartImportCapability[] capabilities = KnownChartImporters.Capabilities.ToArray();
 
         for (int index = 0; index < capabilities.Length; index++)
@@ -282,6 +305,12 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
         watchFolderSelector.Dismiss()
         || externalDirectorySelector.Dismiss()
         || directorySelector.Dismiss();
+
+    public bool TryFocusSearchItem(string itemId) =>
+        SettingsSearchScroll.TryFocus(
+            SettingsPageKind.Import,
+            itemId,
+            contentScroll);
 
     private Drawable createWatchFolderCard() => new ClickableContainer
     {

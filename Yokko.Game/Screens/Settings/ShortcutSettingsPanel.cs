@@ -28,7 +28,8 @@ internal enum ManiaShortcutPage
     System,
 }
 
-internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTransientUi
+internal partial class ShortcutSettingsPanel
+    : CompositeDrawable, ISettingsTransientUi, ISettingsSearchTarget
 {
     private readonly YokkoGameplaySettings settings;
     private readonly YokkoConfigManager yokkoConfig;
@@ -339,6 +340,12 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
         setContent(createShortcutsSection(), false);
         return true;
     }
+
+    public bool TryFocusSearchItem(string itemId) =>
+        SettingsSearchScroll.TryFocus(
+            SettingsPageKind.Shortcuts,
+            itemId,
+            contentHost);
 
     private Drawable createShortcutsSection()
     {

@@ -18,6 +18,8 @@ public sealed class SettingsSearchCatalogTest
             assertScrollY(SettingsPageKind.Editor, "grid", 248);
             assertScrollY(SettingsPageKind.Editor, "autosave", 384);
             assertScrollY(SettingsPageKind.About, "update", 278);
+            assertScrollY(SettingsPageKind.Import, "watch-folder", 520);
+            assertScrollY(SettingsPageKind.Skins, "skin", 310);
         });
     }
 

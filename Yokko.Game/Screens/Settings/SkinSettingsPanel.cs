@@ -17,10 +17,12 @@ using Yokko.Game.Skinning.OsuMania;
 
 namespace Yokko.Game.Screens.Settings;
 
-internal partial class SkinSettingsPanel : CompositeDrawable
+internal partial class SkinSettingsPanel
+    : CompositeDrawable, ISettingsSearchTarget
 {
     private readonly OsuManiaSkinLibrary library;
     private readonly FillFlowContainer skinList;
+    private readonly SettingsContentScrollContainer contentScroll;
 
     internal int SkinCount { get; private set; }
 
@@ -29,53 +31,64 @@ internal partial class SkinSettingsPanel : CompositeDrawable
         this.library = library;
         RelativeSizeAxes = Axes.Both;
 
-        InternalChildren = new Drawable[]
+        var content = new Container
         {
-            SettingsChrome.CreateHeader(
-                YokkoStrings.Get("settings.skins.title"),
-                YokkoStrings.Get("settings.skins.subtitle"),
-                FontAwesome.Solid.PaintBrush,
-                6),
-            createDropCard(),
-            new SpriteText
+            RelativeSizeAxes = Axes.X,
+            AutoSizeAxes = Axes.Y,
+            Children = new Drawable[]
             {
-                Position = new Vector2(378, 272),
-                Text = YokkoStrings.Get("settings.skins.section_library"),
-                Font = HomeTypography.Display(24),
-                Colour = HomeControlColours.Navy,
-            },
-            new BasicScrollContainer
-            {
-                Position = new Vector2(378, 310),
-                Size = new Vector2(840, 190),
-                ScrollbarVisible = false,
-                Child = skinList = new FillFlowContainer
+                SettingsChrome.CreateHeader(
+                    YokkoStrings.Get("settings.skins.title"),
+                    YokkoStrings.Get("settings.skins.subtitle"),
+                    FontAwesome.Solid.PaintBrush,
+                    6),
+                createDropCard(),
+                new SpriteText
                 {
-                    RelativeSizeAxes = Axes.X,
-                    AutoSizeAxes = Axes.Y,
-                    Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(0, 10),
+                    Position = new Vector2(378, 272),
+                    Text = YokkoStrings.Get("settings.skins.section_library"),
+                    Font = HomeTypography.Display(24),
+                    Colour = HomeControlColours.Navy,
+                },
+                new BasicScrollContainer
+                {
+                    Position = new Vector2(378, 310),
+                    Size = new Vector2(840, 190),
+                    ScrollbarVisible = false,
+                    Child = skinList = new FillFlowContainer
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        AutoSizeAxes = Axes.Y,
+                        Direction = FillDirection.Vertical,
+                        Spacing = new Vector2(0, 10),
+                    },
+                },
+                new SpriteText
+                {
+                    Position = new Vector2(378, 512),
+                    Text = YokkoStrings.Get("settings.skins.section_gameplay"),
+                    Font = HomeTypography.Display(24),
+                    Colour = HomeControlColours.Navy,
+                },
+                new AdditionalLongNoteCutControls(settings)
+                {
+                    Position = new Vector2(380, 548),
+                },
+                new GameplayInlineToggle(
+                    YokkoStrings.Get("settings.skins.combo_bursts"),
+                    YokkoStrings.Get("settings.skins.combo_bursts_note"),
+                    settings.ShowComboBursts)
+                {
+                    Position = new Vector2(380, 610),
+                    Size = new Vector2(826, 26),
                 },
             },
-            new SpriteText
-            {
-                Position = new Vector2(378, 512),
-                Text = YokkoStrings.Get("settings.skins.section_gameplay"),
-                Font = HomeTypography.Display(24),
-                Colour = HomeControlColours.Navy,
-            },
-            new AdditionalLongNoteCutControls(settings)
-            {
-                Position = new Vector2(380, 548),
-            },
-            new GameplayInlineToggle(
-                YokkoStrings.Get("settings.skins.combo_bursts"),
-                YokkoStrings.Get("settings.skins.combo_bursts_note"),
-                settings.ShowComboBursts)
-            {
-                Position = new Vector2(380, 610),
-                Size = new Vector2(826, 26),
-            },
+        };
+
+        InternalChild = contentScroll = new SettingsContentScrollContainer
+        {
+            RelativeSizeAxes = Axes.Both,
+            Child = content,
         };
 
         library.LibraryChanged += onLibraryChanged;
@@ -85,6 +98,12 @@ internal partial class SkinSettingsPanel : CompositeDrawable
     internal bool SelectSkin(string id) => library.Select(id);
 
     internal bool DeleteSkin(string id) => library.Delete(id);
+
+    public bool TryFocusSearchItem(string itemId) =>
+        SettingsSearchScroll.TryFocus(
+            SettingsPageKind.Skins,
+            itemId,
+            contentScroll);
 
     private Drawable createDropCard() => new Container
     {
@@ -147,7 +166,7 @@ internal partial class SkinSettingsPanel : CompositeDrawable
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
                 X = -28,
-                Text = ".OSK  /  FOLDER",
+                Text = YokkoStrings.Get("settings.skins.accepted_formats"),
                 Font = HomeTypography.Display(15),
                 Spacing = new Vector2(1),
                 Colour = HomeControlColours.Pink,

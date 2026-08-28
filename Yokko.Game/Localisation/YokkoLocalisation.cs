@@ -1262,6 +1262,9 @@ internal static class YokkoStrings
             ["settings.display.compact"] = new("80%", "80%", "80%"),
             ["settings.display.comfortable"] = new("90%", "90%", "90%"),
             ["settings.display.spacious"] = new("100%", "100%", "100%"),
+            ["settings.display.fps_vsync"] = new("V-SYNC", "V-SYNC", "V-SYNC"),
+            ["settings.display.fps_max"] = new("MAX", "最高", "MAX"),
+            ["settings.display.fps_auto"] = new("AUTO", "自动", "AUTO"),
 
             ["settings.desktop.title"] = new("Desktop", "\u684c\u9762", "\u30c7\u30b9\u30af\u30c8\u30c3\u30d7"),
             ["settings.desktop.subtitle"] = new(
@@ -1312,6 +1315,9 @@ internal static class YokkoStrings
             ["settings.audio.device"] = new("Output device", "输出设备", "出力デバイス"),
             ["settings.audio.buffer"] = new("Buffer profile", "缓冲配置", "バッファ設定"),
             ["settings.audio.master_volume"] = new("Master volume", "音量", "マスター音量"),
+            ["settings.audio.label_master"] = new("MASTER", "主音量", "MASTER"),
+            ["settings.audio.label_music"] = new("MUSIC", "音乐", "MUSIC"),
+            ["settings.audio.label_hit"] = new("HIT", "按键", "HIT"),
             ["settings.audio.hitsounds"] = new("Hitsounds", "按键音", "ヒットサウンド"),
             ["settings.audio.test"] = new("Test playback", "播放", "テスト再生"),
             ["settings.audio.test_failed"] = new("Audio test failed", "音频播放失败", "オーディオテスト失敗"),
@@ -1543,6 +1549,10 @@ internal static class YokkoStrings
                 "Drop an .osk package or a skin folder anywhere in Yokko",
                 "把 .osk 文件或皮肤文件夹拖到 Yokko 的任意位置",
                 ".osk またはスキンフォルダーを Yokko の任意の場所へドロップ"),
+            ["settings.skins.accepted_formats"] = new(
+                ".OSK / FOLDER",
+                ".OSK / 文件夹",
+                ".OSK / フォルダー"),
             ["settings.skins.empty"] = new(
                 "No skins installed yet",
                 "还没有安装皮肤",
@@ -2309,6 +2319,14 @@ internal static class YokkoStrings
                 "{0} 形式 · {1} ファイルタイプ"),
             ["settings.import.ready"] = new("Ready", "可用", "対応"),
             ["settings.import.partial"] = new("Partial", "部分", "一部"),
+            ["settings.import.format_osumania"] = new("osu!mania", "osu!mania", "osu!mania"),
+            ["settings.import.format_quaver"] = new("Quaver", "Quaver", "Quaver"),
+            ["settings.import.format_malody"] = new("Malody", "Malody", "Malody"),
+            ["settings.import.format_etterna"] = new(
+                "Etterna / StepMania",
+                "Etterna / StepMania",
+                "Etterna / StepMania"),
+            ["settings.import.format_bms"] = new("BMS", "BMS", "BMS"),
             ["settings.import.prefer_keysounds"] = new(
                 "BMS samples",
                 "BMS 采样",

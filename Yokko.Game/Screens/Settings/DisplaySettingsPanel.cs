@@ -427,12 +427,15 @@ internal partial class DisplaySettingsPanel
     internal static string FormatFrameLimitMode(YokkoFrameLimit limit) =>
         limit switch
         {
-            YokkoFrameLimit.VSync => "V-SYNC",
+            YokkoFrameLimit.VSync =>
+                YokkoStrings.Get("settings.display.fps_vsync").ToString(),
             YokkoFrameLimit.Limit2x => "2×",
             YokkoFrameLimit.Limit4x => "4×",
             YokkoFrameLimit.Limit8x => "8×",
-            YokkoFrameLimit.Unlimited => "MAX",
-            YokkoFrameLimit.Auto => "AUTO",
+            YokkoFrameLimit.Unlimited =>
+                YokkoStrings.Get("settings.display.fps_max").ToString(),
+            YokkoFrameLimit.Auto =>
+                YokkoStrings.Get("settings.display.fps_auto").ToString(),
             _ => throw new ArgumentOutOfRangeException(nameof(limit)),
         };
 
