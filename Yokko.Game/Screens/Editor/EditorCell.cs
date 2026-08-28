@@ -3,7 +3,6 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osuTK.Graphics;
-using Yokko.Game.Presentation;
 
 namespace Yokko.Game.Screens.Editor;
 
@@ -30,7 +29,7 @@ public partial class EditorCell : ClickableContainer
             fill = new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(0.045f, 0.056f, 0.074f, 1f),
+                Colour = EditorTheme.Surface,
             },
             rowLine = new Box
             {
@@ -48,7 +47,7 @@ public partial class EditorCell : ClickableContainer
             {
                 RelativeSizeAxes = Axes.Both,
                 Margin = new MarginPadding { Horizontal = 5, Vertical = 3 },
-                Colour = YokkoPalette.Cyan,
+                Colour = EditorTheme.Cyan,
                 Alpha = 0,
             },
         };
@@ -60,8 +59,8 @@ public partial class EditorCell : ClickableContainer
         this.row = row;
 
         fill.Colour = isBeat
-            ? new Color4(0.07f, 0.086f, 0.112f, 1f)
-            : new Color4(0.045f, 0.056f, 0.074f, 1f);
+            ? EditorTheme.SurfaceRaised
+            : EditorTheme.Surface;
         rowLine.Colour = isMeasure
             ? new Color4(1f, 1f, 1f, 0.2f)
             : isBeat

@@ -8,7 +8,6 @@ using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
-using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osu.Framework.Platform;
@@ -20,7 +19,6 @@ using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
 using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
-using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Import;
 using Yokko.Import.Osu;
@@ -30,11 +28,29 @@ namespace Yokko.Game.Screens.Editor;
 
 public partial class EditorScreen : Screen
 {
-    // Legacy internal editor coordinates. The centred stage is scaled against
-    // the shared 1920x1080 viewport and shrinks further for smaller windows.
-    private const float designedWidth = 1122;
-    private const float designedHeight = 620;
-    private const float referenceLayoutScale = 1.45f;
+    // The editor is anchored on Yokko's shared 1920x1080 layout space, the
+    // same convention as SongSelectScreen. YokkoUiScalingContainer owns the
+    // physical scaling, so no screen-local stage scaling is required.
+    internal const float CanvasWidth = 1920;
+    internal const float CanvasHeight = 1080;
+    internal const float HeaderHeight = 72;
+    internal const float ToolbarTop = HeaderHeight;
+    internal const float ToolbarHeight = 56;
+    internal const float WorkspaceLeft = 24;
+    internal const float WorkspaceTop = 144;
+    internal const float WorkspaceWidth = 1392;
+    internal const float SignalHeight = 96;
+    internal const float GridTop = 256;
+    internal const float GridHeight = 700;
+    internal const float TransportTop = 972;
+    internal const float TransportHeight = 44;
+    internal const float InspectorLeft = 1440;
+    internal const float InspectorTop = WorkspaceTop;
+    internal const float InspectorWidth = 456;
+    internal const float InspectorHeight = 872;
+    internal const float StatusBarTop = 1032;
+    internal const float StatusBarHeight = 48;
+
     private const int defaultVisibleRows = 24;
     private const int minVisibleRows = 12;
     private const int maxVisibleRows = 64;
@@ -42,8 +58,8 @@ public partial class EditorScreen : Screen
     private const int jumpStep = 16;
     private const int appendStep = 32;
 
-    private FillFlowContainer workspace;
-    private Container editorStage;
+    private Container workspace;
+    private Container inspectorHost;
     private EditableBeatmap editableBeatmap;
     private TimelineViewport viewport;
     private readonly EditorPreviewClock previewClock = new();
@@ -52,7 +68,7 @@ public partial class EditorScreen : Screen
     private EditorGrid grid;
     private EditorTimelineControls timelineControls;
     private EditorInspector inspector;
-    private SpriteText statusText;
+    private EditorStatusBar statusBar;
     private CancellationTokenSource waveformLoadCancellation;
     private readonly Dictionary<string, EditorAudioWaveform> waveformCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly bool presentImportOnLoad;
@@ -79,44 +95,34 @@ public partial class EditorScreen : Screen
 
         InternalChildren = new Drawable[]
         {
-            new YokkoThemeBox(YokkoThemeBoxRole.Background)
+            new Box
             {
                 RelativeSizeAxes = Axes.Both,
+                Colour = EditorTheme.Ivory,
             },
-            editorStage = new Container
+            new EditorHeader(),
+            new EditorToolbar(
+                () => loadChart(KeyMode.FourKey),
+                () => loadChart(KeyMode.SevenKey),
+                importChart,
+                exportOsu,
+                playtest)
             {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Size = new Vector2(designedWidth, designedHeight),
-                Child = new FillFlowContainer
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(0, 16),
-                    Children = new Drawable[]
-                    {
-                        new EditorHeader(
-                            () => loadChart(KeyMode.FourKey),
-                            () => loadChart(KeyMode.SevenKey),
-                            importChart,
-                            exportOsu,
-                            playtest),
-                        workspace = new FillFlowContainer
-                        {
-                            AutoSizeAxes = Axes.X,
-                            Height = 466,
-                            Direction = FillDirection.Horizontal,
-                            Spacing = new Vector2(32, 0),
-                        },
-                        statusText = new YokkoText(
-                            size: 12,
-                            style: YokkoTextStyle.Caption,
-                            colour: YokkoTextColourRole.Dim)
-                        {
-                            Text = YokkoStrings.Get("editor.ready"),
-                        },
-                    }
-                }
+                Y = ToolbarTop,
+            },
+            workspace = new Container
+            {
+                Position = new Vector2(WorkspaceLeft, WorkspaceTop),
+                Size = new Vector2(WorkspaceWidth, InspectorHeight),
+            },
+            inspectorHost = new Container
+            {
+                Position = new Vector2(InspectorLeft, InspectorTop),
+                Size = new Vector2(InspectorWidth, InspectorHeight),
+            },
+            statusBar = new EditorStatusBar
+            {
+                Y = StatusBarTop,
             },
         };
 
@@ -150,8 +156,7 @@ public partial class EditorScreen : Screen
 
         grid = new EditorGrid(editableBeatmap, viewport, scrollRows)
         {
-            Anchor = Anchor.TopLeft,
-            Origin = Anchor.TopLeft,
+            Y = GridTop - WorkspaceTop,
         };
         grid.NotesChanged += refreshEditorState;
 
@@ -166,29 +171,20 @@ public partial class EditorScreen : Screen
             () => scrollRows(jumpStep),
             () => zoomTimeline(-rowStep),
             () => zoomTimeline(rowStep),
-            appendRows);
-
-        inspector = new EditorInspector(editableBeatmap, viewport)
+            appendRows)
         {
+            Y = TransportTop - WorkspaceTop,
         };
+
+        inspector = new EditorInspector(editableBeatmap, viewport);
 
         workspace.Children = new Drawable[]
         {
-            new FillFlowContainer
-            {
-                AutoSizeAxes = Axes.X,
-                Height = 466,
-                Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 8),
-                Children = new Drawable[]
-                {
-                    signalStrip,
-                    grid,
-                    timelineControls,
-                },
-            },
-            inspector,
+            signalStrip,
+            grid,
+            timelineControls,
         };
+        inspectorHost.Child = inspector;
 
         refreshPreviewVisuals();
     }
@@ -342,7 +338,7 @@ public partial class EditorScreen : Screen
 
     private void setStatus(LocalisableString message)
     {
-        statusText.Text = message;
+        statusBar.SetStatus(message);
     }
 
     private static string formatSeconds(double milliseconds) => $"{milliseconds / 1000:0.00}s";
@@ -351,26 +347,11 @@ public partial class EditorScreen : Screen
     {
         base.Update();
 
-        float stageScale = CalculateResponsiveStageScale(DrawSize);
-        editorStage.Scale = new Vector2(stageScale);
-
         if (!previewClock.Update(Time.Elapsed, getPreviewDurationMilliseconds()))
             return;
 
         ensurePreviewVisible();
         refreshPreviewVisuals();
-    }
-
-    internal static float CalculateResponsiveStageScale(Vector2 viewportSize)
-    {
-        if (viewportSize.X <= 0 || viewportSize.Y <= 0)
-            return 1;
-
-        return MathF.Min(
-            referenceLayoutScale,
-            MathF.Min(
-                viewportSize.X / designedWidth,
-                viewportSize.Y / designedHeight));
     }
 
     private void togglePreviewPlayback()
@@ -532,4 +513,22 @@ public partial class EditorScreen : Screen
         var fileInfo = new FileInfo(audioPath);
         return $"{fileInfo.FullName}|{fileInfo.Length}|{fileInfo.LastWriteTimeUtc.Ticks}";
     }
+
+    #region Test hooks
+
+    internal EditableBeatmap BeatmapForTesting => editableBeatmap;
+    internal TimelineViewport ViewportForTesting => viewport;
+    internal string StatusTextForTesting => statusBar.StatusText;
+    internal bool IsPreviewPlayingForTesting => previewClock.IsPlaying;
+    internal double PreviewTimeForTesting => previewClock.CurrentTimeMilliseconds;
+
+    internal void CreateChartForTesting(KeyMode keyMode) => loadChart(keyMode);
+    internal void ScrollRowsForTesting(int rowDelta) => scrollRows(rowDelta);
+    internal void ZoomTimelineForTesting(int visibleRowDelta) => zoomTimeline(visibleRowDelta);
+    internal void AppendRowsForTesting() => appendRows();
+    internal void TogglePreviewForTesting() => togglePreviewPlayback();
+    internal void StopPreviewForTesting() => stopPreviewPlayback();
+    internal void SeekPreviewForTesting(double timeMilliseconds) => seekPreview(timeMilliseconds);
+
+    #endregion
 }

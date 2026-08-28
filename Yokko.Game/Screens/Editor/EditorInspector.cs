@@ -1,22 +1,26 @@
 using System.IO;
-using System;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osuTK;
-using osuTK.Graphics;
 using Yokko.Core.Editing;
 using Yokko.Core.Timing;
-using Yokko.Game.Presentation;
 using Yokko.Game.Localisation;
+using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Editor;
 
+/// <summary>
+/// The ivory chart-facts card on the right of the editor. It surfaces the
+/// chart metadata, timeline window, timing, scroll-velocity, audio, and
+/// source information for the active draft.
+/// </summary>
 public partial class EditorInspector : CompositeDrawable
 {
     private readonly EditableBeatmap beatmap;
     private readonly TimelineViewport viewport;
+    private readonly SpriteText titleText;
     private readonly SpriteText modeText;
     private readonly SpriteText noteCountText;
     private readonly SpriteText lengthText;
@@ -31,45 +35,55 @@ public partial class EditorInspector : CompositeDrawable
         this.beatmap = beatmap;
         this.viewport = viewport;
 
-        Width = 330;
-        Height = 466;
-        Masking = true;
+        Size = new Vector2(
+            EditorScreen.InspectorWidth,
+            EditorScreen.InspectorHeight);
 
         InternalChildren = new Drawable[]
         {
-            new YokkoCard(YokkoCardStyle.Panel)
+            EditorTheme.CreateCardShadow(),
+            EditorTheme.CreateIvoryCard(),
+            new FillFlowContainer
             {
                 RelativeSizeAxes = Axes.Both,
-                CardContent = new FillFlowContainer
+                Direction = FillDirection.Vertical,
+                Spacing = new Vector2(0, 18),
+                Padding = new MarginPadding(24),
+                Children = new Drawable[]
                 {
-                    RelativeSizeAxes = Axes.Both,
-                    Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(0, 18),
-                    Padding = new MarginPadding(22),
-                    Children = new Drawable[]
+                    new SpriteText
                     {
-                        new YokkoText(
-                            beatmap.Title,
-                            21,
-                            YokkoTextStyle.Heading)
-                        {
-                        },
-                        modeText = createMetric(),
-                        noteCountText = createMetric(),
-                        lengthText = createMetric(),
-                        windowText = createMetric(),
-                        densityText = createMetric(),
-                        scrollVelocityText = createMetric(),
-                        audioText = createMetric(),
-                        new YokkoDivider
-                        {
-                        },
-                        sourceText = new YokkoText(
-                            size: 12,
-                            style: YokkoTextStyle.Caption,
-                            colour: YokkoTextColourRole.Dim)
-                        {
-                        },
+                        Text = YokkoStrings.Get("editor.inspector.heading"),
+                        Font = HomeTypography.Display(9),
+                        Colour = EditorTheme.NavyText(0.55f),
+                    },
+                    new Box
+                    {
+                        Size = new Vector2(54, 2),
+                        Colour = EditorTheme.Pink,
+                    },
+                    titleText = new SpriteText
+                    {
+                        Font = HomeTypography.Display(18),
+                        Colour = EditorTheme.Navy,
+                    },
+                    modeText = createMetric(),
+                    noteCountText = createMetric(),
+                    lengthText = createMetric(),
+                    windowText = createMetric(),
+                    densityText = createMetric(),
+                    scrollVelocityText = createMetric(),
+                    audioText = createMetric(),
+                    new Box
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        Height = 1,
+                        Colour = EditorTheme.Border(0.14f),
+                    },
+                    sourceText = new SpriteText
+                    {
+                        Font = HomeTypography.Body(11),
+                        Colour = EditorTheme.NavyText(0.55f),
                     },
                 },
             },
@@ -84,6 +98,7 @@ public partial class EditorInspector : CompositeDrawable
             ? 0
             : beatmap.Notes[^1].StartTimeMilliseconds + beatmap.TimingMap.StepAtTime(beatmap.Notes[^1].StartTimeMilliseconds);
 
+        titleText.Text = beatmap.Title;
         modeText.Text = YokkoStrings.Get("editor.inspector.mode", (int)beatmap.KeyMode);
         noteCountText.Text = YokkoStrings.Get("editor.inspector.notes", beatmap.Notes.Count);
         lengthText.Text = YokkoStrings.Get("editor.inspector.length", $"{lengthMilliseconds / 1000:0.00}");
@@ -115,8 +130,9 @@ public partial class EditorInspector : CompositeDrawable
             : YokkoStrings.Get("editor.inspector.source", Path.GetFileName(beatmap.SourcePath));
     }
 
-    private static SpriteText createMetric() => new YokkoText(
-        size: 15,
-        style: YokkoTextStyle.Body,
-        colour: YokkoTextColourRole.Muted);
+    private static SpriteText createMetric() => new()
+    {
+        Font = HomeTypography.Body(13),
+        Colour = EditorTheme.NavyText(0.75f),
+    };
 }

@@ -1010,6 +1010,10 @@ internal static class YokkoStrings
                 "4K / 7K charting workstation",
                 "4K / 7K 谱面工作台",
                 "4K / 7K 譜面ワークスペース"),
+            ["editor.esc_hint"] = new(
+                "ESC TO EXIT",
+                "按 ESC 退出",
+                "ESC で戻る"),
             ["editor.new_4k"] = new("New 4K", "新建 4K", "新規 4K"),
             ["editor.new_7k"] = new("New 7K", "新建 7K", "新規 7K"),
             ["editor.import"] = new("Import", "导入", "インポート"),
@@ -1083,6 +1087,10 @@ internal static class YokkoStrings
                 "Waveform unavailable: {0}",
                 "波形不可用：{0}",
                 "波形を利用できません：{0}"),
+            ["editor.inspector.heading"] = new(
+                "CHART INSPECTOR",
+                "谱面信息",
+                "譜面インスペクター"),
             ["editor.inspector.mode"] = new("Mode {0}K", "模式 {0}K", "モード {0}K"),
             ["editor.inspector.notes"] = new("Notes {0}", "音符 {0}", "ノーツ {0}"),
             ["editor.inspector.length"] = new("Length {0}s", "时长 {0} 秒", "長さ {0} 秒"),
