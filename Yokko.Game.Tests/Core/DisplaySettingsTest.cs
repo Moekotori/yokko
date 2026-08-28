@@ -256,7 +256,10 @@ public sealed class DisplaySettingsTest
         try
         {
             using (var firstConfig = new YokkoConfigManager(new NativeStorage(directory)))
+            {
                 firstConfig.SetLastSettingsPage(SettingsPageKind.Gameplay.ToString());
+                Assert.That(firstConfig.Save(), Is.True);
+            }
 
             using (var restoredConfig = new YokkoConfigManager(new NativeStorage(directory)))
             {
@@ -747,53 +750,6 @@ public sealed class DisplaySettingsTest
                 Assert.That(
                     restoredSettings.ShowPerformanceReadout.Value,
                     Is.True);
-            }
-        }
-        finally
-        {
-            if (Directory.Exists(directory))
-                Directory.Delete(directory, true);
-        }
-    }
-
-    [Test]
-    public void DifficultyRatingModeDefaultsToRebirthAndPersists()
-    {
-        string directory = Path.Combine(
-            TestContext.CurrentContext.WorkDirectory,
-            "difficulty-rating-mode-config",
-            Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
-
-        try
-        {
-            var firstSettings = new YokkoDisplaySettings();
-            using (var firstConfig =
-                   new YokkoConfigManager(
-                       new NativeStorage(directory)))
-            {
-                firstConfig.BindDisplaySettings(firstSettings);
-                Assert.That(
-                    firstSettings.DifficultyRatingMode.Value,
-                    Is.EqualTo(
-                        ManiaDifficultyRatingMode.RebirthStars));
-
-                firstSettings.DifficultyRatingMode.Value =
-                    ManiaDifficultyRatingMode.EtternaMsd;
-                Assert.That(firstConfig.Save(), Is.True);
-            }
-
-            var restoredSettings = new YokkoDisplaySettings();
-            using (var restoredConfig =
-                   new YokkoConfigManager(
-                       new NativeStorage(directory)))
-            {
-                restoredConfig.BindDisplaySettings(
-                    restoredSettings);
-                Assert.That(
-                    restoredSettings.DifficultyRatingMode.Value,
-                    Is.EqualTo(
-                        ManiaDifficultyRatingMode.EtternaMsd));
             }
         }
         finally

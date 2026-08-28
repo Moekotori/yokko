@@ -1134,18 +1134,22 @@ internal static class YokkoStrings
                 "Language changes apply immediately and are saved automatically.",
                 "语言更改会立即生效并自动保存。",
                 "言語の変更はすぐに反映され、自動的に保存されます。"),
-            ["settings.general.mania_scroll_speed"] = new(
-                "Scroll speed",
-                "流速",
-                "スクロール速度"),
-            ["settings.general.mania_scroll_speed_note"] = new(
-                "Fine off: whole levels only. Fine on: drag by tenths; wheel, arrows and gameplay shortcuts adjust 1 ms.",
-                "微调关闭：拖动、滚轮和方向键按整档；开启：拖动可细调，滚轮、方向键或游玩快捷键每次 1 ms。",
-                "微調整オフ：整数段階のみ。オン：ドラッグで細かく、ホイール・方向キー・プレイ中のキーは 1 ms ずつ調整。"),
-            ["settings.general.fine_adjustment"] = new(
-                "Fine",
-                "微调",
-                "微調整"),
+            ["settings.general.home_music"] = new(
+                "Home screen music",
+                "主页背景音乐",
+                "ホーム画面の音楽"),
+            ["settings.general.player_name"] = new(
+                "Display name",
+                "显示名称",
+                "表示名"),
+            ["settings.general.version"] = new(
+                "Current version",
+                "当前版本",
+                "現在のバージョン"),
+            ["settings.general.updates_note"] = new(
+                "Visit About for credits and acknowledgements.",
+                "完整版本信息与致谢请前往「关于」页面。",
+                "クレジットと謝辞は「About」ページをご覧ください。"),
             ["settings.general.debug_console"] = new(
                 "Live debug console · F12",
                 "实时调试控制台 · F12",
@@ -1884,6 +1888,22 @@ internal static class YokkoStrings
                 "Changes presentation only; timing and judgement stay the same.",
                 "只改变音符移动方向，不影响谱面时间与判定。",
                 "表示方向のみを変更し、タイミングと判定には影響しません。"),
+            ["settings.gameplay.difficulty_rating"] = new(
+                "Difficulty rating",
+                "难度显示",
+                "難易度表示"),
+            ["settings.gameplay.difficulty_rating_note"] = new(
+                "Controls how chart difficulty is shown in song select and results.",
+                "控制选曲与结果界面的谱面难度展示方式。",
+                "選曲とリザルトでの譜面難易度表示方式を切り替えます。"),
+            ["settings.gameplay.difficulty_rating.etterna"] = new(
+                "Etterna MSD",
+                "Etterna MSD",
+                "Etterna MSD"),
+            ["settings.gameplay.difficulty_rating.rebirth"] = new(
+                "Rebirth stars",
+                "Rebirth 星级",
+                "Rebirth 星評価"),
             ["settings.gameplay.scroll_direction_down"] = new(
                 "Downscroll",
                 "Downscroll · 向下",

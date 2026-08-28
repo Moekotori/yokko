@@ -15,7 +15,6 @@ using osu.Framework.Platform;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
-using Yokko.Core.Difficulty;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
@@ -93,8 +92,6 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
     private readonly Bindable<WindowMode> windowMode;
     private readonly Bindable<YokkoUiScale> uiScale;
     private readonly Bindable<YokkoFrameLimit> frameLimit;
-    private readonly Bindable<ManiaDifficultyRatingMode>
-        difficultyRatingMode;
     private readonly IBindable<DisplayMode> currentDisplayMode;
     private readonly Action<Size> setWindowedSize;
     private readonly Action<WindowMode> setWindowMode;
@@ -103,8 +100,6 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
     private readonly List<SettingsAspectRatioChoiceButton>
         aspectRatioButtons = new();
     private readonly List<SettingsFrameLimitChoiceButton> frameLimitButtons = new();
-    private readonly List<SettingsSegmentedChoiceButton>
-        difficultyRatingButtons = new();
 
     private readonly SpriteText currentDisplayMetadata;
     private readonly SettingsResolutionDropdown resolutionDropdown;
@@ -113,8 +108,6 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
     internal bool IsResolutionSelectionEnabled => resolutionDropdown.IsEnabled;
     internal Size DisplayedResolution => resolutionDropdown.SelectedSize;
     internal YokkoUiScale CurrentUiScale => uiScale.Value;
-    internal ManiaDifficultyRatingMode CurrentDifficultyRatingMode =>
-        difficultyRatingMode.Value;
 
     internal static bool IsFrameLimitSelectable(YokkoFrameLimit limit) =>
         supportedFrameLimits.Contains(limit);
@@ -125,7 +118,6 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         Bindable<YokkoUiScale> uiScale,
         Bindable<YokkoFrameLimit> frameLimit,
         BindableBool showPerformanceReadout,
-        Bindable<ManiaDifficultyRatingMode> difficultyRatingMode,
         IBindable<DisplayMode> currentDisplayMode,
         Action<Size> setWindowedSize,
         Action<WindowMode> setWindowMode)
@@ -134,7 +126,6 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         this.windowMode = windowMode;
         this.uiScale = uiScale;
         this.frameLimit = frameLimit;
-        this.difficultyRatingMode = difficultyRatingMode;
         this.currentDisplayMode = currentDisplayMode;
         this.setWindowedSize = setWindowedSize;
         this.setWindowMode = setWindowMode;
@@ -176,21 +167,12 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
                 524,
                 YokkoStrings.Get("settings.display.performance_readout"),
                 new SettingsBooleanToggle(showPerformanceReadout)),
-            SettingsChrome.CreateDivider(585),
-            SettingsChrome.CreateSettingRow(
-                586,
-                YokkoStrings.Get(
-                    "settings.display.difficulty_rating"),
-                createDifficultyRatingControl()),
         };
 
         windowedSize.BindValueChanged(onWindowedSizeChanged, true);
         windowMode.BindValueChanged(onWindowModeChanged, true);
         uiScale.BindValueChanged(onUiScaleChanged, true);
         frameLimit.BindValueChanged(onFrameLimitChanged, true);
-        difficultyRatingMode.BindValueChanged(
-            onDifficultyRatingModeChanged,
-            true);
         currentDisplayMode.BindValueChanged(onCurrentDisplayModeChanged, true);
     }
 
@@ -309,43 +291,6 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
         return SettingsChrome.CreateSegmentedControl(scaleButtons);
     }
 
-    private Drawable createDifficultyRatingControl()
-    {
-        var options = new[]
-        {
-            (
-                ManiaDifficultyRatingMode.EtternaMsd,
-                YokkoStrings.Get(
-                    "settings.display.difficulty_rating.etterna"),
-                FontAwesome.Solid.ChartLine),
-            (
-                ManiaDifficultyRatingMode.RebirthStars,
-                YokkoStrings.Get(
-                    "settings.display.difficulty_rating.rebirth"),
-                FontAwesome.Solid.Star),
-        };
-
-        foreach ((ManiaDifficultyRatingMode mode,
-                     LocalisableString label,
-                     IconUsage icon) in options)
-        {
-            ManiaDifficultyRatingMode capturedMode = mode;
-            difficultyRatingButtons.Add(
-                new SettingsSegmentedChoiceButton(
-                    label,
-                    icon,
-                    () => difficultyRatingMode.Value =
-                        capturedMode,
-                    SettingsChrome.ControlWidth / 2)
-                {
-                    Value = mode,
-                });
-        }
-
-        return SettingsChrome.CreateSegmentedControl(
-            difficultyRatingButtons);
-    }
-
     private void onWindowedSizeChanged(ValueChangedEvent<Size> _) => refreshSelection();
 
     private void onWindowModeChanged(ValueChangedEvent<WindowMode> _) => refreshSelection();
@@ -353,10 +298,6 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
     private void onUiScaleChanged(ValueChangedEvent<YokkoUiScale> _) => refreshSelection();
 
     private void onFrameLimitChanged(ValueChangedEvent<YokkoFrameLimit> _) => refreshSelection();
-
-    private void onDifficultyRatingModeChanged(
-        ValueChangedEvent<ManiaDifficultyRatingMode> _) =>
-        refreshSelection();
 
     private void onCurrentDisplayModeChanged(ValueChangedEvent<DisplayMode> _) => refreshSelection();
 
@@ -410,14 +351,6 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
                 FormatFrameLimitMode(button.Value),
                 FormatFrameLimit(button.Value, refreshRate));
             button.SetSelected(button.Value == frameLimit.Value);
-        }
-
-        foreach (SettingsSegmentedChoiceButton button
-                 in difficultyRatingButtons)
-        {
-            button.SetSelected(
-                button.Value is ManiaDifficultyRatingMode mode
-                && mode == difficultyRatingMode.Value);
         }
 
     }

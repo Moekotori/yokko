@@ -3730,7 +3730,7 @@ public partial class GameplayScreen : Screen
                 ? difficultyAt(rate)
                 : null;
         ManiaDifficultyRatingMode difficultyMode =
-            displaySettings.DifficultyRatingMode.Value;
+            gameplaySettings.DifficultyRatingMode.Value;
         hud.UpdatePlaybackRate(
             rate,
             bpm,

@@ -56,8 +56,6 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
     internal double CurrentMasterVolume => settings.MasterVolume.Value;
     internal double CurrentMusicVolume => settings.MusicVolume.Value;
     internal double CurrentHitSoundVolume => settings.HitSoundVolume.Value;
-    internal bool HitSoundsEnabled =>
-        gameplaySettings.KeysoundsEnabled.Value;
     internal bool IsDeviceMenuOpen => deviceSelector.IsOpen;
 
     public AudioSettingsPanel(
@@ -115,19 +113,13 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
             createDivider(464),
             createSettingRow(
                 468,
-                YokkoStrings.Get("settings.audio.hitsounds"),
-                new SettingsAudioToggle(
-                    gameplaySettings.KeysoundsEnabled)),
-            createDivider(522),
-            createSettingRow(
-                526,
                 YokkoStrings.Get("settings.audio.test"),
                 testControl = new SettingsAudioTestControl(
                     () => StartAudioTest(AudioSettingsTestKind.Music),
                     () => StartAudioTest(AudioSettingsTestKind.HitSound))),
-            createDivider(580),
+            createDivider(522),
             createSettingRow(
-                584,
+                526,
                 YokkoStrings.Get("settings.audio.offset"),
                 new SettingsOffsetStepper(
                     settings.UserOffsetMilliseconds)),
@@ -189,9 +181,6 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
     internal void SetHitSoundVolume(double volume) =>
         settings.HitSoundVolume.Value =
             Math.Clamp(Math.Round(volume * 100) / 100, 0, 1);
-
-    internal void SetHitSoundsEnabled(bool enabled) =>
-        gameplaySettings.KeysoundsEnabled.Value = enabled;
 
     internal void StartAudioTest(AudioSettingsTestKind kind)
     {

@@ -6,6 +6,7 @@ using NUnit.Framework;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Platform;
 using osuTK.Input;
+using Yokko.Core.Difficulty;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Scoring;
 using Yokko.Game.Configuration;
@@ -1319,5 +1320,89 @@ public sealed class GameplaySettingsTest
         Assert.That(
             OsuManiaScrollSpeed.ComputeScrollTime(34, 500),
             Is.EqualTo(baseTimeRange * 480 / 402).Within(0.001));
+    }
+
+    [Test]
+    public void DifficultyRatingModeDefaultsToRebirthAndPersists()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "difficulty-rating-mode-config",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            var firstSettings = new YokkoGameplaySettings();
+            using (var firstConfig =
+                   new YokkoConfigManager(
+                       new NativeStorage(directory)))
+            {
+                firstConfig.BindGameplaySettings(firstSettings);
+                Assert.That(
+                    firstSettings.DifficultyRatingMode.Value,
+                    Is.EqualTo(
+                        ManiaDifficultyRatingMode.RebirthStars));
+
+                firstSettings.DifficultyRatingMode.Value =
+                    ManiaDifficultyRatingMode.EtternaMsd;
+                Assert.That(firstConfig.Save(), Is.True);
+            }
+
+            var restoredSettings = new YokkoGameplaySettings();
+            using (var restoredConfig =
+                   new YokkoConfigManager(
+                       new NativeStorage(directory)))
+            {
+                restoredConfig.BindGameplaySettings(
+                    restoredSettings);
+                Assert.That(
+                    restoredSettings.DifficultyRatingMode.Value,
+                    Is.EqualTo(
+                        ManiaDifficultyRatingMode.EtternaMsd));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
+    [Test]
+    public void LegacyDisplayDifficultyRatingModeMigratesToGameplay()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "legacy-difficulty-rating-config",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            using (var legacyConfig =
+                   new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                legacyConfig.SetValue(
+                    YokkoSetting.DisplayDifficultyRatingMode,
+                    ManiaDifficultyRatingMode.EtternaMsd);
+                Assert.That(legacyConfig.Save(), Is.True);
+            }
+
+            var restoredSettings = new YokkoGameplaySettings();
+            using (var restoredConfig =
+                   new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                restoredConfig.BindGameplaySettings(restoredSettings);
+                Assert.That(
+                    restoredSettings.DifficultyRatingMode.Value,
+                    Is.EqualTo(ManiaDifficultyRatingMode.EtternaMsd));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
     }
 }

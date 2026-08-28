@@ -520,7 +520,7 @@ public partial class SongSelectScreen : Screen
             ? entry
             : null;
     internal double MinimumDifficultyFilter =>
-        displaySettings.DifficultyRatingMode.Value
+        gameplaySettings.DifficultyRatingMode.Value
             == ManiaDifficultyRatingMode.EtternaMsd
             ? minimumMsdFilter
             : minimumStarFilter;
@@ -584,7 +584,7 @@ public partial class SongSelectScreen : Screen
     internal ManiaChartAnalysisResult DisplayedChartAnalysis =>
         displayedChartAnalysis;
     internal ManiaDifficultyRatingMode DisplayedDifficultyRatingMode =>
-        displaySettings.DifficultyRatingMode.Value;
+        gameplaySettings.DifficultyRatingMode.Value;
     internal SongSelectAccuracyChallengeSettings
         AccuracyChallengeSettings =>
             modSettingsHost?.AccuracySettings;
@@ -758,7 +758,7 @@ public partial class SongSelectScreen : Screen
         prewarmInitialArtwork();
         logLoadStage("first-frame artwork");
         updateFilters();
-        displaySettings.DifficultyRatingMode.BindValueChanged(
+        gameplaySettings.DifficultyRatingMode.BindValueChanged(
             onDifficultyRatingModeChanged);
         displaySettings.UiScale.BindValueChanged(
             onUiScaleChanged,
@@ -1010,7 +1010,7 @@ public partial class SongSelectScreen : Screen
                 importedChartLibrary.LibraryChanged -= ApplyChartLibraryChange;
             if (displaySettings != null)
             {
-                displaySettings.DifficultyRatingMode.ValueChanged -=
+                gameplaySettings.DifficultyRatingMode.ValueChanged -=
                     onDifficultyRatingModeChanged;
                 displaySettings.UiScale.ValueChanged -= onUiScaleChanged;
             }
@@ -1487,7 +1487,7 @@ public partial class SongSelectScreen : Screen
     internal void SetMinimumDifficultyFilter(double value)
     {
         ManiaDifficultyRatingMode mode =
-            displaySettings.DifficultyRatingMode.Value;
+            gameplaySettings.DifficultyRatingMode.Value;
         double maximum = mode == ManiaDifficultyRatingMode.EtternaMsd
             ? 30
             : 10;
@@ -2837,7 +2837,7 @@ public partial class SongSelectScreen : Screen
             selectedMods.PlaybackRate,
             selectedEntry.Bpm * selectedMods.PlaybackRate,
             difficultyRatingsFor(selectedEntry),
-            displaySettings.DifficultyRatingMode.Value);
+            gameplaySettings.DifficultyRatingMode.Value);
     }
 
     private void showScrollSpeedHint()
@@ -3792,7 +3792,7 @@ public partial class SongSelectScreen : Screen
             songList = new SongSelectVirtualisedList(
                 difficultyRatingsFor,
                 textureFor,
-                () => displaySettings.DifficultyRatingMode.Value,
+                () => gameplaySettings.DifficultyRatingMode.Value,
                 textures.Get("SongSelect/Cute/sticker-star"),
                 entry => select(entry),
                 entry =>
@@ -4575,7 +4575,7 @@ public partial class SongSelectScreen : Screen
                 createDifficultyPill(appliedBeatmap),
                 createDifficultyValuePill(
                     difficultyRatings,
-                    displaySettings.DifficultyRatingMode.Value),
+                    gameplaySettings.DifficultyRatingMode.Value),
                 createAdaptiveDetailsTitle(detailsTitleLines),
                 new SpriteText
                 {
@@ -5660,7 +5660,7 @@ public partial class SongSelectScreen : Screen
                 gameplaySettings.GetJudgementConfiguration();
             bool minesEnabled = gameplaySettings.MinesEnabled.Value;
             ManiaDifficultyRatingMode ratingMode =
-                displaySettings.DifficultyRatingMode.Value;
+                gameplaySettings.DifficultyRatingMode.Value;
             var knownValues = new Dictionary<SongSelectEntry, double?>(
                 ReferenceEqualityComparer.Instance);
             foreach (SongSelectSorting.EntrySnapshot snapshot in basicFilterSnapshots)
@@ -5930,7 +5930,7 @@ public partial class SongSelectScreen : Screen
             + $" | visible={visibleEntries.Count}/{entries.Count}"
             + $" | sort={request.SortMode}:{request.SortDirection}"
             + $" | difficulty-min={request.MinimumDifficulty:0.00}"
-            + $" | difficulty-unit={ManiaDifficultyPresentation.Unit(displaySettings.DifficultyRatingMode.Value)}"
+            + $" | difficulty-unit={ManiaDifficultyPresentation.Unit(gameplaySettings.DifficultyRatingMode.Value)}"
             + $" | packages-collapsed={packagesCollapsed}"
             + $" | converts={request.ShowConverts}"
             + $" | elapsed-ms={result.Elapsed.TotalMilliseconds:0.0}");
@@ -7161,7 +7161,7 @@ public partial class SongSelectScreen : Screen
 
     private void refreshDifficultyFilterBar() =>
         difficultyFilterBar?.SetState(
-            displaySettings.DifficultyRatingMode.Value,
+            gameplaySettings.DifficultyRatingMode.Value,
             MinimumDifficultyFilter);
 
     private bool passesDifficultyFilter(SongSelectEntry entry)
@@ -7325,7 +7325,7 @@ public partial class SongSelectScreen : Screen
     private double? selectedDifficultyValue(
         SongSelectEntry entry) =>
         difficultyRatingsFor(entry).Value(
-            displaySettings.DifficultyRatingMode.Value);
+            gameplaySettings.DifficultyRatingMode.Value);
 
     private void synchroniseImportedCharts(
         bool selectNewest = false,
@@ -7452,7 +7452,7 @@ public partial class SongSelectScreen : Screen
         if (MinimumDifficultyFilter > 0)
         {
             parts.Add(
-                $"{ManiaDifficultyPresentation.Unit(displaySettings.DifficultyRatingMode.Value)} "
+                $"{ManiaDifficultyPresentation.Unit(gameplaySettings.DifficultyRatingMode.Value)} "
                 + $"{MinimumDifficultyFilter:0.#}+");
         }
         if (!showConverts)

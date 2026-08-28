@@ -197,25 +197,34 @@ internal partial class SettingsSidebar : CompositeDrawable
         SettingsNavItem gameplay = createNavItem(SettingsPageKind.Gameplay);
         SettingsNavItem shortcuts = createNavItem(SettingsPageKind.Shortcuts);
         SettingsNavItem skins = createNavItem(SettingsPageKind.Skins);
-        SettingsNavItem editor = createNavItem(SettingsPageKind.Editor);
         SettingsNavItem import = createNavItem(SettingsPageKind.Import);
 
         var systemHeader = new SettingsNavHeader(YokkoStrings.Get("settings.group_system"));
-        SettingsNavItem desktop = createNavItem(SettingsPageKind.Desktop);
-        SettingsNavItem accessibility = createNavItem(SettingsPageKind.Accessibility);
+        SettingsNavItem desktop = SettingsNavigation.IsVisible(SettingsPageKind.Desktop)
+            ? createNavItem(SettingsPageKind.Desktop)
+            : null;
         SettingsNavItem safety = createNavItem(SettingsPageKind.Safety);
         SettingsNavItem about = createNavItem(SettingsPageKind.About);
 
         navigationGroups.Add((coreHeader, new[] { general, display, audio }));
-        navigationGroups.Add((creationHeader, new[] { gameplay, shortcuts, skins, editor, import }));
-        navigationGroups.Add((systemHeader, new[] { desktop, accessibility, safety, about }));
+        navigationGroups.Add((creationHeader, new[] { gameplay, shortcuts, skins, import }));
 
-        return new Drawable[]
+        var systemItems = new List<SettingsNavItem> { safety, about };
+        if (desktop != null)
+            systemItems.Insert(0, desktop);
+        navigationGroups.Add((systemHeader, systemItems.ToArray()));
+
+        var navigation = new List<Drawable>
         {
             coreHeader, general, display, audio,
-            creationHeader, gameplay, shortcuts, skins, editor, import,
-            systemHeader, desktop, accessibility, safety, about,
+            creationHeader, gameplay, shortcuts, skins, import,
+            systemHeader,
         };
+        if (desktop != null)
+            navigation.Add(desktop);
+        navigation.Add(safety);
+        navigation.Add(about);
+        return navigation.ToArray();
     }
 
     public void SetSelected(SettingsPageKind page)
@@ -292,6 +301,10 @@ internal partial class SettingsSidebar : CompositeDrawable
 
     private SettingsNavItem createNavItem(SettingsPageKind page)
     {
+        if (!SettingsNavigation.IsVisible(page))
+            throw new InvalidOperationException(
+                $"Settings page {page} is not visible on this platform.");
+
         SettingsPageDefinition definition = SettingsPages.Get(page);
         var item = new SettingsNavItem(
             page,

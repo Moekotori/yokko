@@ -4740,8 +4740,8 @@ HitPosition: 400
             AddStep("open rate-adjustable gameplay", () =>
             {
                 originalDifficultyMode =
-                    displaySettings.DifficultyRatingMode.Value;
-                displaySettings.DifficultyRatingMode.Value =
+                    gameplaySettings.DifficultyRatingMode.Value;
+                gameplaySettings.DifficultyRatingMode.Value =
                     ManiaDifficultyRatingMode.EtternaMsd;
                 gameplayScreen = new GameplayScreen(
                     beatmap,
@@ -4805,7 +4805,7 @@ HitPosition: 400
                 && hud.DisplayedDynamicRate.Contains("PRACTICE"));
             AddStep("switch live readout to Rebirth stars", () =>
             {
-                displaySettings.DifficultyRatingMode.Value =
+                gameplaySettings.DifficultyRatingMode.Value =
                     ManiaDifficultyRatingMode.RebirthStars;
                 gameplayScreen.HandlePlaybackRateShortcut(
                     Key.Plus,
@@ -4815,7 +4815,7 @@ HitPosition: 400
                 rateOverlay.DisplayedDetail.Contains("STAR")
                 && hud.DisplayedDynamicRate.Contains("STAR"));
             AddStep("restore difficulty display mode", () =>
-                displaySettings.DifficultyRatingMode.Value =
+                gameplaySettings.DifficultyRatingMode.Value =
                     originalDifficultyMode);
         }
 
