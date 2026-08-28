@@ -5,11 +5,11 @@ using System.Reflection;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
-using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
+using osu.Framework.Platform;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
@@ -24,12 +24,26 @@ namespace Yokko.Game.Screens.Settings;
 /// Owns application-wide preferences that do not belong to a specialised
 /// subsystem. Locale remains backed by osu!framework's persistent config.
 /// </summary>
-internal partial class GeneralSettingsPanel : CompositeDrawable
+internal partial class GeneralSettingsPanel
+    : CompositeDrawable, ISettingsSearchTarget
 {
+    private static readonly IReadOnlyDictionary<string, float> search_scroll_targets =
+        new Dictionary<string, float>
+        {
+            ["language"] = 276,
+            ["home-music"] = 344,
+            ["player-name"] = 412,
+            ["debug-console"] = 588,
+            ["startup"] = 620,
+            ["config"] = 680,
+            ["privacy"] = 836,
+        };
+
     private readonly Bindable<string> locale;
     private readonly Bindable<string> playerDisplayName;
     private readonly Bindable<string> playerId;
     private readonly List<SettingsSegmentedChoiceButton> languageButtons = new();
+    private readonly SettingsContentScrollContainer contentScroll;
     private readonly SpriteText currentLanguage;
     private readonly SpriteText playerIdText;
     private readonly SpriteText versionText;
@@ -39,8 +53,12 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
     public GeneralSettingsPanel(
         Bindable<string> locale,
         YokkoAudioSettings audioSettings,
+        YokkoStartupSettings startupSettings,
+        YokkoPrivacySettings privacySettings,
         YokkoConfigManager yokkoConfig,
-        BindableBool showDebugConsole)
+        Clipboard clipboard,
+        BindableBool showDebugConsole,
+        Action onOpenCalibration)
     {
         this.locale = locale;
         playerDisplayName = yokkoConfig.GetBindable<string>(
@@ -52,83 +70,140 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
                                  .GetName().Version?.ToString()
                          ?? "development";
 
-        InternalChildren = new Drawable[]
+        var content = new Container
         {
-            SettingsChrome.CreateHeader(
-                YokkoStrings.Get("settings.general.title"),
-                YokkoStrings.Get("settings.general.subtitle"),
-                FontAwesome.Solid.Cog,
-                1),
-            SettingsChrome.CreateStatusCard(
-                174,
-                FontAwesome.Solid.Globe,
-                YokkoStrings.Get("settings.general.current_language"),
-                FontAwesome.Solid.Language,
-                out currentLanguage),
-            SettingsChrome.CreateDivider(270),
-            SettingsChrome.CreateSettingRow(
-                276,
-                YokkoStrings.Get("settings.general.language"),
-                createLanguageControl()),
-            SettingsChrome.CreateDivider(338),
-            SettingsChrome.CreateSettingRow(
-                344,
-                YokkoStrings.Get("settings.general.home_music"),
-                new SettingsBooleanToggle(
-                    audioSettings.HomeMusicEnabled,
-                    "settings.general.enabled",
-                    "settings.general.disabled")),
-            SettingsChrome.CreateDivider(406),
-            SettingsChrome.CreateSettingRow(
-                412,
-                YokkoStrings.Get("settings.general.player_name"),
-                new SettingsPlayerNameField(playerDisplayName)),
-            playerIdText = new SpriteText
+            RelativeSizeAxes = Axes.X,
+            AutoSizeAxes = Axes.Y,
+            Children = new Drawable[]
             {
-                Position = new Vector2(378, 468),
-                Width = 840,
-                Font = HomeTypography.Body(15),
-                Colour = SettingsTheme.MutedNavy,
-            },
-            SettingsChrome.CreateDivider(494),
-            SettingsChrome.CreateSettingRow(
-                500,
-                YokkoStrings.Get("settings.general.version"),
-                versionText = new SpriteText
+                SettingsChrome.CreateHeader(
+                    YokkoStrings.Get("settings.general.title"),
+                    YokkoStrings.Get("settings.general.subtitle"),
+                    FontAwesome.Solid.Cog,
+                    1),
+                SettingsChrome.CreateStatusCard(
+                    174,
+                    FontAwesome.Solid.Globe,
+                    YokkoStrings.Get("settings.general.current_language"),
+                    FontAwesome.Solid.Language,
+                    out currentLanguage),
+                SettingsChrome.CreateDivider(270),
+                SettingsChrome.CreateSettingRow(
+                    276,
+                    YokkoStrings.Get("settings.general.language"),
+                    createLanguageControl()),
+                SettingsChrome.CreateDivider(338),
+                SettingsChrome.CreateSettingRow(
+                    344,
+                    YokkoStrings.Get("settings.general.home_music"),
+                    new SettingsBooleanToggle(
+                        audioSettings.HomeMusicEnabled,
+                        "settings.general.enabled",
+                        "settings.general.disabled")),
+                SettingsChrome.CreateDivider(406),
+                SettingsChrome.CreateSettingRow(
+                    412,
+                    YokkoStrings.Get("settings.general.player_name"),
+                    new SettingsPlayerNameField(playerDisplayName)),
+                playerIdText = new SpriteText
                 {
-                    Anchor = Anchor.CentreRight,
-                    Origin = Anchor.CentreRight,
-                    Text = version,
-                    Font = HomeTypography.Display(19),
+                    Position = new Vector2(378, 468),
+                    Width = 840,
+                    Font = HomeTypography.Body(15),
+                    Colour = SettingsTheme.MutedNavy,
+                },
+                SettingsChrome.CreateDivider(494),
+                SettingsChrome.CreateSettingRow(
+                    500,
+                    YokkoStrings.Get("settings.general.version"),
+                    versionText = new SpriteText
+                    {
+                        Anchor = Anchor.CentreRight,
+                        Origin = Anchor.CentreRight,
+                        Text = version,
+                        Font = HomeTypography.Display(19),
+                        Colour = HomeControlColours.Navy,
+                    }),
+                new SpriteText
+                {
+                    Position = new Vector2(378, 556),
+                    Width = 840,
+                    Text = YokkoStrings.Get("settings.general.updates_note"),
+                    Font = HomeTypography.Body(15),
+                    Colour = SettingsTheme.MutedNavy,
+                },
+                SettingsChrome.CreateDivider(582),
+                SettingsChrome.CreateSettingRow(
+                    588,
+                    YokkoStrings.Get("settings.general.debug_console"),
+                    new SettingsBooleanToggle(
+                        showDebugConsole,
+                        "settings.general.debug_console_visible",
+                        "settings.general.debug_console_hidden")),
+                SettingsChrome.CreateDivider(612),
+                SettingsChrome.CreateSettingRow(
+                    620,
+                    "Open last screen",
+                    new SettingsBooleanToggle(
+                        startupSettings.OpenLastScreen,
+                        "settings.general.enabled",
+                        "settings.general.disabled")),
+                SettingsChrome.CreateDivider(682),
+                new SpriteText
+                {
+                    Position = new Vector2(SettingsChrome.ContentX, 680),
+                    Text = "Configuration backup",
+                    Font = HomeTypography.Display(25),
                     Colour = HomeControlColours.Navy,
-                }),
-            new SpriteText
-            {
-                Position = new Vector2(378, 556),
-                Width = 840,
-                Text = YokkoStrings.Get("settings.general.updates_note"),
-                Font = HomeTypography.Body(15),
-                Colour = SettingsTheme.MutedNavy,
+                },
+                new SettingsConfigActionsControl(yokkoConfig, clipboard)
+                {
+                    Position = new Vector2(SettingsChrome.ContentX, 728),
+                },
+                SettingsChrome.CreateDivider(830),
+                SettingsChrome.CreateSettingRow(
+                    836,
+                    "Save local replays",
+                    new SettingsBooleanToggle(
+                        privacySettings.SaveLocalReplays,
+                        "settings.general.enabled",
+                        "settings.general.disabled")),
+                SettingsChrome.CreateDivider(898),
+                SettingsChrome.CreateSettingRow(
+                    904,
+                    "Include username in exports",
+                    new SettingsBooleanToggle(
+                        privacySettings.IncludeUsernameInExports,
+                        "settings.general.enabled",
+                        "settings.general.disabled")),
+                SettingsChrome.CreateDivider(966),
+                SettingsChrome.CreateSettingRow(
+                    972,
+                    YokkoStrings.Get("settings.gameplay.calibration_start"),
+                    new SettingsOutlineButton(
+                        YokkoStrings.Get("settings.gameplay.calibration_start"),
+                        FontAwesome.Solid.Microphone,
+                        onOpenCalibration)),
             },
-            SettingsChrome.CreateDivider(582),
-            SettingsChrome.CreateSettingRow(
-                588,
-                YokkoStrings.Get("settings.general.debug_console"),
-                new SettingsBooleanToggle(
-                    showDebugConsole,
-                    "settings.general.debug_console_visible",
-                    "settings.general.debug_console_hidden")),
-            new HomeDotCross
-            {
-                Position = new Vector2(1088, 594),
-                Scale = new Vector2(1.1f),
-            },
-            createDecorationIcon(FontAwesome.Solid.Plus, 1172, 601, 16, HomeControlColours.Pink),
-            createDecorationIcon(FontAwesome.Solid.Plus, 1200, 637, 12, HomeControlColours.Yellow),
+        };
+
+        InternalChild = contentScroll = new SettingsContentScrollContainer
+        {
+            RelativeSizeAxes = Axes.Both,
+            Child = content,
         };
 
         locale.BindValueChanged(onLocaleChanged, true);
         playerId.BindValueChanged(onPlayerIdChanged, true);
+    }
+
+    public bool TryFocusSearchItem(string itemId)
+    {
+        if (!search_scroll_targets.TryGetValue(itemId, out float y))
+            return false;
+
+        contentScroll.ScrollTo(y, true);
+        return true;
     }
 
     internal string CurrentPlayerId => playerId.Value;
@@ -165,14 +240,6 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
 
         return SettingsChrome.CreateSegmentedControl(languageButtons.Cast<Drawable>());
     }
-
-    private static Drawable createDecorationIcon(IconUsage icon, float x, float y, float size, Color4 colour) => new SpriteIcon
-    {
-        Position = new Vector2(x, y),
-        Size = new Vector2(size),
-        Icon = icon,
-        Colour = colour,
-    };
 
     private void onLocaleChanged(ValueChangedEvent<string> _) => refreshSelection();
 

@@ -36,8 +36,10 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
     private SpriteText migrationStatusText;
     private SpriteText externalOsuPathText;
     private SpriteText externalOsuStatusText;
+    private SpriteText watchFolderPathText;
     private readonly ResourceDirectorySelectorOverlay directorySelector;
     private readonly ResourceDirectorySelectorOverlay externalDirectorySelector;
+    private readonly ResourceDirectorySelectorOverlay watchFolderSelector;
     private bool migrationInProgress;
     private bool externalScanInProgress;
     private bool directoryPickerOpen;
@@ -48,6 +50,9 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
     internal bool PreferSscSimfiles => settings.PreferSscSimfiles.Value;
     internal bool EnableBmsScratch => settings.EnableBmsScratch.Value;
     internal bool ShowCompatibilityWarnings => settings.ShowCompatibilityWarnings.Value;
+
+    internal bool WatchFolderEnabled => settings.WatchFolderEnabled.Value;
+    internal string WatchFolderPath => settings.WatchFolderPath.Value;
 
     public ImportSettingsPanel(
         YokkoImportSettings settings,
@@ -89,6 +94,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                 Colour = HomeControlColours.Navy,
             },
             createBehaviourCards(),
+            createWatchFolderCard(),
             createLocationCard(),
             createExternalOsuCard(),
             directorySelector = new ResourceDirectorySelectorOverlay(
@@ -97,13 +103,22 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
             externalDirectorySelector = new ResourceDirectorySelectorOverlay(
                 setExternalOsuPath,
                 disableExternalOsu),
+            watchFolderSelector = new ResourceDirectorySelectorOverlay(
+                setWatchFolderPath,
+                disableWatchFolder),
         };
 
         locationPathText.Text = resourceStorage.RootPath;
         migrationStatusText.Text = YokkoStrings.Get(
             "settings.import.resource_change");
+        refreshWatchFolderStatus();
         refreshExternalOsuStatus();
     }
+
+    internal void SetWatchFolderEnabled(bool value) =>
+        settings.WatchFolderEnabled.Value = value;
+
+    internal void SetWatchFolderPath(string path) => setWatchFolderPath(path);
 
     internal void SetPreferKeysounds(bool value) => settings.PreferKeysounds.Value = value;
 
@@ -264,11 +279,79 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
     };
 
     public bool DismissTransientUi() =>
-        externalDirectorySelector.Dismiss() || directorySelector.Dismiss();
+        watchFolderSelector.Dismiss()
+        || externalDirectorySelector.Dismiss()
+        || directorySelector.Dismiss();
+
+    private Drawable createWatchFolderCard() => new ClickableContainer
+    {
+        Position = new Vector2(378, 520),
+        Size = new Vector2(840, 54),
+        Action = openWatchFolderSelector,
+        Masking = true,
+        CornerRadius = 7,
+        BorderThickness = 1,
+        BorderColour = SettingsTheme.Divider,
+        Children = new Drawable[]
+        {
+            new Box
+            {
+                RelativeSizeAxes = Axes.Both,
+                Colour = Color4.White,
+            },
+            new SpriteIcon
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.Centre,
+                X = 28,
+                Size = new Vector2(20),
+                Icon = FontAwesome.Solid.Eye,
+                Colour = HomeControlColours.Cyan,
+            },
+            new Container
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 58,
+                Size = new Vector2(430, 44),
+                Children = new Drawable[]
+                {
+                    new SpriteText
+                    {
+                        Text = YokkoStrings.Get("settings.import.watch_folder_title"),
+                        Font = HomeTypography.Display(17),
+                        Colour = HomeControlColours.Navy,
+                    },
+                    watchFolderPathText = new SpriteText
+                    {
+                        Y = 22,
+                        Width = 430,
+                        Truncate = true,
+                        Font = HomeTypography.Body(14),
+                        Colour = SettingsTheme.MutedNavy,
+                    },
+                },
+            },
+            new YokkoToggleSwitch(settings.WatchFolderEnabled)
+            {
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                X = -150,
+            },
+            new SettingsSkinActionButton(
+                YokkoStrings.Get("settings.import.watch_folder_select"),
+                FontAwesome.Solid.FolderOpen,
+                openWatchFolderSelector,
+                false)
+            {
+                Position = new Vector2(726, 8),
+            },
+        },
+    };
 
     private Drawable createLocationCard() => new ClickableContainer
     {
-        Position = new Vector2(378, 530),
+        Position = new Vector2(378, 578),
         Size = new Vector2(840, 54),
         Action = openDirectorySelector,
         Masking = true,
@@ -331,7 +414,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
 
     private Drawable createExternalOsuCard() => new ClickableContainer
     {
-        Position = new Vector2(378, 592),
+        Position = new Vector2(378, 636),
         Size = new Vector2(840, 54),
         Action = openExternalOsuSelector,
         Masking = true,
@@ -415,6 +498,67 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
             },
         },
     };
+
+    private void disableWatchFolder()
+    {
+        settings.WatchFolderEnabled.Value = false;
+        settings.WatchFolderPath.Value = string.Empty;
+        yokkoConfig.Save();
+        refreshWatchFolderStatus();
+    }
+
+    private void setWatchFolderPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+
+        settings.WatchFolderPath.Value = path;
+        settings.WatchFolderEnabled.Value = true;
+        yokkoConfig.Save();
+        refreshWatchFolderStatus();
+    }
+
+    private async void openWatchFolderSelector()
+    {
+        if (directoryPickerOpen)
+            return;
+
+        string initialPath = settings.WatchFolderPath.Value;
+        if (string.IsNullOrWhiteSpace(initialPath))
+            initialPath = resourceStorage.RootPath;
+
+        if (!resourceDirectoryPicker.IsAvailable)
+        {
+            watchFolderSelector.Open(initialPath);
+            return;
+        }
+
+        directoryPickerOpen = true;
+        string selectedPath;
+        try
+        {
+            selectedPath = await resourceDirectoryPicker.PickAsync(initialPath);
+        }
+        catch
+        {
+            return;
+        }
+        finally
+        {
+            directoryPickerOpen = false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedPath))
+            setWatchFolderPath(selectedPath);
+    }
+
+    private void refreshWatchFolderStatus()
+    {
+        string path = settings.WatchFolderPath.Value;
+        watchFolderPathText.Text = string.IsNullOrWhiteSpace(path)
+            ? YokkoStrings.Get("settings.import.watch_folder_unconfigured")
+            : path;
+    }
 
     private void autoFindExternalOsu()
     {

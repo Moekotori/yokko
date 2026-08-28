@@ -26,7 +26,7 @@ internal partial class SettingsSidebar : CompositeDrawable
     private readonly List<(SettingsNavHeader Header, SettingsNavItem[] Items)> navigationGroups = new();
     private readonly List<SettingsNavItem> orderedNavigationItems = new();
     private readonly Dictionary<SettingsPageKind, SettingsNavItem> navigationItems = new();
-    private readonly Action<SettingsPageKind> onPageSelected;
+    private readonly Action<SettingsPageKind, string> onPageSelected;
     private readonly SettingsSearchTextBox searchBox;
     private readonly SpriteText noResults;
     private readonly Box divider;
@@ -52,7 +52,7 @@ internal partial class SettingsSidebar : CompositeDrawable
         Texture logoTexture,
         Action onBack,
         SettingsPageKind selectedPage,
-        Action<SettingsPageKind> onPageSelected)
+        Action<SettingsPageKind, string> onPageSelected)
     {
         this.onPageSelected = onPageSelected;
         RelativeSizeAxes = Axes.Y;
@@ -205,12 +205,15 @@ internal partial class SettingsSidebar : CompositeDrawable
         SettingsNavItem general = createNavItem(SettingsPageKind.General);
         SettingsNavItem display = createNavItem(SettingsPageKind.Display);
         SettingsNavItem audio = createNavItem(SettingsPageKind.Audio);
+        SettingsNavItem accessibility = createNavItem(SettingsPageKind.Accessibility);
 
         var creationHeader = new SettingsNavHeader(YokkoStrings.Get("settings.group_creation"));
         SettingsNavItem gameplay = createNavItem(SettingsPageKind.Gameplay);
+        SettingsNavItem mods = createNavItem(SettingsPageKind.Mods);
         SettingsNavItem shortcuts = createNavItem(SettingsPageKind.Shortcuts);
         SettingsNavItem skins = createNavItem(SettingsPageKind.Skins);
         SettingsNavItem import = createNavItem(SettingsPageKind.Import);
+        SettingsNavItem editor = createNavItem(SettingsPageKind.Editor);
 
         var systemHeader = new SettingsNavHeader(YokkoStrings.Get("settings.group_system"));
         SettingsNavItem desktop = SettingsNavigation.IsVisible(SettingsPageKind.Desktop)
@@ -219,8 +222,8 @@ internal partial class SettingsSidebar : CompositeDrawable
         SettingsNavItem safety = createNavItem(SettingsPageKind.Safety);
         SettingsNavItem about = createNavItem(SettingsPageKind.About);
 
-        navigationGroups.Add((coreHeader, new[] { general, display, audio }));
-        navigationGroups.Add((creationHeader, new[] { gameplay, shortcuts, skins, import }));
+        navigationGroups.Add((coreHeader, new[] { general, display, audio, accessibility }));
+        navigationGroups.Add((creationHeader, new[] { gameplay, mods, shortcuts, skins, import, editor }));
 
         var systemItems = new List<SettingsNavItem> { safety, about };
         if (desktop != null)
@@ -229,8 +232,8 @@ internal partial class SettingsSidebar : CompositeDrawable
 
         var navigation = new List<Drawable>
         {
-            coreHeader, general, display, audio,
-            creationHeader, gameplay, shortcuts, skins, import,
+            coreHeader, general, display, audio, accessibility,
+            creationHeader, gameplay, mods, shortcuts, skins, import, editor,
             systemHeader,
         };
         if (desktop != null)
@@ -289,18 +292,12 @@ internal partial class SettingsSidebar : CompositeDrawable
         if (string.IsNullOrWhiteSpace(SearchQuery))
             return false;
 
-        SettingsNavItem result =
-            orderedNavigationItems.FirstOrDefault(
-                item => item.IsFilteredVisible);
-        if (result == null)
+        SettingsSearchMatch? match = SettingsSearchCatalog.FindBest(SearchQuery);
+        if (match == null)
             return false;
 
-        result = orderedNavigationItems
-            .Where(item => item.IsFilteredVisible)
-            .OrderByDescending(item => item.SearchScore)
-            .First();
-
-        selectPage(result.Page);
+        searchBox.Current.Value = string.Empty;
+        onPageSelected(match.Value.Page, match.Value.ItemId);
         return true;
     }
 
@@ -360,7 +357,7 @@ internal partial class SettingsSidebar : CompositeDrawable
     private void selectPage(SettingsPageKind page)
     {
         searchBox.Current.Value = string.Empty;
-        onPageSelected(page);
+        onPageSelected(page, null);
         GetContainingFocusManager()?.ChangeFocus(navigationItems[page]);
     }
 

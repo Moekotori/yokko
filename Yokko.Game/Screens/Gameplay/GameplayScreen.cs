@@ -107,6 +107,8 @@ public partial class GameplayScreen : Screen
     private YokkoConfigManager yokkoConfig { get; set; }
     [Resolved]
     private YokkoDiagnostics diagnostics { get; set; }
+    [Resolved]
+    private YokkoPrivacySettings privacySettings { get; set; }
 
     private BeatmapJudgementState judgementState;
     private ManiaHealthState healthState;
@@ -3178,6 +3180,9 @@ public partial class GameplayScreen : Screen
 
     private void saveCompletedReplay(DateTimeOffset recordedAt)
     {
+        if (!privacySettings.SaveLocalReplays.Value)
+            return;
+
         try
         {
             string fingerprint =

@@ -9,6 +9,7 @@ using osu.Framework.Platform;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
+using Yokko.Game.Diagnostics;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Main;
@@ -18,6 +19,7 @@ namespace Yokko.Game.Screens.Settings;
 internal partial class SafetySettingsPanel : CompositeDrawable
 {
     private readonly GameHost host;
+    private readonly YokkoDiagnostics diagnostics;
     private readonly SpriteText statusMetadata;
     private readonly Bindable<double> exitHoldDuration;
 
@@ -25,10 +27,13 @@ internal partial class SafetySettingsPanel : CompositeDrawable
 
     public SafetySettingsPanel(
         GameHost host,
+        YokkoDiagnostics diagnostics,
         string crashReportDirectory,
         Bindable<double> exitHoldDuration)
     {
         this.host = host ?? throw new ArgumentNullException(nameof(host));
+        this.diagnostics = diagnostics
+                           ?? throw new ArgumentNullException(nameof(diagnostics));
         this.exitHoldDuration = exitHoldDuration
             ?? throw new ArgumentNullException(nameof(exitHoldDuration));
         CrashReportDirectory = string.IsNullOrWhiteSpace(crashReportDirectory)
@@ -66,11 +71,23 @@ internal partial class SafetySettingsPanel : CompositeDrawable
             SettingsChrome.CreateDivider(390),
             SettingsChrome.CreateSettingRow(
                 402,
+                YokkoStrings.Get("settings.safety.export_diagnostics"),
+                SettingsChrome.CreateSegmentedControl(
+                [
+                    new SettingsSegmentedChoiceButton(
+                        YokkoStrings.Get("settings.safety.export_diagnostics"),
+                        FontAwesome.Solid.FileArchive,
+                        () => ExportDiagnosticsBundle(),
+                        SettingsChrome.ControlWidth),
+                ])),
+            SettingsChrome.CreateDivider(474),
+            SettingsChrome.CreateSettingRow(
+                486,
                 YokkoStrings.Get("settings.safety.exit_hold_duration"),
                 new HomeExitHoldDurationSlider(exitHoldDuration)),
             new SpriteText
             {
-                Position = new Vector2(SettingsChrome.ContentX, 486),
+                Position = new Vector2(SettingsChrome.ContentX, 570),
                 Width = SettingsChrome.ContentWidth,
                 Text = YokkoStrings.Get("settings.safety.note"),
                 Font = HomeTypography.Body(17),
@@ -100,6 +117,26 @@ internal partial class SafetySettingsPanel : CompositeDrawable
             opened
                 ? "settings.safety.opened"
                 : "settings.safety.open_failed");
+        return opened;
+    }
+
+    internal bool ExportDiagnosticsBundle()
+    {
+        bool opened;
+        try
+        {
+            string exportPath = diagnostics.ExportBundle();
+            opened = host.OpenFileExternally(exportPath);
+        }
+        catch
+        {
+            opened = false;
+        }
+
+        statusMetadata.Text = YokkoStrings.Get(
+            opened
+                ? "settings.safety.exported"
+                : "settings.safety.export_failed");
         return opened;
     }
 }

@@ -18,6 +18,7 @@ internal enum SettingsPageKind
     Editor,
     Import,
     Accessibility,
+    Mods,
     Safety,
     About,
 }
@@ -211,6 +212,18 @@ internal static class SettingsPages
                 "settings.accessibility.",
                 "reduce motion accessibility visual assistance",
                 "减少动画 无障碍 视觉辅助")),
+        SettingsPageKind.Mods => new(
+            kind,
+            YokkoStrings.Get("settings.mods.title"),
+            YokkoStrings.Get("settings.mods.subtitle"),
+            YokkoStrings.Get("settings.mods.description"),
+            FontAwesome.Solid.LayerGroup,
+            Array.Empty<LocalisableString>(),
+            YokkoStrings.SearchTerms("settings.mods.title"),
+            YokkoStrings.SearchTermsForPrefix(
+                "settings.mods.",
+                "mod modifier remember active configuration",
+                "模组 模组记忆")),
         SettingsPageKind.Safety => new(
             kind,
             YokkoStrings.Get("settings.safety.title"),

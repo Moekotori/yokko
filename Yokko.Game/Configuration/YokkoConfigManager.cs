@@ -1,9 +1,12 @@
 using System;
 using System.Globalization;
+using System.IO;
+using osu.Framework.Bindables;
 using osu.Framework.Configuration;
 using osu.Framework.Platform;
 using Yokko.Audio;
 using Yokko.Core.Difficulty;
+using Yokko.Core.Gameplay;
 using Yokko.Game.Audio;
 using Yokko.Game.Diagnostics;
 using Yokko.Game.Gameplay;
@@ -11,6 +14,7 @@ using Yokko.Game.Importing;
 using Yokko.Game.Presentation;
 using Yokko.Game.Resources;
 using Yokko.Game.Skinning.OsuMania;
+using osuTK.Input;
 
 namespace Yokko.Game.Configuration;
 
@@ -133,15 +137,38 @@ internal enum YokkoSetting
     PlayerDisplayName,
     PlayerId,
     SettingsLastPage,
+    AccessibilityReduceMotion,
+    AccessibilityHighContrast,
+    AccessibilityTextScalePercent,
+    EditorDefaultKeyMode,
+    EditorVisibleRows,
+    EditorSnapDivisor,
+    EditorAutosaveEnabled,
+    EditorAutosaveIntervalSeconds,
+    DesktopBossKey,
+    ImportWatchFolderEnabled,
+    ImportWatchFolderPath,
+    PrivacySaveLocalReplays,
+    PrivacyIncludeUsernameInExports,
+    StartupOpenLastScreen,
+    StartupRememberActiveMods,
+    UpdateDismissedVersion,
+    GameplayNamedKeyProfilesJson,
+    GameplayActiveKeyProfileName,
+    GameplayLayoutPresetsJson,
+    GameplayActiveLayoutPresetName,
 }
 
 internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
 {
+    private readonly Storage persistStorage;
+
     protected override string Filename => "yokko.ini";
 
     public YokkoConfigManager(Storage storage)
         : base(storage)
     {
+        persistStorage = storage;
     }
 
     protected override void InitialiseDefaults()
@@ -544,6 +571,26 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             Random.Shared.Next(10_000_000, 100_000_000).ToString(
                 CultureInfo.InvariantCulture));
         SetDefault(YokkoSetting.SettingsLastPage, "Display");
+        SetDefault(YokkoSetting.AccessibilityReduceMotion, false);
+        SetDefault(YokkoSetting.AccessibilityHighContrast, false);
+        SetDefault(YokkoSetting.AccessibilityTextScalePercent, 100, 90, 130);
+        SetDefault(YokkoSetting.EditorDefaultKeyMode, KeyMode.FourKey);
+        SetDefault(YokkoSetting.EditorVisibleRows, 24, 12, 64);
+        SetDefault(YokkoSetting.EditorSnapDivisor, 4, 1, 16);
+        SetDefault(YokkoSetting.EditorAutosaveEnabled, true);
+        SetDefault(YokkoSetting.EditorAutosaveIntervalSeconds, 60, 15, 600);
+        SetDefault(YokkoSetting.DesktopBossKey, osuTK.Input.Key.F10);
+        SetDefault(YokkoSetting.ImportWatchFolderEnabled, false);
+        SetDefault(YokkoSetting.ImportWatchFolderPath, string.Empty);
+        SetDefault(YokkoSetting.PrivacySaveLocalReplays, true);
+        SetDefault(YokkoSetting.PrivacyIncludeUsernameInExports, true);
+        SetDefault(YokkoSetting.StartupOpenLastScreen, false);
+        SetDefault(YokkoSetting.StartupRememberActiveMods, true);
+        SetDefault(YokkoSetting.UpdateDismissedVersion, string.Empty);
+        SetDefault(YokkoSetting.GameplayNamedKeyProfilesJson, string.Empty);
+        SetDefault(YokkoSetting.GameplayActiveKeyProfileName, "Default");
+        SetDefault(YokkoSetting.GameplayLayoutPresetsJson, string.Empty);
+        SetDefault(YokkoSetting.GameplayActiveLayoutPresetName, "default");
     }
 
     public void BindAudioSettings(YokkoAudioSettings settings)
@@ -601,6 +648,12 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.ImportShowCompatibilityWarnings,
             settings.ShowCompatibilityWarnings);
+        BindWith(
+            YokkoSetting.ImportWatchFolderEnabled,
+            settings.WatchFolderEnabled);
+        BindWith(
+            YokkoSetting.ImportWatchFolderPath,
+            settings.WatchFolderPath);
     }
 
     public void BindExternalOsuSettings(YokkoExternalOsuSettings settings)
@@ -974,4 +1027,80 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
 
     public void SetLastSettingsPage(string page) =>
         SetValue(YokkoSetting.SettingsLastPage, page);
+
+    public void BindAccessibilitySettings(YokkoAccessibilitySettings settings)
+    {
+        BindWith(
+            YokkoSetting.AccessibilityReduceMotion,
+            settings.ReduceMotion);
+        BindWith(
+            YokkoSetting.AccessibilityHighContrast,
+            settings.HighContrast);
+        BindWith(
+            YokkoSetting.AccessibilityTextScalePercent,
+            settings.TextScalePercent);
+    }
+
+    public void BindEditorSettings(YokkoEditorSettings settings)
+    {
+        BindWith(YokkoSetting.EditorDefaultKeyMode, settings.DefaultKeyMode);
+        BindWith(YokkoSetting.EditorVisibleRows, settings.VisibleRows);
+        BindWith(YokkoSetting.EditorSnapDivisor, settings.SnapDivisor);
+        BindWith(
+            YokkoSetting.EditorAutosaveEnabled,
+            settings.AutosaveEnabled);
+        BindWith(
+            YokkoSetting.EditorAutosaveIntervalSeconds,
+            settings.AutosaveIntervalSeconds);
+    }
+
+    public void BindPrivacySettings(YokkoPrivacySettings settings)
+    {
+        BindWith(
+            YokkoSetting.PrivacySaveLocalReplays,
+            settings.SaveLocalReplays);
+        BindWith(
+            YokkoSetting.PrivacyIncludeUsernameInExports,
+            settings.IncludeUsernameInExports);
+    }
+
+    public void BindStartupSettings(YokkoStartupSettings settings)
+    {
+        BindWith(
+            YokkoSetting.StartupOpenLastScreen,
+            settings.OpenLastScreen);
+        BindWith(
+            YokkoSetting.StartupRememberActiveMods,
+            settings.RememberActiveMods);
+    }
+
+    public Bindable<Key> GetBossKeyBindable() =>
+        GetBindable<Key>(YokkoSetting.DesktopBossKey);
+
+    public string ReadIniText()
+    {
+        if (!persistStorage.Exists(Filename))
+            return string.Empty;
+
+        using Stream stream = persistStorage.GetStream(Filename);
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    public void WriteIniText(string iniText)
+    {
+        persistStorage.Delete(Filename);
+        using Stream stream = persistStorage.GetStream(Filename);
+        using var writer = new StreamWriter(stream);
+        writer.Write(iniText);
+    }
+
+    public void ResetPersistedFile()
+    {
+        if (persistStorage.Exists(Filename))
+            persistStorage.Delete(Filename);
+
+        InitialiseDefaults();
+        Save();
+    }
 }

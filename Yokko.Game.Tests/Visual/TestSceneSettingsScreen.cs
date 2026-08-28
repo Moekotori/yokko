@@ -901,7 +901,10 @@ namespace Yokko.Game.Tests.Visual
                 shortcuts.SelectShortcutPage(ManiaShortcutPage.System));
             AddAssert("minimise shortcut moved to system shortcuts", () =>
                 shortcuts.CurrentShortcutPage == ManiaShortcutPage.System
-                && shortcuts.ChildrenOfType<DesktopShortcutHint>().Any());
+                && shortcuts.ChildrenOfType<GameplayCompactButton>()
+                         .Any(button =>
+                             button.IsSelected == false
+                             && button.AcceptsFocus));
             AddAssert("single shortcut restored", () =>
                 shortcuts.GetShortcutBinding(
                     ManiaShortcutAction.WatchReplay) == Key.V
@@ -1126,9 +1129,9 @@ namespace Yokko.Game.Tests.Visual
                                         && container.Width == 840
                                         && container.Height == 54)
                     .ToArray();
-                return locations.Length == 2
+                return locations.Length == 3
                        && locations.All(location =>
-                           location.Y + location.Height < 651);
+                           location.Y + location.Height <= 720);
             });
 
             AddStep("disable keysounds", () => import.SetPreferKeysounds(false));

@@ -1322,6 +1322,26 @@ internal static class YokkoStrings
                 "Saved instantly · applies when the next playback starts",
                 "立即保存 · 下次开始播放时生效",
                 "すぐに保存 · 次回の再生開始時に適用"),
+            ["settings.audio.mobile_note"] = new(
+                "Native output, device and buffer options are managed by your platform on this device.",
+                "此平台的原生输出、设备与缓冲选项由系统管理。",
+                "この端末ではネイティブ出力、デバイス、バッファ設定はプラットフォーム側で管理されます。"),
+            ["settings.audio.mobile_ready"] = new(
+                "Platform-managed audio output",
+                "平台托管的音频输出",
+                "プラットフォーム管理の音声出力"),
+            ["settings.audio.mobile_metadata"] = new(
+                "Volume, offset and calibration remain available here.",
+                "仍可在此调整音量、偏移与校准。",
+                "音量、オフセット、キャリブレーションはここで調整できます。"),
+            ["settings.audio.calibration"] = new(
+                "Timing calibration",
+                "时序校准",
+                "タイミングキャリブレーション"),
+            ["settings.audio.run_calibration"] = new(
+                "Run calibration",
+                "运行校准",
+                "キャリブレーションを実行"),
 
             ["settings.gameplay.title"] = new("Gameplay", "游玩", "ゲームプレイ"),
             ["settings.gameplay.subtitle"] = new(
@@ -2248,6 +2268,18 @@ internal static class YokkoStrings
                 "Songs unavailable",
                 "Songs 目录不可用",
                 "Songs フォルダーを使用できません"),
+            ["settings.import.watch_folder_title"] = new(
+                "Watch folder",
+                "监视文件夹",
+                "監視フォルダー"),
+            ["settings.import.watch_folder_unconfigured"] = new(
+                "Choose a folder to auto-import new charts",
+                "选择一个文件夹以自动导入新谱面",
+                "新しい譜面を自動インポートするフォルダーを選択"),
+            ["settings.import.watch_folder_select"] = new(
+                "Choose",
+                "选择",
+                "選択"),
 
             ["settings.accessibility.title"] = new("Accessibility", "辅助功能", "アクセシビリティ"),
             ["settings.accessibility.subtitle"] = new(
@@ -2279,6 +2311,18 @@ internal static class YokkoStrings
                 "osu!  ·  Etterna  ·  Quaver",
                 "osu!  ·  Etterna  ·  Quaver",
                 "osu!  ·  Etterna  ·  Quaver"),
+            ["settings.about.check_for_updates"] = new(
+                "Check for updates",
+                "检查更新",
+                "更新を確認"),
+            ["settings.about.checking_updates"] = new(
+                "Checking for updates…",
+                "正在检查更新…",
+                "更新を確認しています…"),
+            ["settings.about.update_idle"] = new(
+                "Stay on the latest release when you are ready.",
+                "准备好时可以检查是否有新版本。",
+                "準備ができたら最新リリースを確認できます。"),
             ["settings.safety.title"] = new("Safety", "安全", "セーフティ"),
             ["settings.safety.subtitle"] = new(
                 "Crash reports and recovery tools",
@@ -2308,6 +2352,18 @@ internal static class YokkoStrings
                 "Unable to open the crash report folder",
                 "无法打开崩溃报告目录",
                 "クラッシュレポートフォルダーを開けませんでした"),
+            ["settings.safety.export_diagnostics"] = new(
+                "Export diagnostics",
+                "导出诊断包",
+                "診断情報をエクスポート"),
+            ["settings.safety.exported"] = new(
+                "Diagnostics bundle exported",
+                "诊断包已导出",
+                "診断バンドルをエクスポートしました"),
+            ["settings.safety.export_failed"] = new(
+                "Unable to export diagnostics",
+                "无法导出诊断包",
+                "診断情報をエクスポートできませんでした"),
             ["settings.safety.exit_hold_duration"] = new(
                 "Hold Esc to exit",
                 "主页按住 Esc 退出时间",

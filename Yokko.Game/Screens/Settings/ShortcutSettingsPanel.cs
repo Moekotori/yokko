@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -10,6 +11,7 @@ using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
 using Yokko.Core.Gameplay;
+using Yokko.Game.Configuration;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Gameplay;
@@ -29,12 +31,15 @@ internal enum ManiaShortcutPage
 internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTransientUi
 {
     private readonly YokkoGameplaySettings settings;
+    private readonly YokkoConfigManager yokkoConfig;
+    private readonly Bindable<Key> bossKey;
     private readonly SettingsContentScrollContainer contentHost;
     private readonly SpriteText statusTitle;
     private readonly SpriteText statusMetadata;
     private readonly SpriteIcon statusIcon;
     private readonly Circle statusIconBackground;
     private ManiaShortcutAction? capturingShortcut;
+    private bool capturingBossKey;
     private ManiaShortcutPage shortcutPage;
     private Dictionary<ManiaShortcutAction, Key> resetUndoSnapshot;
     private bool resetAllPending;
@@ -42,7 +47,8 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
     private LocalisableString transientStatusMetadata;
     private bool hasTransientStatus;
 
-    internal bool IsCapturingShortcut => capturingShortcut.HasValue;
+    internal bool IsCapturingShortcut =>
+        capturingShortcut.HasValue || capturingBossKey;
 
     internal ManiaShortcutPage CurrentShortcutPage => shortcutPage;
 
@@ -53,9 +59,16 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
     internal int ModifiedShortcutCount =>
         settings.ModifiedShortcutBindingCount;
 
-    public ShortcutSettingsPanel(YokkoGameplaySettings settings)
+    internal Key CurrentBossKey => bossKey.Value;
+
+    public ShortcutSettingsPanel(
+        YokkoGameplaySettings settings,
+        YokkoConfigManager yokkoConfig)
     {
         this.settings = settings;
+        this.yokkoConfig = yokkoConfig
+                           ?? throw new ArgumentNullException(nameof(yokkoConfig));
+        bossKey = yokkoConfig.GetBossKeyBindable();
         RelativeSizeAxes = Axes.Both;
 
         InternalChildren = new Drawable[]
@@ -99,6 +112,16 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
         setContent(createShortcutsSection(), false);
     }
 
+    internal void BeginBossKeyCapture()
+    {
+        resetAllPending = false;
+        clearTransientStatus();
+        capturingShortcut = null;
+        capturingBossKey = !capturingBossKey;
+        refreshStatusCard();
+        setContent(createShortcutsSection(), false);
+    }
+
     internal void BeginShortcutCapture(ManiaShortcutAction action)
     {
         resetAllPending = false;
@@ -111,6 +134,7 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
     internal void SelectShortcutPage(ManiaShortcutPage page)
     {
         capturingShortcut = null;
+        capturingBossKey = false;
         resetAllPending = false;
         clearTransientStatus();
         shortcutPage = page;
@@ -210,6 +234,30 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal bool HandleKeyDown(Key key)
     {
+        if (capturingBossKey)
+        {
+            if (key == Key.BackSpace)
+            {
+                capturingBossKey = false;
+                showTransientStatus(
+                    YokkoStrings.Get("settings.shortcuts.capture_cancelled"),
+                    YokkoStrings.Get("settings.shortcuts.capture_cancelled_note"));
+                setContent(createShortcutsSection(), false);
+                return true;
+            }
+
+            bossKey.Value = key;
+            yokkoConfig.Save();
+            capturingBossKey = false;
+            showTransientStatus(
+                YokkoStrings.Get("settings.desktop.boss_key"),
+                YokkoStrings.Get(
+                    "settings.shortcuts.binding_now",
+                    KeyModeBindings.FormatKey(key).ToUpperInvariant()));
+            setContent(createShortcutsSection(), false);
+            return true;
+        }
+
         if (!capturingShortcut.HasValue)
             return false;
 
@@ -262,6 +310,16 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
 
     public bool DismissTransientUi()
     {
+        if (capturingBossKey)
+        {
+            capturingBossKey = false;
+            showTransientStatus(
+                YokkoStrings.Get("settings.shortcuts.capture_cancelled"),
+                YokkoStrings.Get("settings.shortcuts.capture_cancelled_note"));
+            setContent(createShortcutsSection(), false);
+            return true;
+        }
+
         if (!capturingShortcut.HasValue)
         {
             if (!resetAllPending)
@@ -359,13 +417,7 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
                 Font = HomeTypography.Body(14),
                 Colour = SettingsTheme.MutedNavy,
             });
-            children.Add(new DesktopShortcutHint(
-                "F10",
-                FontAwesome.Solid.WindowMinimize,
-                300)
-            {
-                Position = new Vector2(520, 72),
-            });
+            children.Add(createBossKeyButton(new Vector2(520, 72), 174));
         }
         else
         {
@@ -429,6 +481,22 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
         return YokkoStrings.Get(resetAllPending
             ? "settings.shortcuts.reset_all_confirm"
             : "settings.gameplay.shortcut_reset_all");
+    }
+
+    private Drawable createBossKeyButton(Vector2 position, float width)
+    {
+        string label = capturingBossKey
+            ? YokkoStrings.Get("settings.gameplay.press_key").ToString()
+            : KeyModeBindings.FormatKey(bossKey.Value).ToUpperInvariant();
+        return new GameplayCompactButton(
+            label,
+            BeginBossKeyCapture,
+            width,
+            FontAwesome.Solid.WindowMinimize)
+        {
+            Position = position,
+            IsSelected = capturingBossKey,
+        };
     }
 
     private Drawable createShortcutButton(
@@ -624,14 +692,22 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
 
     private void refreshStatusCard()
     {
-        statusIcon.Icon = capturingShortcut.HasValue
+        statusIcon.Icon = capturingShortcut.HasValue || capturingBossKey
             ? FontAwesome.Solid.Keyboard
             : settings.ModifiedShortcutBindingCount > 0
                 ? FontAwesome.Solid.Pen
                 : FontAwesome.Solid.Check;
-        statusIconBackground.Colour = capturingShortcut.HasValue
+        statusIconBackground.Colour = capturingShortcut.HasValue || capturingBossKey
             ? SettingsTheme.PaleCyan
             : Color4.White;
+
+        if (capturingBossKey)
+        {
+            statusTitle.Text = YokkoStrings.Get("settings.desktop.boss_key");
+            statusMetadata.Text = YokkoStrings.Get(
+                "settings.shortcuts.capture_note");
+            return;
+        }
 
         if (capturingShortcut.HasValue)
         {

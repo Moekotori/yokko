@@ -13,8 +13,6 @@ internal static class SettingsNavigation
 
     internal static bool IsVisible(SettingsPageKind kind) => kind switch
     {
-        SettingsPageKind.Editor => false,
-        SettingsPageKind.Accessibility => false,
         SettingsPageKind.Desktop => SettingsPlatform.SupportsDesktopSettings,
         _ => true,
     };

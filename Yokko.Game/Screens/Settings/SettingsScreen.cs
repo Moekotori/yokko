@@ -71,6 +71,16 @@ public partial class SettingsScreen : Screen
     private IResourceDirectoryPicker resourceDirectoryPicker { get; set; }
     [Resolved]
     private YokkoDiagnostics diagnostics { get; set; }
+    [Resolved]
+    private YokkoAccessibilitySettings accessibilitySettings { get; set; }
+    [Resolved]
+    private YokkoEditorSettings editorSettings { get; set; }
+    [Resolved]
+    private YokkoPrivacySettings privacySettings { get; set; }
+    [Resolved]
+    private YokkoStartupSettings startupSettings { get; set; }
+    [Resolved]
+    private YokkoManiaModPreferences modPreferences { get; set; }
 
     private Bindable<Size> windowedSize;
     private Bindable<WindowMode> windowMode;
@@ -86,6 +96,7 @@ public partial class SettingsScreen : Screen
     private Vector2 watermarkHome = watermarkHomePosition;
     private Vector2[] decorationHomePositions;
     private Vector2 parallaxCurrent;
+    private string pendingSearchFocus;
 
     [Resolved]
     private GameHost host { get; set; }
@@ -114,7 +125,7 @@ public partial class SettingsScreen : Screen
             textures.Get("home-logo"),
             this.Exit,
             CurrentPage,
-            OpenPage);
+            OpenPageWithSearchFocus);
         contentHost = new Container { RelativeSizeAxes = Axes.Both };
 
         InternalChildren = new Drawable[]
@@ -452,6 +463,22 @@ public partial class SettingsScreen : Screen
         return MathF.Min(ReferenceLayoutScale, fitScale);
     }
 
+    internal void OpenPageWithSearchFocus(SettingsPageKind page, string itemId)
+    {
+        pendingSearchFocus = itemId;
+
+        if (CurrentPage == page
+            && activePanel is ISettingsSearchTarget searchTarget
+            && itemId != null)
+        {
+            searchTarget.TryFocusSearchItem(itemId);
+            pendingSearchFocus = null;
+            return;
+        }
+
+        OpenPage(page);
+    }
+
     internal void OpenPage(SettingsPageKind page)
     {
         if (!SettingsNavigation.IsVisible(page))
@@ -476,8 +503,12 @@ public partial class SettingsScreen : Screen
             SettingsPageKind.General => new GeneralSettingsPanel(
                 locale,
                 audioSettings,
+                startupSettings,
+                privacySettings,
                 yokkoConfig,
-                diagnostics.ConsoleVisible),
+                clipboard,
+                diagnostics.ConsoleVisible,
+                openGameplayCalibration),
             SettingsPageKind.Display => new DisplaySettingsPanel(
                 windowedSize,
                 windowMode,
@@ -494,14 +525,21 @@ public partial class SettingsScreen : Screen
             SettingsPageKind.Audio => new AudioSettingsPanel(
                 audioSettings,
                 gameplaySettings,
-                host.Storage.GetFullPath("audio-tests", true)),
+                host.Storage.GetFullPath("audio-tests", true),
+                openGameplayCalibration),
+            SettingsPageKind.Accessibility => new AccessibilitySettingsPanel(
+                accessibilitySettings),
             SettingsPageKind.Gameplay => new GameplaySettingsPanel(
                 gameplaySettings,
                 audioSettings,
                 host.Storage.GetFullPath("audio-tests", true),
                 clipboard),
+            SettingsPageKind.Mods => new ModPreferencesSettingsPanel(
+                startupSettings,
+                modPreferences),
             SettingsPageKind.Shortcuts => new ShortcutSettingsPanel(
-                gameplaySettings),
+                gameplaySettings,
+                yokkoConfig),
             SettingsPageKind.Skins => new SkinSettingsPanel(
                 skinLibrary,
                 skinSettings),
@@ -512,8 +550,11 @@ public partial class SettingsScreen : Screen
                 resourceDirectoryPicker,
                 externalOsuSettings,
                 importedChartLibrary),
+            SettingsPageKind.Editor => new EditorSettingsPanel(
+                editorSettings),
             SettingsPageKind.Safety => new SafetySettingsPanel(
                 host,
+                diagnostics,
                 host.Storage.GetFullPath("crash-reports", true),
                 yokkoConfig.GetBindable<double>(
                     YokkoSetting.HomeExitHoldDurationMilliseconds)),
@@ -524,6 +565,14 @@ public partial class SettingsScreen : Screen
         activePanel.Alpha = 0;
         activePanel.X = 10;
         contentHost.Child = activePanel;
+
+        if (pendingSearchFocus != null
+            && activePanel is ISettingsSearchTarget searchTarget)
+        {
+            searchTarget.TryFocusSearchItem(pendingSearchFocus);
+            pendingSearchFocus = null;
+        }
+
         activePanel.FadeIn(180, Easing.OutQuint);
         activePanel.MoveToX(0, 180, Easing.OutQuint);
         diagnostics.Trace("SETTINGS", "page-opened", $"page={page}");
@@ -662,4 +711,15 @@ public partial class SettingsScreen : Screen
         && SettingsNavigation.IsVisible(remembered)
             ? remembered
             : SettingsPageKind.Display;
+
+    private void openGameplayCalibration()
+    {
+        OpenPage(SettingsPageKind.Gameplay);
+
+        if (activePanel is GameplaySettingsPanel gameplay)
+        {
+            gameplay.SelectSection(GameplaySettingsSection.Timing);
+            gameplay.StartCalibration();
+        }
+    }
 }

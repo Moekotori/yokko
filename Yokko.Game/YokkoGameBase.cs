@@ -82,6 +82,14 @@ namespace Yokko.Game
         [Cached]
         private readonly YokkoManiaModPreferences modPreferences = new();
         [Cached]
+        private readonly YokkoAccessibilitySettings accessibilitySettings = new();
+        [Cached]
+        private readonly YokkoEditorSettings editorSettings = new();
+        [Cached]
+        private readonly YokkoPrivacySettings privacySettings = new();
+        [Cached]
+        private readonly YokkoStartupSettings startupSettings = new();
+        [Cached]
         private readonly YokkoFrameRateAdaptation frameRateAdaptation = new();
         [Cached]
         private readonly YokkoDiagnostics diagnostics = new();
@@ -171,6 +179,10 @@ namespace Yokko.Game
             yokkoConfig.BindGameplaySettings(gameplaySettings);
             yokkoConfig.BindModPreferences(modPreferences);
             yokkoConfig.BindSkinSettings(skinSettings);
+            yokkoConfig.BindAccessibilitySettings(accessibilitySettings);
+            yokkoConfig.BindEditorSettings(editorSettings);
+            yokkoConfig.BindPrivacySettings(privacySettings);
+            yokkoConfig.BindStartupSettings(startupSettings);
             resourceStorage.Initialise(
                 host.Storage,
                 resourceSettings,
@@ -186,6 +198,7 @@ namespace Yokko.Game
             importedChartLibrary.ConfigureExternalOsu(
                 host.Storage,
                 externalOsuSettings);
+            importedChartLibrary.ConfigureWatchFolder(importSettings);
             scoreStore.Initialise(host.Storage);
             replayStore.Initialise(host.Storage);
             diagnostics.Initialise(host);

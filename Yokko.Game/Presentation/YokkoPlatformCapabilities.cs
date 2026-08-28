@@ -10,4 +10,7 @@ internal static class YokkoPlatformCapabilities
         && (OperatingSystem.IsWindows()
             || OperatingSystem.IsMacOS()
             || OperatingSystem.IsLinux());
+
+    internal static bool SupportsNativeAudioConfiguration =>
+        SupportsWindowManagement;
 }

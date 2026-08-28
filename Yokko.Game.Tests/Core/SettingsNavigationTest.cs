@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using Yokko.Audio;
 using Yokko.Core.Difficulty;
 using Yokko.Game.Presentation;
 using Yokko.Game.Screens.Settings;
@@ -63,5 +64,18 @@ public sealed class SettingsNavigationTest
         Assert.That(
             SettingsPlatform.SupportsDesktopSettings,
             Is.EqualTo(SettingsPlatform.SupportsWindowManagement));
+    }
+
+    [Test]
+    public void NativeAudioConfigurationFollowsPlatformAndRuntimeAvailability()
+    {
+        Assert.That(
+            YokkoPlatformCapabilities.SupportsNativeAudioConfiguration,
+            Is.EqualTo(YokkoPlatformCapabilities.SupportsWindowManagement));
+        Assert.That(
+            SettingsPlatform.SupportsNativeAudioConfiguration,
+            Is.EqualTo(
+                YokkoPlatformCapabilities.SupportsNativeAudioConfiguration
+                && NativeAudioEngine.IsAvailable));
     }
 }
