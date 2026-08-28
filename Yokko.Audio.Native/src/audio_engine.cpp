@@ -149,6 +149,7 @@ namespace yokko::audio
         backend_error_.store(0, std::memory_order_release);
         backend_error_stage_.store(0, std::memory_order_release);
         last_playback_frame_position_.store(0, std::memory_order_release);
+        output_stream_frame_origin_.store(0, std::memory_order_release);
         accepting_submissions_.store(true, std::memory_order_release);
         accepting_sample_triggers_.store(true, std::memory_order_release);
         update_primed_state();
@@ -785,12 +786,19 @@ namespace yokko::audio
         const uint32_t output_latency_frames,
         const uint64_t observation_time_100ns) noexcept
     {
+        if (state_.load(std::memory_order_acquire) == YOKKO_AUDIO_STATE_PAUSED)
+            return YOKKO_AUDIO_OK;
+
+        const uint64_t origin = output_stream_frame_origin_.load(
+            std::memory_order_acquire);
+        const uint64_t absolute_position =
+            presented_frame_position + origin;
         const bool already_reported =
             has_reported_presented_position_.load(std::memory_order_acquire);
         const uint64_t previous =
             reported_presented_frame_position_.load(std::memory_order_acquire);
 
-        if (already_reported && presented_frame_position < previous)
+        if (already_reported && absolute_position < previous)
             return YOKKO_AUDIO_INVALID_ARGUMENT;
 
         reported_position_sequence_.fetch_add(1, std::memory_order_acq_rel);
@@ -798,7 +806,7 @@ namespace yokko::audio
             observation_time_100ns,
             std::memory_order_relaxed);
         reported_presented_frame_position_.store(
-            presented_frame_position,
+            absolute_position,
             std::memory_order_relaxed);
         reported_position_sequence_.fetch_add(1, std::memory_order_release);
         device_latency_frames_.store(
@@ -958,6 +966,9 @@ namespace yokko::audio
             return YOKKO_AUDIO_NOT_READY;
 
         close_output();
+        output_stream_frame_origin_.store(
+            last_playback_frame_position_.load(std::memory_order_acquire),
+            std::memory_order_release);
         try
         {
             output_ = std::make_unique<WasapiOutput>(*this);
@@ -986,6 +997,9 @@ namespace yokko::audio
             return YOKKO_AUDIO_NOT_READY;
 
         close_output();
+        output_stream_frame_origin_.store(
+            last_playback_frame_position_.load(std::memory_order_acquire),
+            std::memory_order_release);
         try
         {
             asio_output_ = std::make_unique<AsioOutput>(*this);
@@ -1019,6 +1033,12 @@ namespace yokko::audio
             output_->close();
             output_.reset();
         }
+
+        has_reported_presented_position_.store(
+            false,
+            std::memory_order_release);
+        reported_position_sequence_.store(0, std::memory_order_release);
+        reported_position_time_100ns_.store(0, std::memory_order_release);
     }
 
     double AudioEngine::playback_time_milliseconds(

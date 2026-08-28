@@ -35,6 +35,7 @@ public sealed class NativeAudioEngine :
     private double metronomeVolume;
     private readonly PlaybackRateTimeline rateTimeline = new();
     private bool disposed;
+    private bool outputClosedForPause;
 
     public static bool IsAvailable => NativeAudioLibrary.IsAvailable;
 
@@ -700,7 +701,8 @@ public sealed class NativeAudioEngine :
     }
 
     public async ValueTask PauseAsync(
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool retainOutput = false)
     {
         await lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -708,9 +710,70 @@ public sealed class NativeAudioEngine :
             if (core == null)
                 return;
 
-            core.CloseOutput();
+            if (retainOutput)
+            {
+                outputClosedForPause = false;
+            }
+            else
+            {
+                core.CloseOutput();
+                outputClosedForPause = true;
+            }
+
             core.Pause();
             status = status with { IsRunning = false };
+        }
+        finally
+        {
+            lifecycle.Release();
+        }
+    }
+
+    public async ValueTask ResumeAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (core == null || activeRequest == null)
+                return;
+
+            if (core.GetStatus().State != NativeAudioState.Paused)
+            {
+                throw new InvalidOperationException(
+                    "The audio engine is not paused.");
+            }
+
+            PreparedSampleSet prepared = Volatile.Read(ref preparedSampleSet);
+            ActiveSampleSet? active = Volatile.Read(ref activeSampleSet);
+            if (active == null || active.Generation != prepared.Generation)
+            {
+                core.Stop();
+                ensureActiveSampleSet(core, activeRequest);
+                await restartFeederAndOutputAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
+
+            core.Start();
+            try
+            {
+                if (outputClosedForPause)
+                {
+                    await openOutputAsync(
+                            activeRequest,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                core.Pause();
+                status = status with { IsRunning = false };
+                throw;
+            }
+
+            outputClosedForPause = false;
         }
         finally
         {
@@ -729,11 +792,11 @@ public sealed class NativeAudioEngine :
                 return;
 
             await stopFeederAsync().ConfigureAwait(false);
-            Volatile.Write(ref activeSampleSet, null);
             core?.CloseOutput();
-            core?.Stop();
-            core?.Dispose();
-            core = null;
+
+            if (core != null)
+                core.Stop();
+
             if (source != null)
             {
                 source.CurrentTime =
@@ -743,8 +806,17 @@ public sealed class NativeAudioEngine :
             {
                 playbackBaseMilliseconds = Math.Max(0, timeMilliseconds);
             }
-            await startFromCurrentPositionAsync(cancellationToken)
-                .ConfigureAwait(false);
+
+            if (core != null)
+            {
+                await restartFromCurrentPositionAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                await startFromCurrentPositionAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
         }
         finally
         {
@@ -839,7 +911,58 @@ public sealed class NativeAudioEngine :
         core.SetMusicSamplePlaybackRate((float)request.PlaybackRate);
         metronomeSampleId = core.RegisterMetronomeSample(
             createMetronomeClick(sampleRate));
+        ensureActiveSampleSet(core, request);
+
+        await restartFeederAndOutputAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task restartFromCurrentPositionAsync(
+        CancellationToken cancellationToken)
+    {
+        AudioEngineStartRequest request =
+            activeRequest ?? throw new InvalidOperationException("Audio request is missing.");
+        if (core == null)
+        {
+            throw new InvalidOperationException(
+                "The native audio core is not available.");
+        }
+
+        // Samples registered on the reused core stay valid across a seek;
+        // only a newly prepared set still needs to be registered.
+        ensureActiveSampleSet(core, request);
+        if (source != null)
+        {
+            playbackBaseMilliseconds =
+                source.CurrentTime.TotalMilliseconds;
+        }
+
+        rateTimeline.Reset(
+            playbackBaseMilliseconds,
+            request.PlaybackRate);
+        core.SetMusicSamplePlaybackRate((float)request.PlaybackRate);
+
+        await restartFeederAndOutputAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private void ensureActiveSampleSet(
+        NativeAudioCore core,
+        AudioEngineStartRequest request)
+    {
         PreparedSampleSet prepared = Volatile.Read(ref preparedSampleSet);
+        ActiveSampleSet? active = Volatile.Read(ref activeSampleSet);
+        if (active != null
+            && active.Core == core
+            && active.Generation == prepared.Generation)
+        {
+            return;
+        }
+
+        int sampleRate = source?.SampleRate
+                         ?? (request.PreferredSampleRate > 0
+                             ? request.PreferredSampleRate
+                             : 48000);
         var sampleIds = new uint[prepared.Samples.Length];
         for (int slot = 0; slot < prepared.Samples.Length; slot++)
         {
@@ -850,6 +973,16 @@ public sealed class NativeAudioEngine :
         Volatile.Write(
             ref activeSampleSet,
             new ActiveSampleSet(prepared.Generation, core, sampleIds));
+    }
+
+    private async Task restartFeederAndOutputAsync(
+        CancellationToken cancellationToken)
+    {
+        AudioEngineStartRequest request =
+            activeRequest ?? throw new InvalidOperationException("Audio request is missing.");
+        DecodedAudioSource? currentSource = source;
+        NativeAudioCore currentCore =
+            core ?? throw new InvalidOperationException("Audio core is missing.");
 
         var primed = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
@@ -858,27 +991,38 @@ public sealed class NativeAudioEngine :
         feederTask = currentSource == null
             ? Task.Run(
                 () => feedSilenceAsync(
-                    core,
+                    currentCore,
                     primed,
                     feederCancellation.Token),
                 CancellationToken.None)
             : Task.Run(
                 () => feedPcmAsync(
                     currentSource,
-                    core,
+                    currentCore,
                     primed,
                     feederCancellation.Token),
                 CancellationToken.None);
 
         await primed.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
-        core.Start();
+        currentCore.Start();
+        await openOutputAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task openOutputAsync(
+        AudioEngineStartRequest request,
+        CancellationToken cancellationToken)
+    {
+        NativeAudioCore currentCore =
+            core ?? throw new InvalidOperationException("Audio core is missing.");
+        uint preferredBufferFrames = (uint)Math.Clamp(
+            request.PreferredBufferSize <= 0 ? 128 : request.PreferredBufferSize,
+            64,
+            2048);
 
         AudioBackendKind activeBackend;
         if (request.PreferredBackend == AudioBackendKind.Asio)
         {
-            // ASIO is an explicit expert choice. Never hide a driver failure
-            // by changing the backend and therefore its latency/clock model.
-            outputStatus = core.OpenAsio(
+            outputStatus = currentCore.OpenAsio(
                 request.DeviceId,
                 preferredBufferFrames);
             activeBackend = AudioBackendKind.Asio;
@@ -892,7 +1036,7 @@ public sealed class NativeAudioEngine :
                     : NativeAudioBackendMode.WasapiExclusive;
             try
             {
-                outputStatus = core.OpenWasapi(
+                outputStatus = currentCore.OpenWasapi(
                     requestedMode,
                     request.DeviceId,
                     preferredBufferFrames);
@@ -908,7 +1052,7 @@ public sealed class NativeAudioEngine :
             {
                 try
                 {
-                    outputStatus = core.OpenWasapi(
+                    outputStatus = currentCore.OpenWasapi(
                         NativeAudioBackendMode.WasapiShared,
                         request.DeviceId,
                         preferredBufferFrames);
@@ -955,6 +1099,8 @@ public sealed class NativeAudioEngine :
                 WasapiSharedExplicitPeriodError =
                     outputStatus.SharedExplicitPeriodError,
             };
+
+        await ValueTask.CompletedTask.ConfigureAwait(false);
     }
 
     private static string resolveDeviceName(
@@ -1121,6 +1267,7 @@ public sealed class NativeAudioEngine :
         playbackBaseMilliseconds = 0;
         status = stoppedStatus;
         rateTimeline.Reset(0, 1);
+        outputClosedForPause = false;
     }
 
     private void throwIfDisposed()

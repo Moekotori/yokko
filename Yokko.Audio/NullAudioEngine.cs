@@ -46,7 +46,12 @@ public sealed class NullAudioEngine : IAudioEngine, IAudioMixControl, IAudioRate
     public ValueTask StartAsync(AudioEngineStartRequest request, CancellationToken cancellationToken = default)
         => ValueTask.CompletedTask;
 
-    public ValueTask PauseAsync(CancellationToken cancellationToken = default)
+    public ValueTask PauseAsync(
+        CancellationToken cancellationToken = default,
+        bool retainOutput = false)
+        => ValueTask.CompletedTask;
+
+    public ValueTask ResumeAsync(CancellationToken cancellationToken = default)
         => ValueTask.CompletedTask;
 
     public ValueTask SeekAsync(double timeMilliseconds, CancellationToken cancellationToken = default)

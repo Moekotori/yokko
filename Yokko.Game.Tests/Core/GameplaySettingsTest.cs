@@ -444,19 +444,19 @@ public sealed class GameplaySettingsTest
     [Test]
     public void CalibrationSuggestsTheInverseMedianTapOffset()
     {
-        var calibration = new GameplayCalibrationSession(10_000);
+        var calibration = new GameplayCalibrationSession();
+        calibration.BeginAudioSession(0);
 
         for (int beat = 0; beat < 12; beat++)
         {
             double expected =
-                10_000
-                + GameplayCalibrationSession.LeadInMilliseconds
+                GameplayCalibrationSession.LeadInMilliseconds
                 + beat * GameplayCalibrationSession.BeatIntervalMilliseconds;
             Assert.That(
-                calibration.TryRecordTap(expected + 18 + beat % 3),
+                calibration.TryRecordTapAtPlaybackTime(expected + 18 + beat % 3),
                 Is.True);
             Assert.That(
-                calibration.TryRecordTap(expected + 24),
+                calibration.TryRecordTapAtPlaybackTime(expected + 24),
                 Is.False,
                 "Only the first key on each beat should be sampled.");
         }
@@ -470,8 +470,7 @@ public sealed class GameplaySettingsTest
                 Is.EqualTo(-19));
             Assert.That(
                 calibration.IsComplete(
-                    10_000
-                    + GameplayCalibrationSession.DurationMilliseconds),
+                    GameplayCalibrationSession.DurationMilliseconds),
                 Is.True);
         });
     }

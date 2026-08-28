@@ -22,6 +22,7 @@ using Yokko.Game.Configuration;
 using Yokko.Game.Diagnostics;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Importing;
+using Yokko.Game.Input;
 using Yokko.Game.Presentation;
 using Yokko.Game.Resources;
 using Yokko.Game.Screens.Main;
@@ -71,6 +72,8 @@ public partial class SettingsScreen : Screen
     private IResourceDirectoryPicker resourceDirectoryPicker { get; set; }
     [Resolved]
     private YokkoDiagnostics diagnostics { get; set; }
+    [Resolved]
+    private KeyInputTimestampSource keyInputTimestamps { get; set; }
 
     private Bindable<Size> windowedSize;
     private Bindable<WindowMode> windowMode;
@@ -495,7 +498,8 @@ public partial class SettingsScreen : Screen
                 gameplaySettings,
                 audioSettings,
                 host.Storage.GetFullPath("audio-tests", true),
-                clipboard),
+                clipboard,
+                keyInputTimestamps),
             SettingsPageKind.Shortcuts => new ShortcutSettingsPanel(
                 gameplaySettings),
             SettingsPageKind.Skins => new SkinSettingsPanel(

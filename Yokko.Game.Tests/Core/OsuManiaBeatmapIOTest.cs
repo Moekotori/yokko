@@ -104,6 +104,22 @@ namespace Yokko.Game.Tests.Core
             Assert.That(beatmap.HitObjects[2].Lane, Is.EqualTo(3));
         }
 
+        [Test]
+        public void ReadsAndExportsLocalAudioOffset()
+        {
+            string source = sampleOsu.Replace(
+                "PreviewTime: 12345",
+                "PreviewTime: 12345\nOffset: -36");
+
+            YokkoBeatmap beatmap =
+                OsuManiaBeatmapIO.ReadBeatmap(source);
+
+            Assert.That(beatmap.LocalOffsetMilliseconds, Is.EqualTo(-36));
+
+            string exported = OsuManiaBeatmapIO.WriteBeatmap(beatmap);
+            Assert.That(exported, Does.Contain("Offset: -36"));
+        }
+
         [TestCase(1, KeyMode.OneKey, 1)]
         [TestCase(6, KeyMode.SixKey, 1)]
         [TestCase(10, KeyMode.TenKey, 1)]

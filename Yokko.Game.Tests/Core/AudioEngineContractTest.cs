@@ -14,6 +14,7 @@ namespace Yokko.Game.Tests.Core
 
             await engine.StartAsync(new AudioEngineStartRequest("missing.wav", AudioBackendKind.SharedWasapi, null, 0, 0, 0));
             await engine.PauseAsync();
+            await engine.ResumeAsync();
             await engine.SeekAsync(250);
             await engine.StopAsync();
 

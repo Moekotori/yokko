@@ -180,6 +180,7 @@ namespace yokko::audio
         std::atomic<uint64_t> reported_position_time_100ns_{0};
         std::atomic<uint32_t> device_latency_frames_{0};
         std::atomic<bool> has_reported_presented_position_{false};
+        std::atomic<uint64_t> output_stream_frame_origin_{0};
         std::atomic<uint64_t> callback_count_{0};
         std::atomic<uint64_t> callback_deadline_miss_count_{0};
         std::atomic<uint32_t> callback_budget_microseconds_{0};

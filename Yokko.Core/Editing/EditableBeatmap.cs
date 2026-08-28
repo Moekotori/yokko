@@ -94,6 +94,8 @@ public sealed class EditableBeatmap
 
     public double PreviewTimeMilliseconds { get; set; } = -1;
 
+    public double LocalOffsetMilliseconds { get; set; }
+
     public IReadOnlyList<YokkoBreakPeriod> BreakPeriods { get; private set; } = [];
 
     public KeyMode KeyMode { get; }
@@ -165,6 +167,7 @@ public sealed class EditableBeatmap
             SourcePath = sourcePath,
             SourceFormat = beatmap.SourceFormat,
             PreviewTimeMilliseconds = beatmap.PreviewTimeMilliseconds,
+            LocalOffsetMilliseconds = beatmap.LocalOffsetMilliseconds,
             BreakPeriods = beatmap.BreakPeriods.ToArray(),
             LegacyLongNoteRendering = beatmap.LegacyLongNoteRendering,
             ScheduledSamples = beatmap.ScheduledSamples.ToArray(),
@@ -272,6 +275,7 @@ public sealed class EditableBeatmap
             DrainRate,
             StageCount: StageCount,
             PreviewTimeMilliseconds: PreviewTimeMilliseconds,
+            LocalOffsetMilliseconds: LocalOffsetMilliseconds,
             BreakPeriods: BreakPeriods,
             LegacyLongNoteRendering: LegacyLongNoteRendering,
             ScheduledSamples: ScheduledSamples,

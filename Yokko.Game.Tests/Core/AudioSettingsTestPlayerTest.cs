@@ -44,7 +44,7 @@ public sealed class AudioSettingsTestPlayerTest
             AudioEngineStatus hitSoundStatus =
                 await player.PlayAsync(AudioSettingsTestKind.HitSound, true);
             await player.PlayCalibrationAsync(
-                () => calibrationStarted = true);
+                _ => calibrationStarted = true);
 
             Assert.That(engines, Has.Count.EqualTo(3));
             Assert.Multiple(() =>
@@ -335,7 +335,11 @@ public sealed class AudioSettingsTestPlayerTest
         }
 
         public bool TriggerMetronome() => true;
-        public ValueTask PauseAsync(CancellationToken cancellationToken = default) =>
+        public ValueTask PauseAsync(
+            CancellationToken cancellationToken = default,
+            bool retainOutput = false) =>
+            ValueTask.CompletedTask;
+        public ValueTask ResumeAsync(CancellationToken cancellationToken = default) =>
             ValueTask.CompletedTask;
         public ValueTask SeekAsync(
             double timeMilliseconds,

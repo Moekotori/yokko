@@ -606,23 +606,29 @@ public partial class GameplayPlayfield : CompositeDrawable
         };
         visibilityPolicy =
             ManiaVisibilityPolicyResolver.Resolve(this.mods, 0);
+        Drawable noteLayerContent;
+        if (visibilityPolicy.Mode is ManiaVisibilityMode.FadeIn
+            or ManiaVisibilityMode.Hidden
+            or ManiaVisibilityMode.Cover)
+        {
+            noteLayerContent = noteVisibilityCover =
+                new ManiaNoteVisibilityCover(noteLayer);
+            applyVisibilityPolicy();
+        }
+        else
+        {
+            noteLayerContent = noteLayer;
+        }
+
         Drawable noteContent = new Container
         {
             RelativeSizeAxes = Axes.Both,
             Children = new Drawable[]
             {
-                noteLayer,
+                noteLayerContent,
                 layoutAutoplayDemoNoteLayer,
             },
         };
-        if (visibilityPolicy.Mode is ManiaVisibilityMode.FadeIn
-            or ManiaVisibilityMode.Hidden
-            or ManiaVisibilityMode.Cover)
-        {
-            noteContent = noteVisibilityCover =
-                new ManiaNoteVisibilityCover(noteLayer);
-            applyVisibilityPolicy();
-        }
         var children = new System.Collections.Generic.List<Drawable>
         {
             new Box

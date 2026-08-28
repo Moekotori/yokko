@@ -24,6 +24,7 @@ public sealed record YokkoBeatmap
         ManiaConversionSource? ConversionSource = null,
         int StageCount = 1,
         double PreviewTimeMilliseconds = -1,
+        double LocalOffsetMilliseconds = 0,
         IReadOnlyList<YokkoBreakPeriod>? BreakPeriods = null,
         bool LegacyLongNoteRendering = false,
         IReadOnlyList<YokkoScheduledSample>? ScheduledSamples = null,
@@ -57,6 +58,9 @@ public sealed record YokkoBeatmap
 
         if (!double.IsFinite(PreviewTimeMilliseconds))
             throw new ArgumentOutOfRangeException(nameof(PreviewTimeMilliseconds));
+
+        if (!double.IsFinite(LocalOffsetMilliseconds))
+            throw new ArgumentOutOfRangeException(nameof(LocalOffsetMilliseconds));
 
         this.Title = Title;
         this.Artist = Artist;
@@ -93,6 +97,7 @@ public sealed record YokkoBeatmap
         }
         this.StageCount = StageCount;
         this.PreviewTimeMilliseconds = PreviewTimeMilliseconds;
+        this.LocalOffsetMilliseconds = LocalOffsetMilliseconds;
         this.BreakPeriods = BreakPeriods ?? [];
         this.LegacyLongNoteRendering = LegacyLongNoteRendering;
         this.ScheduledSamples = ScheduledSamples ?? [];
@@ -149,6 +154,12 @@ public sealed record YokkoBeatmap
     /// source chart did not provide one.
     /// </summary>
     public double PreviewTimeMilliseconds { get; init; }
+
+    /// <summary>
+    /// Beatmap-specific audio offset in milliseconds. Positive values delay
+    /// audio relative to the chart timeline.
+    /// </summary>
+    public double LocalOffsetMilliseconds { get; init; }
 
     public IReadOnlyList<YokkoBreakPeriod> BreakPeriods { get; init; }
 
