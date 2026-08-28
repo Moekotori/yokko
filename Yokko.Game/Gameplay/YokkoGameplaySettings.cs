@@ -4,6 +4,7 @@ using System.Linq;
 using osu.Framework.Bindables;
 using osu.Framework.Input.Bindings;
 using osuTK.Input;
+using Yokko.Core.Difficulty;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Scoring;
 
@@ -171,6 +172,9 @@ public sealed class YokkoGameplaySettings
 
     public readonly Bindable<ManiaScrollDirection> ScrollDirection =
         new(ManiaScrollDirection.Downscroll);
+
+    public readonly Bindable<ManiaDifficultyRatingMode> DifficultyRatingMode =
+        new(ManiaDifficultyRatingMode.RebirthStars);
 
     /// <summary>
     /// Matches Quaver's optional playback-rate scroll normalization.

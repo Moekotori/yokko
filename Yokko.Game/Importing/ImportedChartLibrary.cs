@@ -177,6 +177,12 @@ internal sealed class ImportedChartLibrary : IDisposable
     private FileSystemWatcher externalWatcher;
     private Timer externalWatcherDebounce;
     private Timer externalAvailabilityTimer;
+    private FileSystemWatcher importWatchFolderWatcher;
+    private Timer importWatchFolderDebounce;
+    private YokkoImportSettings importWatchFolderSettings;
+    private readonly object importWatchFolderSync = new();
+    private readonly HashSet<string> pendingWatchFolderImports =
+        new(StringComparer.OrdinalIgnoreCase);
     private string observedExternalOsuPath;
     private bool? observedExternalOsuAvailable;
     private bool disposed;
@@ -308,6 +314,36 @@ internal sealed class ImportedChartLibrary : IDisposable
         externalOsuCachePath = Path.Combine(cacheDirectory, "library-index.json");
         externalOsuIndexSnapshot = null;
         configureExternalAvailabilityMonitor(ExternalOsuSongsPath);
+    }
+
+    internal void ConfigureWatchFolder(YokkoImportSettings settings)
+    {
+        importWatchFolderSettings = settings
+                                    ?? throw new ArgumentNullException(nameof(settings));
+        settings.WatchFolderEnabled.BindValueChanged(
+            _ => refreshImportWatchFolder(),
+            true);
+        settings.WatchFolderPath.BindValueChanged(
+            _ => refreshImportWatchFolder(),
+            true);
+    }
+
+    private void refreshImportWatchFolder()
+    {
+        disposeImportWatchFolderWatcher();
+
+        if (disposed
+            || importWatchFolderSettings == null
+            || !importWatchFolderSettings.WatchFolderEnabled.Value)
+        {
+            return;
+        }
+
+        string folderPath = importWatchFolderSettings.WatchFolderPath.Value;
+        if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath))
+            return;
+
+        configureImportWatchFolderWatcher(folderPath);
     }
 
     public void Initialise(Storage storage)
@@ -2272,6 +2308,112 @@ internal sealed class ImportedChartLibrary : IDisposable
     private void onExternalOsuWatcherError(object sender, ErrorEventArgs e) =>
         externalWatcherDebounce?.Change(750, Timeout.Infinite);
 
+    private void configureImportWatchFolderWatcher(string folderPath)
+    {
+        disposeImportWatchFolderWatcher();
+        if (disposed || !Directory.Exists(folderPath))
+            return;
+
+        importWatchFolderDebounce = new Timer(
+            _ => _ = processPendingWatchFolderImportsAsync(),
+            null,
+            Timeout.Infinite,
+            Timeout.Infinite);
+        importWatchFolderWatcher = new FileSystemWatcher(folderPath)
+        {
+            IncludeSubdirectories = true,
+            NotifyFilter = NotifyFilters.FileName
+                           | NotifyFilters.DirectoryName
+                           | NotifyFilters.LastWrite
+                           | NotifyFilters.Size,
+            EnableRaisingEvents = true,
+        };
+        importWatchFolderWatcher.Created += onImportWatchFolderChanged;
+        importWatchFolderWatcher.Changed += onImportWatchFolderChanged;
+        importWatchFolderWatcher.Renamed += onImportWatchFolderRenamed;
+        importWatchFolderWatcher.Error += onImportWatchFolderWatcherError;
+    }
+
+    private void onImportWatchFolderChanged(object sender, FileSystemEventArgs e) =>
+        queueWatchFolderImport(e.FullPath);
+
+    private void onImportWatchFolderRenamed(object sender, RenamedEventArgs e) =>
+        queueWatchFolderImport(e.FullPath);
+
+    private void onImportWatchFolderWatcherError(object sender, ErrorEventArgs e) =>
+        importWatchFolderDebounce?.Change(750, Timeout.Infinite);
+
+    private void queueWatchFolderImport(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !KnownChartImporters.CanImport(path))
+            return;
+
+        lock (importWatchFolderSync)
+            pendingWatchFolderImports.Add(Path.GetFullPath(path));
+
+        importWatchFolderDebounce?.Change(750, Timeout.Infinite);
+    }
+
+    private async Task processPendingWatchFolderImportsAsync()
+    {
+        if (importWatchFolderSettings == null
+            || !importWatchFolderSettings.WatchFolderEnabled.Value)
+        {
+            return;
+        }
+
+        string[] paths;
+        lock (importWatchFolderSync)
+        {
+            if (pendingWatchFolderImports.Count == 0)
+                return;
+
+            paths = pendingWatchFolderImports.ToArray();
+            pendingWatchFolderImports.Clear();
+        }
+
+        foreach (string path in paths)
+        {
+            if (!File.Exists(path) || !KnownChartImporters.CanImport(path))
+                continue;
+
+            try
+            {
+                await ImportAsync(new ChartImportRequest(
+                    path,
+                    importWatchFolderSettings.PreferKeysounds.Value,
+                    importWatchFolderSettings.PreferSscSimfiles.Value,
+                    importWatchFolderSettings.EnableBmsScratch.Value)).ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                Logger.Error(
+                    exception,
+                    $"Could not import chart from watch folder path '{path}'.");
+            }
+        }
+    }
+
+    private void disposeImportWatchFolderWatcher()
+    {
+        if (importWatchFolderWatcher != null)
+        {
+            importWatchFolderWatcher.EnableRaisingEvents = false;
+            importWatchFolderWatcher.Created -= onImportWatchFolderChanged;
+            importWatchFolderWatcher.Changed -= onImportWatchFolderChanged;
+            importWatchFolderWatcher.Renamed -= onImportWatchFolderRenamed;
+            importWatchFolderWatcher.Error -= onImportWatchFolderWatcherError;
+            importWatchFolderWatcher.Dispose();
+            importWatchFolderWatcher = null;
+        }
+
+        importWatchFolderDebounce?.Dispose();
+        importWatchFolderDebounce = null;
+
+        lock (importWatchFolderSync)
+            pendingWatchFolderImports.Clear();
+    }
+
     private void disposeExternalWatcher()
     {
         if (externalWatcher != null)
@@ -3316,5 +3458,6 @@ internal sealed class ImportedChartLibrary : IDisposable
         SetExternalIndexingPaused(false);
         disposeExternalWatcher();
         disposeExternalAvailabilityMonitor();
+        disposeImportWatchFolderWatcher();
     }
 }

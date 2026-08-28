@@ -18,6 +18,7 @@ using osuTK.Input;
 using Yokko.Core.Editing;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
+using Yokko.Game.Configuration;
 using Yokko.Game.Importing;
 using Yokko.Game.Localisation;
 using Yokko.Game.Presentation;
@@ -71,11 +72,14 @@ public partial class EditorScreen : Screen
     [Resolved]
     private ImportedChartLibrary importedChartLibrary { get; set; }
 
+    [Resolved]
+    private YokkoEditorSettings editorSettings { get; set; }
+
     [BackgroundDependencyLoader]
     private void load()
     {
         editableBeatmap = EditableBeatmap.Create(KeyMode.FourKey);
-        viewport = new TimelineViewport(0, defaultVisibleRows);
+        viewport = new TimelineViewport(0, editorSettings.VisibleRows.Value);
 
         InternalChildren = new Drawable[]
         {
@@ -135,7 +139,7 @@ public partial class EditorScreen : Screen
     {
         cancelWaveformLoad();
         editableBeatmap = EditableBeatmap.Create(keyMode);
-        viewport = new TimelineViewport(0, defaultVisibleRows);
+        viewport = new TimelineViewport(0, editorSettings.VisibleRows.Value);
         previewClock.Stop();
         audioWaveform = EditorAudioWaveform.Missing;
         rebuildWorkspace();
@@ -276,7 +280,7 @@ public partial class EditorScreen : Screen
                                                             .GetAwaiter()
                                                             .GetResult()[0];
             editableBeatmap = EditableBeatmap.FromBeatmap(result.Beatmap, path);
-            viewport = new TimelineViewport(0, defaultVisibleRows);
+            viewport = new TimelineViewport(0, editorSettings.VisibleRows.Value);
             previewClock.Stop();
             audioWaveform = EditorAudioWaveform.Missing;
             rebuildWorkspace();

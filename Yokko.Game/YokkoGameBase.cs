@@ -82,6 +82,14 @@ namespace Yokko.Game
         [Cached]
         private readonly YokkoManiaModPreferences modPreferences = new();
         [Cached]
+        private readonly YokkoAccessibilitySettings accessibilitySettings = new();
+        [Cached]
+        private readonly YokkoEditorSettings editorSettings = new();
+        [Cached]
+        private readonly YokkoPrivacySettings privacySettings = new();
+        [Cached]
+        private readonly YokkoStartupSettings startupSettings = new();
+        [Cached]
         private readonly YokkoFrameRateAdaptation frameRateAdaptation = new();
         [Cached]
         private readonly YokkoDiagnostics diagnostics = new();
@@ -122,7 +130,8 @@ namespace Yokko.Game
 
             // Ensure game and tests scale with window size and screen DPI.
             base.Content.Add(Content = new YokkoUiScalingContainer(
-                displaySettings.UiScale));
+                displaySettings.UiScale,
+                accessibilitySettings.TextScalePercent));
         }
 
         protected override LocalisationManager CreateLocalisationManager(FrameworkConfigManager frameworkConfig) =>
@@ -169,8 +178,13 @@ namespace Yokko.Game
             yokkoConfig.BindExternalOsuSettings(externalOsuSettings);
             yokkoConfig.BindResourceSettings(resourceSettings);
             yokkoConfig.BindGameplaySettings(gameplaySettings);
-            yokkoConfig.BindModPreferences(modPreferences);
+            yokkoConfig.BindModPreferences(modPreferences, startupSettings);
             yokkoConfig.BindSkinSettings(skinSettings);
+            yokkoConfig.BindAccessibilitySettings(accessibilitySettings);
+            bindAccessibilityPresentation();
+            yokkoConfig.BindEditorSettings(editorSettings);
+            yokkoConfig.BindPrivacySettings(privacySettings);
+            yokkoConfig.BindStartupSettings(startupSettings);
             resourceStorage.Initialise(
                 host.Storage,
                 resourceSettings,
@@ -186,6 +200,7 @@ namespace Yokko.Game
             importedChartLibrary.ConfigureExternalOsu(
                 host.Storage,
                 externalOsuSettings);
+            importedChartLibrary.ConfigureWatchFolder(importSettings);
             scoreStore.Initialise(host.Storage);
             replayStore.Initialise(host.Storage);
             diagnostics.Initialise(host);
@@ -211,6 +226,20 @@ namespace Yokko.Game
             }
         }
 
+        private void bindAccessibilityPresentation()
+        {
+            void refresh()
+            {
+                YokkoAccessibilityPresentation.Apply(
+                    uiTheme,
+                    accessibilitySettings);
+            }
+
+            accessibilitySettings.ReduceMotion.ValueChanged += _ => refresh();
+            accessibilitySettings.HighContrast.ValueChanged += _ => refresh();
+            refresh();
+        }
+
         [BackgroundDependencyLoader]
         private void load(
             FrameworkConfigManager frameworkConfig,
@@ -230,32 +259,32 @@ namespace Yokko.Game
                     0,
                     60,
                     0));
-            windowSizeGuard = new YokkoWindowSizeGuard(
-                windowedSize,
-                currentDisplayMode,
-                () => host.Window?.Scale ?? 1,
-                (requested, corrected) => Logger.Log(
-                    $"Repaired unsafe window size {requested.Width}x{requested.Height} "
-                    + $"to {corrected.Width}x{corrected.Height}.",
-                    LoggingTarget.Runtime,
-                    LogLevel.Important));
-
-            frameworkConfig.SetValue(
-                FrameworkSetting.ExecutionMode,
-                ExecutionMode.MultiThreaded);
             YokkoLatencyThreadPolicy.Apply(host);
             frameRateController = new YokkoFrameRateController(
                 frameworkConfig,
                 displaySettings.FrameLimit,
                 currentDisplayMode,
                 frameRateAdaptation);
-            desktopBehaviourController = new YokkoDesktopBehaviourController(
-                host,
-                frameworkConfig,
-                displaySettings,
-                audioSettings,
-                displayModeController,
-                yokkoConfig);
+
+            if (YokkoPlatformCapabilities.SupportsWindowManagement)
+            {
+                windowSizeGuard = new YokkoWindowSizeGuard(
+                    windowedSize,
+                    currentDisplayMode,
+                    () => host.Window?.Scale ?? 1,
+                    (requested, corrected) => Logger.Log(
+                        $"Repaired unsafe window size {requested.Width}x{requested.Height} "
+                        + $"to {corrected.Width}x{corrected.Height}.",
+                        LoggingTarget.Runtime,
+                        LogLevel.Important));
+                desktopBehaviourController = new YokkoDesktopBehaviourController(
+                    host,
+                    frameworkConfig,
+                    displaySettings,
+                    audioSettings,
+                    displayModeController,
+                    yokkoConfig);
+            }
 
             string configuredLocale = frameworkConfig.Get<string>(FrameworkSetting.Locale);
             string normalizedLocale = YokkoLocale.Normalize(configuredLocale);

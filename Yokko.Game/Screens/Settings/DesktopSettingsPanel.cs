@@ -18,7 +18,8 @@ using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Settings;
 
-internal partial class DesktopSettingsPanel : CompositeDrawable
+internal partial class DesktopSettingsPanel
+    : CompositeDrawable, ISettingsSearchTarget
 {
     private readonly YokkoDisplaySettings displaySettings;
     private readonly YokkoAudioSettings audioSettings;
@@ -78,7 +79,9 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
             YokkoStrings.Get("settings.desktop.fullscreen_display"),
             displayControlHost);
         dynamicFrameRateToggle = new SettingsBooleanToggle(
-            displaySettings.DynamicBackgroundFrameRate);
+            displaySettings.DynamicBackgroundFrameRate,
+            "settings.desktop.enabled",
+            "settings.desktop.disabled");
         InternalChildren = new Drawable[]
         {
             SettingsChrome.CreateHeader(
@@ -96,7 +99,10 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
             SettingsChrome.CreateSettingRow(
                 274,
                 YokkoStrings.Get("settings.desktop.fast_alt_tab"),
-                new SettingsBooleanToggle(displaySettings.FastAltTab)),
+                new SettingsBooleanToggle(
+                    displaySettings.FastAltTab,
+                    "settings.desktop.enabled",
+                    "settings.desktop.disabled")),
             SettingsChrome.CreateDivider(334),
             SettingsChrome.CreateSettingRow(
                 338,
@@ -124,6 +130,10 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
         if (window != null)
             window.DisplaysChanged += onDisplaysChanged;
     }
+
+    public bool TryFocusSearchItem(string itemId) =>
+        SettingsSearchScroll.GetScrollY(SettingsPageKind.Desktop, itemId)
+            .HasValue;
 
     private void rebuildDisplayControls()
     {
@@ -485,7 +495,7 @@ internal partial class DesktopSettingsSlider : CompositeDrawable
         knob.X = track_x + progress * track_width;
         valueText.Text = kind == DesktopSettingsSliderKind.FrameRate
             ? snapped <= YokkoDisplaySettings.UnlimitedBackgroundFrameRate
-                ? "MAX"
+                ? YokkoStrings.Get("settings.display.fps_max").ToString()
                 : $"{snapped:0} FPS"
             : $"{snapped * 100:0}%";
     }

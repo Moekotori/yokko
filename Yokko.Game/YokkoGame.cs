@@ -11,6 +11,7 @@ using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osuTK.Input;
 using Yokko.Game.Diagnostics;
+using Yokko.Game.Configuration;
 using Yokko.Game.Input;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Audio;
@@ -212,6 +213,9 @@ namespace Yokko.Game
                 showPerformanceReadout.Value
                 || Diagnostics.ConsoleVisible.Value);
 
+        [Resolved]
+        private YokkoConfigManager yokkoConfig { get; set; }
+
         protected override bool OnKeyDown(KeyDownEvent e)
         {
             if (HandleDesktopShortcut(e.Key, e.Repeat))
@@ -236,7 +240,9 @@ namespace Yokko.Game
                 return true;
             }
 
-            if (key == Key.F10 && !repeat && Host.Window != null)
+            if (key == yokkoConfig.GetBossKeyBindable().Value
+                && !repeat
+                && Host.Window != null)
             {
                 Host.Window.WindowState = WindowState.Minimised;
                 return true;

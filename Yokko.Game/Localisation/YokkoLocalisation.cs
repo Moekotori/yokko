@@ -1130,26 +1130,96 @@ internal static class YokkoStrings
             ["settings.general.section_updates"] = new("Updates", "更新", "アップデート"),
             ["settings.general.current_language"] = new("Current language", "当前语言", "現在の言語"),
             ["settings.general.language"] = new("Language", "语言", "言語"),
-            ["settings.general.language_note"] = new(
-                "Language changes apply immediately and are saved automatically.",
-                "语言更改会立即生效并自动保存。",
-                "言語の変更はすぐに反映され、自動的に保存されます。"),
-            ["settings.general.mania_scroll_speed"] = new(
-                "Scroll speed",
-                "流速",
-                "スクロール速度"),
-            ["settings.general.mania_scroll_speed_note"] = new(
-                "Fine off: whole levels only. Fine on: drag by tenths; wheel, arrows and gameplay shortcuts adjust 1 ms.",
-                "微调关闭：拖动、滚轮和方向键按整档；开启：拖动可细调，滚轮、方向键或游玩快捷键每次 1 ms。",
-                "微調整オフ：整数段階のみ。オン：ドラッグで細かく、ホイール・方向キー・プレイ中のキーは 1 ms ずつ調整。"),
-            ["settings.general.fine_adjustment"] = new(
-                "Fine",
-                "微调",
-                "微調整"),
+            ["settings.general.home_music"] = new(
+                "Home screen music",
+                "主页背景音乐",
+                "ホーム画面の音楽"),
+            ["settings.general.player_name"] = new(
+                "Display name",
+                "显示名称",
+                "表示名"),
+            ["settings.general.player_id_value"] = new(
+                "Player ID: {0}",
+                "玩家 ID：{0}",
+                "プレイヤー ID: {0}"),
+            ["settings.general.version"] = new(
+                "Current version",
+                "当前版本",
+                "現在のバージョン"),
+            ["settings.general.updates_note"] = new(
+                "Visit About for credits and acknowledgements.",
+                "完整版本信息与致谢请前往「关于」页面。",
+                "クレジットと謝辞は「About」ページをご覧ください。"),
             ["settings.general.debug_console"] = new(
                 "Live debug console · F12",
                 "实时调试控制台 · F12",
                 "リアルタイムデバッグコンソール · F12"),
+            ["settings.general.enabled"] = new("Enabled", "已开启", "オン"),
+            ["settings.general.disabled"] = new("Disabled", "已关闭", "オフ"),
+            ["settings.general.debug_console_visible"] = new(
+                "Visible",
+                "已显示",
+                "表示中"),
+            ["settings.general.debug_console_hidden"] = new(
+                "Hidden",
+                "已隐藏",
+                "非表示"),
+            ["settings.general.open_last_screen"] = new(
+                "Open last screen",
+                "打开上次界面",
+                "前回の画面を開く"),
+            ["settings.general.configuration_backup"] = new(
+                "Configuration backup",
+                "配置备份",
+                "設定のバックアップ"),
+            ["settings.general.save_local_replays"] = new(
+                "Save local replays",
+                "保存本地回放",
+                "ローカルリプレイを保存"),
+            ["settings.general.include_username_in_exports"] = new(
+                "Include username in exports",
+                "导出时包含用户名",
+                "エクスポートにユーザー名を含める"),
+            ["settings.general.section_privacy"] = new(
+                "Privacy",
+                "隐私",
+                "プライバシー"),
+            ["settings.general.default_player_name"] = new(
+                "LOCAL PLAYER",
+                "本地玩家",
+                "ローカルプレイヤー"),
+            ["settings.general.config_export"] = new(
+                "Export",
+                "导出",
+                "エクスポート"),
+            ["settings.general.config_import"] = new(
+                "Import",
+                "导入",
+                "インポート"),
+            ["settings.general.config_reset"] = new(
+                "Reset defaults",
+                "恢复默认",
+                "既定値に戻す"),
+            ["settings.general.config_exported"] = new(
+                "Configuration copied to clipboard",
+                "配置已复制到剪贴板",
+                "設定をクリップボードにコピーしました"),
+            ["settings.general.config_imported"] = new(
+                "Configuration imported from clipboard",
+                "已从剪贴板导入配置",
+                "クリップボードから設定をインポートしました"),
+            ["settings.general.config_import_failed"] = new(
+                "Could not import configuration from clipboard",
+                "无法从剪贴板导入配置",
+                "クリップボードから設定をインポートできませんでした"),
+            ["settings.general.config_reset_done"] = new(
+                "Configuration reset to defaults",
+                "配置已恢复默认",
+                "設定を既定値に戻しました"),
+            ["settings.general.fine_adjustment"] = new(
+                "Fine adjust",
+                "精细调整",
+                "微調整"),
             ["settings.language.english"] = new("English", "English", "English"),
             ["settings.language.chinese"] = new("简体中文", "简体中文", "简体中文"),
             ["settings.language.japanese"] = new("日本語", "日本語", "日本語"),
@@ -1180,18 +1250,10 @@ internal static class YokkoStrings
                 "Performance readout",
                 "性能读数",
                 "パフォーマンス表示"),
-            ["settings.display.difficulty_rating"] = new(
-                "Difficulty rating",
-                "难度显示",
-                "難易度表示"),
-            ["settings.display.difficulty_rating.etterna"] = new(
-                "Etterna MSD",
-                "Etterna MSD",
-                "Etterna MSD"),
-            ["settings.display.difficulty_rating.rebirth"] = new(
-                "Rebirth stars",
-                "Rebirth 星级",
-                "Rebirth 星評価"),
+            ["settings.display.mobile_note"] = new(
+                "Window and resolution options are managed by your device on this platform.",
+                "此平台的窗口与分辨率由系统管理。",
+                "このプラットフォームではウィンドウと解像度は端末側で管理されます。"),
             ["settings.display.enabled"] = new("Enabled", "已开启", "オン"),
             ["settings.display.disabled"] = new("Disabled", "已关闭", "オフ"),
             ["settings.display.windowed"] = new("Windowed", "窗口化", "ウィンドウ"),
@@ -1200,6 +1262,9 @@ internal static class YokkoStrings
             ["settings.display.compact"] = new("80%", "80%", "80%"),
             ["settings.display.comfortable"] = new("90%", "90%", "90%"),
             ["settings.display.spacious"] = new("100%", "100%", "100%"),
+            ["settings.display.fps_vsync"] = new("V-SYNC", "V-SYNC", "V-SYNC"),
+            ["settings.display.fps_max"] = new("MAX", "最高", "MAX"),
+            ["settings.display.fps_auto"] = new("AUTO", "自动", "AUTO"),
 
             ["settings.desktop.title"] = new("Desktop", "\u684c\u9762", "\u30c7\u30b9\u30af\u30c8\u30c3\u30d7"),
             ["settings.desktop.subtitle"] = new(
@@ -1212,14 +1277,13 @@ internal static class YokkoStrings
                 "Alt+Tab\u3001\u975e\u30a2\u30af\u30c6\u30a3\u30d6\u6642\u306e\u6027\u80fd\u3001\u97f3\u58f0\u3001\u30d5\u30eb\u30b9\u30af\u30ea\u30fc\u30f3\u51fa\u529b\u3092\u8abf\u6574\u3057\u307e\u3059\u3002"),
             ["settings.desktop.current_output"] = new("Current output", "\u5f53\u524d\u8f93\u51fa", "\u73fe\u5728\u306e\u51fa\u529b"),
             ["settings.desktop.fast_alt_tab"] = new("Fast Alt+Tab", "\u5feb\u901f Alt+Tab", "\u9ad8\u901f Alt+Tab"),
+            ["settings.desktop.enabled"] = new("Enabled", "已开启", "オン"),
+            ["settings.desktop.disabled"] = new("Disabled", "已关闭", "オフ"),
             ["settings.desktop.dynamic_fps"] = new("Dynamic frame rate", "\u52a8\u6001\u5e27\u6570", "\u52d5\u7684\u30d5\u30ec\u30fc\u30e0\u30ec\u30fc\u30c8"),
             ["settings.desktop.background_fps"] = new("Background frame rate", "\u540e\u53f0\u5e27\u7387", "\u30d0\u30c3\u30af\u30b0\u30e9\u30a6\u30f3\u30c9 FPS"),
             ["settings.desktop.background_audio"] = new("Background audio", "\u540e\u53f0\u97f3\u9891", "\u30d0\u30c3\u30af\u30b0\u30e9\u30a6\u30f3\u30c9\u97f3\u58f0"),
             ["settings.desktop.fullscreen_display"] = new("Fullscreen display", "\u5168\u5c4f\u663e\u793a\u5668", "\u30d5\u30eb\u30b9\u30af\u30ea\u30fc\u30f3\u8868\u793a\u5148"),
             ["settings.desktop.boss_key"] = new("Minimise shortcut", "\u4e00\u952e\u6700\u5c0f\u5316", "\u6700\u5c0f\u5316\u30b7\u30e7\u30fc\u30c8\u30ab\u30c3\u30c8"),
-            ["settings.desktop.audio_keep"] = new("Keep", "\u4fdd\u6301", "\u7dad\u6301"),
-            ["settings.desktop.audio_dim"] = new("20%", "20%", "20%"),
-            ["settings.desktop.audio_mute"] = new("Mute", "\u9759\u97f3", "\u30df\u30e5\u30fc\u30c8"),
 
             ["debug_console.title"] = new("YOKKO LIVE DEBUG", "YOKKO 实时调试", "YOKKO ライブデバッグ"),
             ["debug_console.pause"] = new("Pause", "暂停", "一時停止"),
@@ -1251,6 +1315,9 @@ internal static class YokkoStrings
             ["settings.audio.device"] = new("Output device", "输出设备", "出力デバイス"),
             ["settings.audio.buffer"] = new("Buffer profile", "缓冲配置", "バッファ設定"),
             ["settings.audio.master_volume"] = new("Master volume", "音量", "マスター音量"),
+            ["settings.audio.label_master"] = new("MASTER", "主音量", "MASTER"),
+            ["settings.audio.label_music"] = new("MUSIC", "音乐", "MUSIC"),
+            ["settings.audio.label_hit"] = new("HIT", "按键", "HIT"),
             ["settings.audio.hitsounds"] = new("Hitsounds", "按键音", "ヒットサウンド"),
             ["settings.audio.test"] = new("Test playback", "播放", "テスト再生"),
             ["settings.audio.test_failed"] = new("Audio test failed", "音频播放失败", "オーディオテスト失敗"),
@@ -1281,6 +1348,10 @@ internal static class YokkoStrings
             ["settings.audio.enabled"] = new("Enabled", "已开启", "オン"),
             ["settings.audio.disabled"] = new("Disabled", "已关闭", "オフ"),
             ["settings.audio.offset"] = new("Timing offset", "时序偏移", "タイミングオフセット"),
+            ["settings.audio.offset_note"] = new(
+                "Shared with Gameplay timing so offset has one source of truth.",
+                "与玩法时序设置共享，确保偏移只有一个真源。",
+                "ゲームプレイのタイミング設定と共有し、オフセットを一元管理します。"),
             ["settings.audio.exclusive"] = new("WASAPI Exclusive", "WASAPI 独占", "WASAPI 排他"),
             ["settings.audio.shared"] = new("WASAPI Shared", "WASAPI 共享", "WASAPI 共有"),
             ["settings.audio.asio"] = new("ASIO", "ASIO", "ASIO"),
@@ -1313,6 +1384,26 @@ internal static class YokkoStrings
                 "Saved instantly · applies when the next playback starts",
                 "立即保存 · 下次开始播放时生效",
                 "すぐに保存 · 次回の再生開始時に適用"),
+            ["settings.audio.mobile_note"] = new(
+                "Native output, device and buffer options are managed by your platform on this device.",
+                "此平台的原生输出、设备与缓冲选项由系统管理。",
+                "この端末ではネイティブ出力、デバイス、バッファ設定はプラットフォーム側で管理されます。"),
+            ["settings.audio.mobile_ready"] = new(
+                "Platform-managed audio output",
+                "平台托管的音频输出",
+                "プラットフォーム管理の音声出力"),
+            ["settings.audio.mobile_metadata"] = new(
+                "Volume, offset and calibration remain available here.",
+                "仍可在此调整音量、偏移与校准。",
+                "音量、オフセット、キャリブレーションはここで調整できます。"),
+            ["settings.audio.calibration"] = new(
+                "Timing calibration",
+                "时序校准",
+                "タイミングキャリブレーション"),
+            ["settings.audio.run_calibration"] = new(
+                "Run calibration",
+                "运行校准",
+                "キャリブレーションを実行"),
 
             ["settings.gameplay.title"] = new("Gameplay", "游玩", "ゲームプレイ"),
             ["settings.gameplay.subtitle"] = new(
@@ -1458,6 +1549,10 @@ internal static class YokkoStrings
                 "Drop an .osk package or a skin folder anywhere in Yokko",
                 "把 .osk 文件或皮肤文件夹拖到 Yokko 的任意位置",
                 ".osk またはスキンフォルダーを Yokko の任意の場所へドロップ"),
+            ["settings.skins.accepted_formats"] = new(
+                ".OSK / FOLDER",
+                ".OSK / 文件夹",
+                ".OSK / フォルダー"),
             ["settings.skins.empty"] = new(
                 "No skins installed yet",
                 "还没有安装皮肤",
@@ -1606,6 +1701,54 @@ internal static class YokkoStrings
             ["settings.gameplay.preset_standard"] = new("Standard", "标准", "標準"),
             ["settings.gameplay.preset_left"] = new("Left hand", "左手", "左手"),
             ["settings.gameplay.preset_split"] = new("Split", "双手", "両手"),
+            ["settings.gameplay.layout_presets"] = new(
+                "HUD layout presets",
+                "HUD 布局预设",
+                "HUD レイアウトプリセット"),
+            ["settings.gameplay.layout_preset_default"] = new(
+                "Default",
+                "默认",
+                "既定"),
+            ["settings.gameplay.layout_preset_compact"] = new(
+                "Compact HUD",
+                "紧凑 HUD",
+                "コンパクト HUD"),
+            ["settings.gameplay.layout_preset_stream"] = new(
+                "Stream",
+                "Stream",
+                "Stream"),
+            ["settings.gameplay.layout_preset_applied"] = new(
+                "Layout preset applied: {0}",
+                "已应用布局预设：{0}",
+                "レイアウトプリセットを適用：{0}"),
+            ["settings.gameplay.layout_preset_saved"] = new(
+                "Current layout saved as preset",
+                "当前布局已保存为预设",
+                "現在のレイアウトをプリセットとして保存しました"),
+            ["settings.gameplay.save_layout_preset"] = new(
+                "Save current",
+                "保存当前",
+                "現在を保存"),
+            ["settings.gameplay.named_key_profiles"] = new(
+                "Named key profiles",
+                "命名键位配置",
+                "名前付きキープロファイル"),
+            ["settings.gameplay.named_key_profile_save"] = new(
+                "Save profile",
+                "保存配置",
+                "プロファイルを保存"),
+            ["settings.gameplay.named_key_profile_saved"] = new(
+                "Key profile saved",
+                "键位配置已保存",
+                "キープロファイルを保存しました"),
+            ["settings.gameplay.named_profile_default"] = new(
+                "Profile {0}",
+                "配置 {0}",
+                "プロファイル {0}"),
+            ["settings.gameplay.layout_preset_default_name"] = new(
+                "Layout {0}",
+                "布局 {0}",
+                "レイアウト {0}"),
             ["settings.gameplay.copy_other_mode"] = new(
                 "Copy to other",
                 "复制到另一模式",
@@ -1884,6 +2027,22 @@ internal static class YokkoStrings
                 "Changes presentation only; timing and judgement stay the same.",
                 "只改变音符移动方向，不影响谱面时间与判定。",
                 "表示方向のみを変更し、タイミングと判定には影響しません。"),
+            ["settings.gameplay.difficulty_rating"] = new(
+                "Difficulty rating",
+                "难度显示",
+                "難易度表示"),
+            ["settings.gameplay.difficulty_rating_note"] = new(
+                "Controls how chart difficulty is shown in song select and results.",
+                "控制选曲与结果界面的谱面难度展示方式。",
+                "選曲とリザルトでの譜面難易度表示方式を切り替えます。"),
+            ["settings.gameplay.difficulty_rating.etterna"] = new(
+                "Etterna MSD",
+                "Etterna MSD",
+                "Etterna MSD"),
+            ["settings.gameplay.difficulty_rating.rebirth"] = new(
+                "Rebirth stars",
+                "Rebirth 星级",
+                "Rebirth 星評価"),
             ["settings.gameplay.scroll_direction_down"] = new(
                 "Downscroll",
                 "Downscroll · 向下",
@@ -2095,6 +2254,48 @@ internal static class YokkoStrings
             ["settings.editor.section_workspace"] = new("Workspace", "工作区", "ワークスペース"),
             ["settings.editor.section_grid"] = new("Grid & snapping", "网格与吸附", "グリッドとスナップ"),
             ["settings.editor.section_autosave"] = new("Autosave", "自动保存", "自動保存"),
+            ["settings.editor.default_key_mode"] = new(
+                "Default key mode",
+                "默认键位模式",
+                "既定のキーモード"),
+            ["settings.editor.snap_divisor"] = new(
+                "Snap divisor",
+                "吸附分度",
+                "スナップ分割"),
+            ["settings.editor.snap_divisor_value"] = new(
+                "1/{0}",
+                "1/{0}",
+                "1/{0}"),
+            ["settings.editor.visible_rows"] = new(
+                "Visible rows",
+                "可见行数",
+                "表示行数"),
+            ["settings.editor.visible_rows_value"] = new(
+                "{0} rows",
+                "{0} 行",
+                "{0} 行"),
+            ["settings.editor.autosave"] = new(
+                "Autosave",
+                "自动保存",
+                "自動保存"),
+            ["settings.editor.autosave_on"] = new(
+                "Enabled",
+                "已开启",
+                "オン"),
+            ["settings.editor.autosave_off"] = new(
+                "Disabled",
+                "已关闭",
+                "オフ"),
+            ["settings.editor.autosave_interval"] = new(
+                "Autosave interval",
+                "自动保存间隔",
+                "自動保存間隔"),
+            ["settings.editor.autosave_interval_value"] = new(
+                "{0} s",
+                "{0} 秒",
+                "{0} 秒"),
+            ["settings.editor.key_mode_4k"] = new("4K", "4K", "4K"),
+            ["settings.editor.key_mode_7k"] = new("7K", "7K", "7K"),
 
             ["settings.import.title"] = new("Import", "导入", "インポート"),
             ["settings.import.subtitle"] = new(
@@ -2118,6 +2319,14 @@ internal static class YokkoStrings
                 "{0} 形式 · {1} ファイルタイプ"),
             ["settings.import.ready"] = new("Ready", "可用", "対応"),
             ["settings.import.partial"] = new("Partial", "部分", "一部"),
+            ["settings.import.format_osumania"] = new("osu!mania", "osu!mania", "osu!mania"),
+            ["settings.import.format_quaver"] = new("Quaver", "Quaver", "Quaver"),
+            ["settings.import.format_malody"] = new("Malody", "Malody", "Malody"),
+            ["settings.import.format_etterna"] = new(
+                "Etterna / StepMania",
+                "Etterna / StepMania",
+                "Etterna / StepMania"),
+            ["settings.import.format_bms"] = new("BMS", "BMS", "BMS"),
             ["settings.import.prefer_keysounds"] = new(
                 "BMS samples",
                 "BMS 采样",
@@ -2223,6 +2432,18 @@ internal static class YokkoStrings
                 "Songs unavailable",
                 "Songs 目录不可用",
                 "Songs フォルダーを使用できません"),
+            ["settings.import.watch_folder_title"] = new(
+                "Watch folder",
+                "监视文件夹",
+                "監視フォルダー"),
+            ["settings.import.watch_folder_unconfigured"] = new(
+                "Choose a folder to auto-import new charts",
+                "选择一个文件夹以自动导入新谱面",
+                "新しい譜面を自動インポートするフォルダーを選択"),
+            ["settings.import.watch_folder_select"] = new(
+                "Choose",
+                "选择",
+                "選択"),
 
             ["settings.accessibility.title"] = new("Accessibility", "辅助功能", "アクセシビリティ"),
             ["settings.accessibility.subtitle"] = new(
@@ -2236,6 +2457,87 @@ internal static class YokkoStrings
             ["settings.accessibility.section_visual"] = new("Visual assistance", "视觉辅助", "視覚支援"),
             ["settings.accessibility.section_input"] = new("Input accessibility", "输入辅助", "入力支援"),
             ["settings.accessibility.section_motion"] = new("Reduced motion", "减少动态效果", "動きを減らす"),
+            ["settings.accessibility.reduce_motion"] = new(
+                "Reduce motion",
+                "减少动态效果",
+                "動きを減らす"),
+            ["settings.accessibility.reduce_motion_on"] = new(
+                "Reduced",
+                "已减少",
+                "減らす"),
+            ["settings.accessibility.reduce_motion_off"] = new(
+                "Standard",
+                "标准",
+                "標準"),
+            ["settings.accessibility.high_contrast"] = new(
+                "High contrast",
+                "高对比度",
+                "高コントラスト"),
+            ["settings.accessibility.high_contrast_on"] = new(
+                "Enabled",
+                "已开启",
+                "オン"),
+            ["settings.accessibility.high_contrast_off"] = new(
+                "Disabled",
+                "已关闭",
+                "オフ"),
+            ["settings.accessibility.text_scale"] = new(
+                "Text scale",
+                "文字缩放",
+                "文字サイズ"),
+            ["settings.accessibility.text_scale_90"] = new("90%", "90%", "90%"),
+            ["settings.accessibility.text_scale_100"] = new("100%", "100%", "100%"),
+            ["settings.accessibility.text_scale_110"] = new("110%", "110%", "110%"),
+
+            ["settings.mods.title"] = new("Mods", "模组", "Mod"),
+            ["settings.mods.subtitle"] = new(
+                "Session memory and saved configurations",
+                "会话记忆与已保存配置",
+                "セッション記憶と保存済み設定"),
+            ["settings.mods.description"] = new(
+                "Control whether active Mod selections carry over between charts and launches.",
+                "控制活跃 Mod 是否在谱面切换与重启后保留。",
+                "アクティブな Mod 選択を譜面間や起動後も保持するかを設定します。"),
+            ["settings.mods.session_memory"] = new(
+                "Mod session memory",
+                "Mod 会话记忆",
+                "Mod セッション記憶"),
+            ["settings.mods.remember_active_mods"] = new(
+                "Remember active Mods",
+                "记住活跃 Mod",
+                "アクティブ Mod を記憶"),
+            ["settings.mods.remember_active_mods_on"] = new(
+                "Remembered across launches",
+                "跨启动保留",
+                "起動後も保持"),
+            ["settings.mods.remember_active_mods_off"] = new(
+                "Session only",
+                "仅当前会话",
+                "セッションのみ"),
+            ["settings.mods.saved_configuration"] = new(
+                "Saved Mod configuration",
+                "已保存 Mod 配置",
+                "保存済み Mod 設定"),
+            ["settings.mods.clear_configuration"] = new(
+                "Clear",
+                "清除",
+                "クリア"),
+            ["settings.mods.detail_note"] = new(
+                "Configurable Mod values are remembered separately from the active Mod list.",
+                "可配置 Mod 数值会与活跃 Mod 列表分开记忆。",
+                "設定可能な Mod 値は、アクティブ Mod 一覧とは別に記憶されます。"),
+            ["settings.mods.configuration_cleared"] = new(
+                "Saved Mod configuration cleared",
+                "已清除保存的 Mod 配置",
+                "保存済み Mod 設定をクリアしました"),
+            ["settings.mods.configuration_saved"] = new(
+                "Configuration saved · {0}",
+                "配置已保存 · {0}",
+                "設定を保存 · {0}"),
+            ["settings.mods.configuration_empty"] = new(
+                "No saved configuration · {0}",
+                "暂无保存配置 · {0}",
+                "保存済み設定なし · {0}"),
 
             ["settings.about.title"] = new("About", "关于", "情報"),
             ["settings.about.subtitle"] = new(
@@ -2254,6 +2556,18 @@ internal static class YokkoStrings
                 "osu!  ·  Etterna  ·  Quaver",
                 "osu!  ·  Etterna  ·  Quaver",
                 "osu!  ·  Etterna  ·  Quaver"),
+            ["settings.about.check_for_updates"] = new(
+                "Check for updates",
+                "检查更新",
+                "更新を確認"),
+            ["settings.about.checking_updates"] = new(
+                "Checking for updates…",
+                "正在检查更新…",
+                "更新を確認しています…"),
+            ["settings.about.update_idle"] = new(
+                "Stay on the latest release when you are ready.",
+                "准备好时可以检查是否有新版本。",
+                "準備ができたら最新リリースを確認できます。"),
             ["settings.safety.title"] = new("Safety", "安全", "セーフティ"),
             ["settings.safety.subtitle"] = new(
                 "Crash reports and recovery tools",
@@ -2283,6 +2597,18 @@ internal static class YokkoStrings
                 "Unable to open the crash report folder",
                 "无法打开崩溃报告目录",
                 "クラッシュレポートフォルダーを開けませんでした"),
+            ["settings.safety.export_diagnostics"] = new(
+                "Export diagnostics",
+                "导出诊断包",
+                "診断情報をエクスポート"),
+            ["settings.safety.exported"] = new(
+                "Diagnostics bundle exported",
+                "诊断包已导出",
+                "診断バンドルをエクスポートしました"),
+            ["settings.safety.export_failed"] = new(
+                "Unable to export diagnostics",
+                "无法导出诊断包",
+                "診断情報をエクスポートできませんでした"),
             ["settings.safety.exit_hold_duration"] = new(
                 "Hold Esc to exit",
                 "主页按住 Esc 退出时间",

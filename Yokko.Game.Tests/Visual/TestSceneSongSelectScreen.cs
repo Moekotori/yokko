@@ -1075,10 +1075,10 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
 
         AddStep("remember difficulty display mode", () =>
             originalMode =
-                displaySettings.DifficultyRatingMode.Value);
+                gameplaySettings.DifficultyRatingMode.Value);
         AddStep("load rating test chart", () =>
         {
-            displaySettings.DifficultyRatingMode.Value =
+            gameplaySettings.DifficultyRatingMode.Value =
                 ManiaDifficultyRatingMode.EtternaMsd;
             importedChartLibrary.Clear();
             importedChartLibrary.AddOrReplace(
@@ -1098,7 +1098,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
                     osu.Framework.Graphics.Sprites.SpriteText>()
                 .Any(text => text.Text.ToString() == "MSD"));
         AddStep("switch to Rebirth stars", () =>
-            displaySettings.DifficultyRatingMode.Value =
+            gameplaySettings.DifficultyRatingMode.Value =
                 ManiaDifficultyRatingMode.RebirthStars);
         AddUntilStep("star mode is visible", () =>
             songSelectScreen.DisplayedDifficultyRatingMode
@@ -1109,7 +1109,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
                     osu.Framework.Graphics.Sprites.SpriteText>()
                 .Any(text => text.Text.ToString() == "STAR"));
         AddStep("restore difficulty display mode", () =>
-            displaySettings.DifficultyRatingMode.Value =
+            gameplaySettings.DifficultyRatingMode.Value =
                 originalMode);
     }
 
@@ -1121,8 +1121,8 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
 
         AddStep("load charts for difficulty filtering", () =>
         {
-            originalMode = displaySettings.DifficultyRatingMode.Value;
-            displaySettings.DifficultyRatingMode.Value =
+            originalMode = gameplaySettings.DifficultyRatingMode.Value;
+            gameplaySettings.DifficultyRatingMode.Value =
                 ManiaDifficultyRatingMode.EtternaMsd;
             songSelectScreen.SetMinimumDifficultyFilter(0);
             importedChartLibrary.Clear();
@@ -1161,7 +1161,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             && songSelectScreen.SelectedMods.Contains(ManiaModId.HardRock)
                 == hardRockWasEnabled);
         AddStep("switch to star rating", () =>
-            displaySettings.DifficultyRatingMode.Value =
+            gameplaySettings.DifficultyRatingMode.Value =
                 ManiaDifficultyRatingMode.RebirthStars);
         AddUntilStep("star rating keeps its own all value", () =>
             songSelectScreen.VisibleEntryCount == 2
@@ -1173,7 +1173,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             songSelectScreen.VisibleEntryCount == 0
             && songSelectScreen.MinimumDifficultyFilter == 10);
         AddStep("switch back to MSD", () =>
-            displaySettings.DifficultyRatingMode.Value =
+            gameplaySettings.DifficultyRatingMode.Value =
                 ManiaDifficultyRatingMode.EtternaMsd);
         AddUntilStep("MSD threshold is remembered", () =>
             songSelectScreen.VisibleEntryCount == 0
@@ -1181,10 +1181,10 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
         AddStep("reset both thresholds and mode", () =>
         {
             songSelectScreen.SetMinimumDifficultyFilter(0);
-            displaySettings.DifficultyRatingMode.Value =
+            gameplaySettings.DifficultyRatingMode.Value =
                 ManiaDifficultyRatingMode.RebirthStars;
             songSelectScreen.SetMinimumDifficultyFilter(0);
-            displaySettings.DifficultyRatingMode.Value = originalMode;
+            gameplaySettings.DifficultyRatingMode.Value = originalMode;
         });
         AddUntilStep("filter reset restores charts", () =>
             songSelectScreen.VisibleEntryCount == 2);
