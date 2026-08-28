@@ -293,39 +293,59 @@ public sealed class NativeAudioEngine :
                 ref preparedSampleSet,
                 PreparedSampleSet.EmptyFor(generation));
             Volatile.Write(ref activeSampleSet, null);
+
+            string[] paths = samplePaths
+                .Where(static path => !string.IsNullOrWhiteSpace(path))
+                .Select(Path.GetFullPath)
+                .Where(File.Exists)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            // Charts routinely carry hundreds of keysounds; decoding them one
+            // at a time dominates the load screen. Decoding is CPU-bound, so
+            // a small bounded degree keeps the thread pool responsive while
+            // still cutting the wall time.
+            var decoded = new DecodedAudioSample?[paths.Length];
+            await Parallel.ForEachAsync(
+                Enumerable.Range(0, paths.Length),
+                new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = 4,
+                    CancellationToken = cancellationToken,
+                },
+                (index, _) =>
+                {
+                    try
+                    {
+                        decoded[index] =
+                            DecodedAudioSample.Decode(paths[index]);
+                    }
+                    catch (Exception exception)
+                        when (exception is not OperationCanceledException)
+                    {
+                        // A missing, corrupt, or unsupported optional keysound
+                        // must not prevent the backing track from starting.
+                    }
+                    return ValueTask.CompletedTask;
+                }).ConfigureAwait(false);
+
             var samples = new List<PreparedSample>();
             var slotsByPath = new Dictionary<string, int>(
                 StringComparer.OrdinalIgnoreCase);
             long preparedBytes = 0;
-
-            foreach (string path in samplePaths
-                         .Where(static path => !string.IsNullOrWhiteSpace(path))
-                         .Select(Path.GetFullPath)
-                         .Where(File.Exists)
-                         .Distinct(StringComparer.OrdinalIgnoreCase))
+            for (int index = 0; index < paths.Length; index++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                if (decoded[index] is not DecodedAudioSample sample)
+                    continue;
 
-                try
-                {
-                    DecodedAudioSample sample = await Task.Run(
-                        () => DecodedAudioSample.Decode(path),
-                        cancellationToken).ConfigureAwait(false);
-                    long sampleBytes =
-                        (long)sample.Samples.Length * sizeof(float);
-                    if (preparedBytes > maximumPreparedSampleBytes - sampleBytes)
-                        break;
+                long sampleBytes =
+                    (long)sample.Samples.Length * sizeof(float);
+                if (preparedBytes > maximumPreparedSampleBytes - sampleBytes)
+                    break;
 
-                    slotsByPath.Add(path, samples.Count);
-                    samples.Add(new PreparedSample(sample));
-                    preparedBytes += sampleBytes;
-                }
-                catch (Exception exception)
-                    when (exception is not OperationCanceledException)
-                {
-                    // A missing, corrupt, or unsupported optional keysound must
-                    // not prevent the backing track from starting.
-                }
+                slotsByPath.Add(paths[index], samples.Count);
+                samples.Add(new PreparedSample(sample));
+                preparedBytes += sampleBytes;
             }
 
             Volatile.Write(
@@ -729,11 +749,6 @@ public sealed class NativeAudioEngine :
                 return;
 
             await stopFeederAsync().ConfigureAwait(false);
-            Volatile.Write(ref activeSampleSet, null);
-            core?.CloseOutput();
-            core?.Stop();
-            core?.Dispose();
-            core = null;
             if (source != null)
             {
                 source.CurrentTime =
@@ -743,8 +758,28 @@ public sealed class NativeAudioEngine :
             {
                 playbackBaseMilliseconds = Math.Max(0, timeMilliseconds);
             }
-            await startFromCurrentPositionAsync(cancellationToken)
-                .ConfigureAwait(false);
+
+            if (core is NativeAudioCore currentCore
+                && Volatile.Read(ref activeSampleSet) != null)
+            {
+                // The native sample bank survives a stop, so a seek only has
+                // to reset the ring and reopen the output. Rebuilding the
+                // core would re-decode and re-register every prepared
+                // keysound, which is far too slow for interactive seeking.
+                await restartFromCurrentPositionAsync(
+                    currentCore,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                Volatile.Write(ref activeSampleSet, null);
+                core?.CloseOutput();
+                core?.Stop();
+                core?.Dispose();
+                core = null;
+                await startFromCurrentPositionAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
         }
         finally
         {
@@ -807,22 +842,15 @@ public sealed class NativeAudioEngine :
                          ?? (request.PreferredSampleRate > 0
                              ? request.PreferredSampleRate
                              : 48000);
-        if (currentSource != null)
-        {
-            playbackBaseMilliseconds =
-                currentSource.CurrentTime.TotalMilliseconds;
-        }
-        rateTimeline.Reset(
-            playbackBaseMilliseconds,
-            request.PlaybackRate);
+        resetPlaybackTimeline(currentSource, request);
 
-        uint preferredBufferFrames = (uint)Math.Clamp(
-            request.PreferredBufferSize <= 0 ? 128 : request.PreferredBufferSize,
-            64,
-            2048);
+        uint preferredBufferFrames = preferredBufferFramesFor(request);
         uint startupFrames = Math.Max(preferredBufferFrames * 2, 256);
+        // The dynamic-rate ring stays intentionally shallow so rate changes
+        // reach the output quickly, but anything below 4096 frames starves
+        // the callback whenever the feeder thread loses its timeslice.
         uint ringFrames = request.DynamicPlaybackRate
-            ? Math.Max(preferredBufferFrames * 4, 1024)
+            ? Math.Max(preferredBufferFrames * 4, 4096)
             : Math.Max(preferredBufferFrames * 32, 8192);
 
         core = new NativeAudioCore(
@@ -851,6 +879,65 @@ public sealed class NativeAudioEngine :
             ref activeSampleSet,
             new ActiveSampleSet(prepared.Generation, core, sampleIds));
 
+        await primeAndOpenOutputAsync(
+            core,
+            currentSource,
+            request,
+            preferredBufferFrames,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task restartFromCurrentPositionAsync(
+        NativeAudioCore currentCore,
+        CancellationToken cancellationToken)
+    {
+        AudioEngineStartRequest request =
+            activeRequest ?? throw new InvalidOperationException("Audio request is missing.");
+        DecodedAudioSource? currentSource = source;
+        resetPlaybackTimeline(currentSource, request);
+
+        // Native stop closes the output and resets the ring while keeping
+        // the registered sample bank, so activeSampleSet and every prepared
+        // handle stay valid across the restart.
+        currentCore.Stop();
+        currentCore.SetMusicSamplePlaybackRate((float)request.PlaybackRate);
+
+        await primeAndOpenOutputAsync(
+            currentCore,
+            currentSource,
+            request,
+            preferredBufferFramesFor(request),
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private void resetPlaybackTimeline(
+        DecodedAudioSource? currentSource,
+        AudioEngineStartRequest request)
+    {
+        if (currentSource != null)
+        {
+            playbackBaseMilliseconds =
+                currentSource.CurrentTime.TotalMilliseconds;
+        }
+        rateTimeline.Reset(
+            playbackBaseMilliseconds,
+            request.PlaybackRate);
+    }
+
+    private static uint preferredBufferFramesFor(
+        AudioEngineStartRequest request)
+        => (uint)Math.Clamp(
+            request.PreferredBufferSize <= 0 ? 128 : request.PreferredBufferSize,
+            64,
+            2048);
+
+    private async Task primeAndOpenOutputAsync(
+        NativeAudioCore currentCore,
+        DecodedAudioSource? currentSource,
+        AudioEngineStartRequest request,
+        uint preferredBufferFrames,
+        CancellationToken cancellationToken)
+    {
         var primed = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
         feederCancellation =
@@ -858,27 +945,35 @@ public sealed class NativeAudioEngine :
         feederTask = currentSource == null
             ? Task.Run(
                 () => feedSilenceAsync(
-                    core,
+                    currentCore,
                     primed,
                     feederCancellation.Token),
                 CancellationToken.None)
             : Task.Run(
                 () => feedPcmAsync(
                     currentSource,
-                    core,
+                    currentCore,
                     primed,
                     feederCancellation.Token),
                 CancellationToken.None);
 
         await primed.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
-        core.Start();
+        currentCore.Start();
 
+        openOutput(currentCore, request, preferredBufferFrames);
+    }
+
+    private void openOutput(
+        NativeAudioCore currentCore,
+        AudioEngineStartRequest request,
+        uint preferredBufferFrames)
+    {
         AudioBackendKind activeBackend;
         if (request.PreferredBackend == AudioBackendKind.Asio)
         {
             // ASIO is an explicit expert choice. Never hide a driver failure
             // by changing the backend and therefore its latency/clock model.
-            outputStatus = core.OpenAsio(
+            outputStatus = currentCore.OpenAsio(
                 request.DeviceId,
                 preferredBufferFrames);
             activeBackend = AudioBackendKind.Asio;
@@ -892,7 +987,7 @@ public sealed class NativeAudioEngine :
                     : NativeAudioBackendMode.WasapiExclusive;
             try
             {
-                outputStatus = core.OpenWasapi(
+                outputStatus = currentCore.OpenWasapi(
                     requestedMode,
                     request.DeviceId,
                     preferredBufferFrames);
@@ -908,7 +1003,7 @@ public sealed class NativeAudioEngine :
             {
                 try
                 {
-                    outputStatus = core.OpenWasapi(
+                    outputStatus = currentCore.OpenWasapi(
                         NativeAudioBackendMode.WasapiShared,
                         request.DeviceId,
                         preferredBufferFrames);
