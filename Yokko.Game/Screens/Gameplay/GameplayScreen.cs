@@ -131,6 +131,8 @@ public partial class GameplayScreen : Screen
     [Resolved]
     private OsuManiaSkinCache gameplaySkinCache { get; set; }
     private double activeUserOffsetMilliseconds;
+    private double activeLocalOffsetMilliseconds;
+    private double activeJudgementOffsetMilliseconds;
     private AudioBackendKind activeRequestedBackend;
     private double lastStableAudioGameplayTime;
     private readonly InputAgeTracker inputAgeTracker = new();
@@ -1109,14 +1111,13 @@ public partial class GameplayScreen : Screen
             hud.UpdateMutedMix(mutedAudio.Current);
         }
         double visualGameplayTime = hasAudioClock
-                                    && layoutAutoplayDemoActive
             ? GameplayPresentationClock.EstimateVisualTime(
                 gameplayTime,
                 audioEngine as ITimestampedAudioClock,
                 clockObservation.Audio,
                 Stopwatch.GetTimestamp(),
                 Stopwatch.Frequency,
-                activeUserOffsetMilliseconds)
+                activeJudgementOffsetMilliseconds)
             : gameplayTime;
 
         if (ReplayMode)
@@ -1852,6 +1853,10 @@ public partial class GameplayScreen : Screen
             lifetimeToken.ThrowIfCancellationRequested();
             activeUserOffsetMilliseconds =
                 audioSettings.UserOffsetMilliseconds.Value;
+            activeLocalOffsetMilliseconds =
+                beatmap.LocalOffsetMilliseconds;
+            activeJudgementOffsetMilliseconds =
+                activeUserOffsetMilliseconds + activeLocalOffsetMilliseconds;
             rawKeysoundDispatcher?.SetUserOffset(
                 activeUserOffsetMilliseconds);
             double initialPlaybackRate =
@@ -1878,6 +1883,7 @@ public partial class GameplayScreen : Screen
                 + $" | rate={startRequest.PlaybackRate:0.###}"
                 + $" | pitch={startRequest.PitchMode}"
                 + $" | offset={activeUserOffsetMilliseconds:0.###}ms"
+                + $" | local={activeLocalOffsetMilliseconds:0.###}ms"
                 + $" | path={startRequest.AudioPath}");
 
             await audioEngine.StartAsync(
@@ -1890,7 +1896,7 @@ public partial class GameplayScreen : Screen
                 double practiceStart = Math.Max(
                     0,
                     practiceSession.Plan.StartTimeMilliseconds
-                    - activeUserOffsetMilliseconds);
+                    - activeJudgementOffsetMilliseconds);
                 await audioEngine.SeekAsync(
                     practiceStart,
                     lifetimeToken).ConfigureAwait(true);
@@ -1907,7 +1913,7 @@ public partial class GameplayScreen : Screen
             lastAppliedPlaybackRate = initialPlaybackRate;
             lastStableAudioGameplayTime =
                 audioSnapshot.PlaybackTimeMilliseconds
-                + activeUserOffsetMilliseconds;
+                + activeJudgementOffsetMilliseconds;
             hud.UpdateAudioStatus(
                 audioSnapshot.Status,
                 activeRequestedBackend);
@@ -2019,7 +2025,7 @@ public partial class GameplayScreen : Screen
             {
                 lastStableAudioGameplayTime =
                     audioSnapshot.PlaybackTimeMilliseconds
-                    + activeUserOffsetMilliseconds;
+                    + activeJudgementOffsetMilliseconds;
                 gameplayTime = lastStableAudioGameplayTime;
             }
             else if (audioStarted)
@@ -2093,7 +2099,7 @@ public partial class GameplayScreen : Screen
                 observation.Audio,
                 eventTimestamp,
                 Stopwatch.Frequency,
-                activeUserOffsetMilliseconds,
+                activeJudgementOffsetMilliseconds,
                 out double timestampedGameplayTime))
         {
             return timestampedGameplayTime;
@@ -3427,8 +3433,7 @@ public partial class GameplayScreen : Screen
         {
             if (hasAudioClock)
             {
-                await audioEngine.SeekAsync(pausedAudioPosition)
-                                 .ConfigureAwait(true);
+                await audioEngine.ResumeAsync().ConfigureAwait(true);
                 lastAppliedPlaybackRate = double.NaN;
             }
             else
@@ -4304,7 +4309,7 @@ public partial class GameplayScreen : Screen
                 ? pausedAudioPosition
                 : Math.Max(
                     0,
-                    previousGameplayTime - activeUserOffsetMilliseconds)
+                    previousGameplayTime - activeJudgementOffsetMilliseconds)
             : 0;
         targetGameplayTime = Math.Clamp(
             targetGameplayTime,
@@ -4357,7 +4362,7 @@ public partial class GameplayScreen : Screen
             {
                 double targetAudioPosition = Math.Max(
                     0,
-                    targetGameplayTime - activeUserOffsetMilliseconds);
+                    targetGameplayTime - activeJudgementOffsetMilliseconds);
                 await audioEngine.SeekAsync(targetAudioPosition)
                                  .ConfigureAwait(true);
                 shouldRemainPaused =
@@ -4376,7 +4381,7 @@ public partial class GameplayScreen : Screen
                       / currentPlaybackRate(targetGameplayTime);
                 pausedAudioPosition = Math.Max(
                     0,
-                    targetGameplayTime - activeUserOffsetMilliseconds);
+                    targetGameplayTime - activeJudgementOffsetMilliseconds);
             }
 
             applyReplayRestoredState(restored, targetGameplayTime);

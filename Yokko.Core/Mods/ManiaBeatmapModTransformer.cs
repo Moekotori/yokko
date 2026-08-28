@@ -211,6 +211,7 @@ public static class ManiaBeatmapModTransformer
             structurallyApplied.ConversionSource,
             structurallyApplied.StageCount,
             structurallyApplied.PreviewTimeMilliseconds,
+            structurallyApplied.LocalOffsetMilliseconds,
             structurallyApplied.BreakPeriods,
             structurallyApplied.LegacyLongNoteRendering,
             structurallyApplied.ScheduledSamples,

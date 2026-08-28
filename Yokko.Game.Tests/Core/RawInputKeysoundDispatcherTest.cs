@@ -209,6 +209,10 @@ public sealed class RawInputKeysoundDispatcherTest
             CancellationToken cancellationToken = default) =>
             ValueTask.CompletedTask;
 
+        public ValueTask ResumeAsync(
+            CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
+
         public ValueTask SeekAsync(
             double timeMilliseconds,
             CancellationToken cancellationToken = default) =>

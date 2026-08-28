@@ -718,6 +718,33 @@ public sealed class NativeAudioEngine :
         }
     }
 
+    public async ValueTask ResumeAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (core == null || activeRequest == null)
+                return;
+
+            if (core.GetStatus().State != NativeAudioState.Paused)
+            {
+                throw new InvalidOperationException(
+                    "The audio engine is not paused.");
+            }
+
+            core.Start();
+            await openOutputAsync(
+                    activeRequest,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            lifecycle.Release();
+        }
+    }
+
     public async ValueTask SeekAsync(
         double timeMilliseconds,
         CancellationToken cancellationToken = default)
@@ -729,11 +756,11 @@ public sealed class NativeAudioEngine :
                 return;
 
             await stopFeederAsync().ConfigureAwait(false);
-            Volatile.Write(ref activeSampleSet, null);
             core?.CloseOutput();
-            core?.Stop();
-            core?.Dispose();
-            core = null;
+
+            if (core != null)
+                core.Stop();
+
             if (source != null)
             {
                 source.CurrentTime =
@@ -743,8 +770,17 @@ public sealed class NativeAudioEngine :
             {
                 playbackBaseMilliseconds = Math.Max(0, timeMilliseconds);
             }
-            await startFromCurrentPositionAsync(cancellationToken)
-                .ConfigureAwait(false);
+
+            if (core != null)
+            {
+                await restartFromCurrentPositionAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                await startFromCurrentPositionAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
         }
         finally
         {
@@ -851,6 +887,45 @@ public sealed class NativeAudioEngine :
             ref activeSampleSet,
             new ActiveSampleSet(prepared.Generation, core, sampleIds));
 
+        await restartFeederAndOutputAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task restartFromCurrentPositionAsync(
+        CancellationToken cancellationToken)
+    {
+        AudioEngineStartRequest request =
+            activeRequest ?? throw new InvalidOperationException("Audio request is missing.");
+        if (core == null)
+        {
+            throw new InvalidOperationException(
+                "The native audio core is not available.");
+        }
+
+        if (source != null)
+        {
+            playbackBaseMilliseconds =
+                source.CurrentTime.TotalMilliseconds;
+        }
+
+        rateTimeline.Reset(
+            playbackBaseMilliseconds,
+            request.PlaybackRate);
+        core.SetMusicSamplePlaybackRate((float)request.PlaybackRate);
+
+        await restartFeederAndOutputAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task restartFeederAndOutputAsync(
+        CancellationToken cancellationToken)
+    {
+        AudioEngineStartRequest request =
+            activeRequest ?? throw new InvalidOperationException("Audio request is missing.");
+        DecodedAudioSource? currentSource = source;
+        NativeAudioCore currentCore =
+            core ?? throw new InvalidOperationException("Audio core is missing.");
+
         var primed = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
         feederCancellation =
@@ -858,27 +933,38 @@ public sealed class NativeAudioEngine :
         feederTask = currentSource == null
             ? Task.Run(
                 () => feedSilenceAsync(
-                    core,
+                    currentCore,
                     primed,
                     feederCancellation.Token),
                 CancellationToken.None)
             : Task.Run(
                 () => feedPcmAsync(
                     currentSource,
-                    core,
+                    currentCore,
                     primed,
                     feederCancellation.Token),
                 CancellationToken.None);
 
         await primed.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
-        core.Start();
+        currentCore.Start();
+        await openOutputAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task openOutputAsync(
+        AudioEngineStartRequest request,
+        CancellationToken cancellationToken)
+    {
+        NativeAudioCore currentCore =
+            core ?? throw new InvalidOperationException("Audio core is missing.");
+        uint preferredBufferFrames = (uint)Math.Clamp(
+            request.PreferredBufferSize <= 0 ? 128 : request.PreferredBufferSize,
+            64,
+            2048);
 
         AudioBackendKind activeBackend;
         if (request.PreferredBackend == AudioBackendKind.Asio)
         {
-            // ASIO is an explicit expert choice. Never hide a driver failure
-            // by changing the backend and therefore its latency/clock model.
-            outputStatus = core.OpenAsio(
+            outputStatus = currentCore.OpenAsio(
                 request.DeviceId,
                 preferredBufferFrames);
             activeBackend = AudioBackendKind.Asio;
@@ -892,7 +978,7 @@ public sealed class NativeAudioEngine :
                     : NativeAudioBackendMode.WasapiExclusive;
             try
             {
-                outputStatus = core.OpenWasapi(
+                outputStatus = currentCore.OpenWasapi(
                     requestedMode,
                     request.DeviceId,
                     preferredBufferFrames);
@@ -908,7 +994,7 @@ public sealed class NativeAudioEngine :
             {
                 try
                 {
-                    outputStatus = core.OpenWasapi(
+                    outputStatus = currentCore.OpenWasapi(
                         NativeAudioBackendMode.WasapiShared,
                         request.DeviceId,
                         preferredBufferFrames);
@@ -955,6 +1041,8 @@ public sealed class NativeAudioEngine :
                 WasapiSharedExplicitPeriodError =
                     outputStatus.SharedExplicitPeriodError,
             };
+
+        await ValueTask.CompletedTask.ConfigureAwait(false);
     }
 
     private static string resolveDeviceName(

@@ -200,6 +200,10 @@ public static class OsuManiaBeatmapIO
         if (previewTime >= 0)
             previewTime += legacyTimingOffset;
 
+        double localOffset = parseDouble(
+            general.GetValueOrDefault("Offset"),
+            0);
+
         string romanisedTitle = metadataValue(metadata, "Title", "Untitled");
         string romanisedArtist = metadataValue(
             metadata,
@@ -222,6 +226,7 @@ public static class OsuManiaBeatmapIO
             ConversionSource: conversionSource,
             StageCount: stageCount,
             PreviewTimeMilliseconds: previewTime,
+            LocalOffsetMilliseconds: localOffset,
             BreakPeriods: breakPeriods,
             RomanisedTitle: romanisedTitle,
             RomanisedArtist: romanisedArtist,
@@ -302,6 +307,7 @@ public static class OsuManiaBeatmapIO
         builder.AppendLine("[General]");
         builder.AppendLine($"AudioFilename: {formatAudioFilename(beatmap.AudioPath)}");
         builder.AppendLine("AudioLeadIn: 0");
+        builder.AppendLine($"Offset: {formatDouble(beatmap.LocalOffsetMilliseconds)}");
         builder.AppendLine(
             $"PreviewTime: {formatDouble(beatmap.PreviewTimeMilliseconds)}");
         builder.AppendLine("Countdown: 0");

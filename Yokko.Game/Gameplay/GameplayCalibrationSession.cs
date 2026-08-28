@@ -13,13 +13,7 @@ internal sealed class GameplayCalibrationSession
 
     private readonly List<double> tapOffsets = new();
     private int lastRecordedBeat = -1;
-
-    public GameplayCalibrationSession(double startTime)
-    {
-        StartTime = startTime;
-    }
-
-    public double StartTime { get; }
+    private double? startPlaybackTimeMilliseconds;
 
     public int SampleCount => tapOffsets.Count;
 
@@ -36,15 +30,41 @@ internal sealed class GameplayCalibrationSession
                 200)
             : 0;
 
-    public double RemainingMilliseconds(double currentTime) =>
-        Math.Max(0, DurationMilliseconds - (currentTime - StartTime));
+    public bool IsAudioSessionStarted =>
+        startPlaybackTimeMilliseconds.HasValue;
 
-    public bool IsComplete(double currentTime) =>
-        currentTime - StartTime >= DurationMilliseconds;
+    public double StartPlaybackTimeMilliseconds =>
+        startPlaybackTimeMilliseconds
+        ?? throw new InvalidOperationException(
+            "The calibration audio session has not started yet.");
 
-    public bool TryRecordTap(double currentTime)
+    public void BeginAudioSession(double startPlaybackTimeMilliseconds)
     {
-        double elapsed = currentTime - StartTime;
+        if (!double.IsFinite(startPlaybackTimeMilliseconds)
+            || startPlaybackTimeMilliseconds < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(startPlaybackTimeMilliseconds));
+        }
+
+        this.startPlaybackTimeMilliseconds = startPlaybackTimeMilliseconds;
+    }
+
+    public bool IsComplete(double playbackTimeMilliseconds) =>
+        startPlaybackTimeMilliseconds is double start
+        && playbackTimeMilliseconds - start >= DurationMilliseconds;
+
+    public double RemainingMilliseconds(double playbackTimeMilliseconds) =>
+        startPlaybackTimeMilliseconds is double start
+            ? Math.Max(0, DurationMilliseconds - (playbackTimeMilliseconds - start))
+            : DurationMilliseconds;
+
+    public bool TryRecordTapAtPlaybackTime(double playbackTimeMilliseconds)
+    {
+        if (startPlaybackTimeMilliseconds is not double start)
+            return false;
+
+        double elapsed = playbackTimeMilliseconds - start;
         if (elapsed < LeadInMilliseconds
             || elapsed >= DurationMilliseconds)
         {

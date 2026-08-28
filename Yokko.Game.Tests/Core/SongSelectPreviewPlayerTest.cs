@@ -324,6 +324,13 @@ public sealed class SongSelectPreviewPlayerTest
             return ValueTask.CompletedTask;
         }
 
+        public ValueTask ResumeAsync(
+            CancellationToken cancellationToken = default)
+        {
+            Status = Status with { IsRunning = true };
+            return ValueTask.CompletedTask;
+        }
+
         public ValueTask SeekAsync(
             double timeMilliseconds,
             CancellationToken cancellationToken = default)

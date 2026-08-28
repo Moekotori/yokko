@@ -125,7 +125,7 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
     }
 
     internal async Task PlayCalibrationAsync(
-        Action playbackStarted,
+        Action<IAudioEngine> playbackStarted,
         CancellationToken cancellationToken = default)
     {
         using CancellationTokenSource linked =
@@ -152,7 +152,7 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
                                 settings.CreateStartRequest(calibrationPath),
                                 token)
                             .ConfigureAwait(false);
-                playbackStarted?.Invoke();
+                playbackStarted?.Invoke(engine);
                 await delay(
                           TimeSpan.FromSeconds(calibration_duration_seconds),
                           token)

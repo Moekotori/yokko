@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -60,6 +61,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private SpriteText keyCaptureHint;
     private CancellationTokenSource calibrationRunCancellation;
     private GameplayCalibrationSession calibrationSession;
+    private IAudioEngine calibrationEngine;
     private double? pendingCalibrationSuggestion;
     private double nextCalibrationStatusUpdate;
     private int lastCalibrationPulseBeat = -1;
@@ -441,22 +443,23 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         _ = runCalibrationAsync(calibrationRunCancellation.Token);
     }
 
-    internal void StartCalibrationForTest(double startTime)
+    internal void StartCalibrationForTest(double startPlaybackTime)
     {
         cancelCalibration(false);
-        calibrationSession = new GameplayCalibrationSession(startTime);
+        calibrationSession = new GameplayCalibrationSession();
+        calibrationSession.BeginAudioSession(startPlaybackTime);
         calibrationPreparing = false;
-        refreshCalibrationStatus(startTime);
+        refreshCalibrationStatus(startPlaybackTime);
     }
 
-    internal double FinishCalibrationForTest(double currentTime)
+    internal double FinishCalibrationForTest(double currentPlaybackTime)
     {
         if (calibrationSession == null)
             return 0;
 
         double suggestion =
             calibrationSession.SuggestedOffsetMilliseconds;
-        finishCalibration(currentTime);
+        finishCalibration(currentPlaybackTime);
         return suggestion;
     }
 
@@ -549,8 +552,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         if (lane < bindingCards.Count)
             bindingCards[lane].SetPressed(true);
 
-        if (calibrationSession?.TryRecordTap(Time.Current) == true)
-            refreshCalibrationStatus(Time.Current);
+        if (tryRecordCalibrationTap())
+            refreshCalibrationStatus(getCalibrationPlaybackTime());
         else if (!IsCalibrationActive)
             refreshLiveInputStatus(inputKey, lane);
 
@@ -582,8 +585,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
         if (lane < bindingCards.Count)
             bindingCards[lane].SetPressed(true);
-        if (calibrationSession?.TryRecordTap(Time.Current) == true)
-            refreshCalibrationStatus(Time.Current);
+        if (tryRecordCalibrationTap())
+            refreshCalibrationStatus(getCalibrationPlaybackTime());
         else if (!IsCalibrationActive)
             refreshLiveInputStatus(key, lane);
 
@@ -1812,18 +1815,24 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         try
         {
             await calibrationPlayer.PlayCalibrationAsync(
-                () => Scheduler.Add(() =>
+                engine =>
                 {
-                    if (disposed || token.IsCancellationRequested)
-                        return;
+                    Scheduler.Add(() =>
+                    {
+                        if (disposed || token.IsCancellationRequested)
+                            return;
 
-                    calibrationPreparing = false;
-                    calibrationSession =
-                        new GameplayCalibrationSession(Time.Current);
-                    nextCalibrationStatusUpdate = 0;
-                    lastCalibrationPulseBeat = -1;
-                    refreshCalibrationStatus(Time.Current);
-                }),
+                        calibrationEngine = engine;
+                        calibrationPreparing = false;
+                        calibrationSession = new GameplayCalibrationSession();
+                        calibrationSession.BeginAudioSession(
+                            engine.PlaybackTimeMilliseconds);
+                        nextCalibrationStatusUpdate = 0;
+                        lastCalibrationPulseBeat = -1;
+                        refreshCalibrationStatus(
+                            engine.PlaybackTimeMilliseconds);
+                    });
+                },
                 token);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -1842,6 +1851,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
                 calibrationPreparing = false;
                 calibrationSession = null;
+                calibrationEngine = null;
                 calibrationResultVisible = true;
                 statusTitle.Text = YokkoStrings.Get(
                     "settings.gameplay.calibration_failed");
@@ -1860,12 +1870,12 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
                 calibrationPreparing = false;
                 if (calibrationSession != null)
-                    finishCalibration(Time.Current);
+                    finishCalibration(getCalibrationPlaybackTime());
             });
         }
     }
 
-    private void refreshCalibrationStatus(double currentTime = 0)
+    private void refreshCalibrationStatus(double playbackTimeMilliseconds = 0)
     {
         if (calibrationPreparing)
         {
@@ -1881,7 +1891,10 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         if (calibrationSession == null)
             return;
 
-        double elapsed = currentTime - calibrationSession.StartTime;
+        double elapsed = calibrationSession.IsAudioSessionStarted
+            ? playbackTimeMilliseconds
+              - calibrationSession.StartPlaybackTimeMilliseconds
+            : 0;
         int beat = elapsed < GameplayCalibrationSession.LeadInMilliseconds
             ? -1
             : (int)Math.Floor(
@@ -1895,7 +1908,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         }
 
         double remaining =
-            calibrationSession.RemainingMilliseconds(currentTime);
+            calibrationSession.RemainingMilliseconds(playbackTimeMilliseconds);
         statusTitle.Text = YokkoStrings.Get(
             "settings.gameplay.calibration_running");
         statusMetadata.Text = calibrationSession.SampleCount == 0
@@ -1910,13 +1923,14 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             Math.Max(0, (int)Math.Ceiling(remaining / 1000))));
     }
 
-    private void finishCalibration(double currentTime)
+    private void finishCalibration(double playbackTimeMilliseconds)
     {
         GameplayCalibrationSession completed = calibrationSession;
         if (completed == null)
             return;
 
         calibrationSession = null;
+        calibrationEngine = null;
         calibrationPreparing = false;
         calibrationResultVisible = true;
 
@@ -1955,6 +1969,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         calibrationRunCancellation = null;
         calibrationPreparing = false;
         calibrationSession = null;
+        calibrationEngine = null;
         pendingCalibrationSuggestion = null;
         calibrationResultVisible = showMessage;
         lastCalibrationPulseBeat = -1;
@@ -1981,17 +1996,44 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         if (calibrationSession == null)
             return;
 
-        if (calibrationSession.IsComplete(Time.Current))
+        double playbackTime = getCalibrationPlaybackTime();
+        if (calibrationSession.IsComplete(playbackTime))
         {
-            finishCalibration(Time.Current);
+            finishCalibration(playbackTime);
             return;
         }
 
         if (Time.Current >= nextCalibrationStatusUpdate)
         {
-            refreshCalibrationStatus(Time.Current);
+            refreshCalibrationStatus(playbackTime);
             nextCalibrationStatusUpdate = Time.Current + 100;
         }
+    }
+
+    private double getCalibrationPlaybackTime() =>
+        calibrationEngine?.PlaybackTimeMilliseconds ?? 0;
+
+    private bool tryRecordCalibrationTap()
+    {
+        if (calibrationSession == null
+            || calibrationEngine is not ITimestampedAudioClock clock)
+        {
+            return false;
+        }
+
+        long timestamp = Stopwatch.GetTimestamp();
+        AudioEngineSnapshot snapshot = calibrationEngine.Snapshot;
+        if (!clock.TryGetPlaybackTimeAtTimestamp(
+                snapshot,
+                timestamp,
+                Stopwatch.Frequency,
+                out double playbackTimeMilliseconds))
+        {
+            return false;
+        }
+
+        return calibrationSession.TryRecordTapAtPlaybackTime(
+            playbackTimeMilliseconds);
     }
 
     private static Drawable createDecorationIcon(

@@ -5832,6 +5832,9 @@ StageHint: stage-hint
             public ValueTask PauseAsync(CancellationToken cancellationToken = default) =>
                 ValueTask.CompletedTask;
 
+            public ValueTask ResumeAsync(CancellationToken cancellationToken = default) =>
+                ValueTask.CompletedTask;
+
             public ValueTask SeekAsync(
                 double timeMilliseconds,
                 CancellationToken cancellationToken = default) =>
@@ -5890,6 +5893,13 @@ StageHint: stage-hint
             {
                 PauseCount++;
                 status = createStatus(false);
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask ResumeAsync(
+                CancellationToken cancellationToken = default)
+            {
+                status = createStatus(true);
                 return ValueTask.CompletedTask;
             }
 
