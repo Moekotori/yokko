@@ -73,8 +73,8 @@ public sealed class BeatTimingMap
 
     public int ClosestRowAt(double timeMilliseconds)
     {
-        TimingSegment segment = segmentAtTime(timeMilliseconds);
-        int segmentIndex = Array.IndexOf(segments, segment);
+        int segmentIndex = segmentIndexAtTime(timeMilliseconds);
+        TimingSegment segment = segments[segmentIndex];
         int localRow = (int)Math.Round(
             (timeMilliseconds - segment.StartTimeMilliseconds) / segment.StepMilliseconds,
             MidpointRounding.AwayFromZero);
@@ -126,14 +126,33 @@ public sealed class BeatTimingMap
     }
 
     private TimingSegment segmentAtTime(double timeMilliseconds)
+        => segments[segmentIndexAtTime(timeMilliseconds)];
+
+    /// <summary>
+    /// Binary-searches the last segment starting at or before the given time,
+    /// mirroring <see cref="ScrollVelocityMap"/>'s segment lookup. Times
+    /// before the first segment clamp to index 0.
+    /// </summary>
+    private int segmentIndexAtTime(double timeMilliseconds)
     {
-        for (int i = segments.Length - 1; i >= 0; i--)
+        int low = 0;
+        int high = segments.Length - 1;
+        int result = 0;
+
+        while (low <= high)
         {
-            if (timeMilliseconds >= segments[i].StartTimeMilliseconds)
-                return segments[i];
+            int middle = low + (high - low) / 2;
+
+            if (segments[middle].StartTimeMilliseconds <= timeMilliseconds)
+            {
+                result = middle;
+                low = middle + 1;
+            }
+            else
+                high = middle - 1;
         }
 
-        return segments[0];
+        return result;
     }
 
     private sealed record TimingSegment(

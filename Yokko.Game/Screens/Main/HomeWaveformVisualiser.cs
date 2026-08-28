@@ -51,6 +51,7 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
     private double durationMilliseconds;
     private double progressMilliseconds;
     private WaveformObstacle[] obstacles = [];
+    private float layoutDrawWidth = -1;
 
     public HomeWaveformVisualiser()
     {
@@ -138,9 +139,9 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
         if (DrawWidth <= 0)
             return;
 
-        float pitch = DrawWidth / bar_count;
-        // 细柱才有印刷纹样的锐度：柱宽取柱距的 0.4，圆头胶囊由柱宽一半圆角保证。
-        float barWidth = MathF.Max(2.5f, pitch * 0.4f);
+        if (DrawWidth != layoutDrawWidth)
+            updateBarLayout();
+
         bool hasWaveform = samples != null && durationMilliseconds > 0;
 
         double centrePoint = hasWaveform
@@ -159,10 +160,6 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
         for (int i = 0; i < bar_count; i++)
         {
             Container bar = bars[i];
-            bar.X = i * pitch + pitch / 2;
-            bar.Width = barWidth;
-            bar.CornerRadius = barWidth / 2;
-
             Box fill = (Box)bar.Child;
 
             if (!hasWaveform)
@@ -187,6 +184,26 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
             float target = min_bar + MathF.Pow(energy, 1.2f) * (heightMax - min_bar);
             float blend = target > bar.Height ? attack : release;
             bar.Height += (target - bar.Height) * blend;
+        }
+    }
+
+    /// <summary>
+    /// 柱条的横向排布只随可视化带宽度变化，缓存后仅在 <see cref="Drawable.DrawWidth"/>
+    /// 改变时重算，避免每帧对 128 根柱子重复写入 X/Width/CornerRadius。
+    /// </summary>
+    private void updateBarLayout()
+    {
+        layoutDrawWidth = DrawWidth;
+        float pitch = layoutDrawWidth / bar_count;
+        // 细柱才有印刷纹样的锐度：柱宽取柱距的 0.4，圆头胶囊由柱宽一半圆角保证。
+        float barWidth = MathF.Max(2.5f, pitch * 0.4f);
+
+        for (int i = 0; i < bar_count; i++)
+        {
+            Container bar = bars[i];
+            bar.X = i * pitch + pitch / 2;
+            bar.Width = barWidth;
+            bar.CornerRadius = barWidth / 2;
         }
     }
 
