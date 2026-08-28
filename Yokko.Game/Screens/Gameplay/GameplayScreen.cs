@@ -566,6 +566,8 @@ public partial class GameplayScreen : Screen
             }
         }
         audioSettings.MixChanged += onAudioMixChanged;
+        audioSettings.UserOffsetMilliseconds.BindValueChanged(
+            onUserOffsetChanged);
         hasAudioClock = !string.IsNullOrWhiteSpace(beatmap.AudioPath)
                         || hasSamplePlayback && audioEngine is NativeAudioEngine;
         restartKeysoundPreparation();
@@ -1039,7 +1041,10 @@ public partial class GameplayScreen : Screen
         // changed library selection to this existing run before it is shown
         // again, rather than requiring the player to restart the chart.
         if (isPaused)
+        {
             applySelectedSkinIfChanged();
+            refreshActiveUserOffset(adjustPausedTimeline: true);
+        }
     }
 
     protected override void Update()
@@ -1793,6 +1798,8 @@ public partial class GameplayScreen : Screen
 
             host.Deactivated -= onHostDeactivated;
             audioSettings.MixChanged -= onAudioMixChanged;
+            audioSettings.UserOffsetMilliseconds.ValueChanged -=
+                onUserOffsetChanged;
             gameplaySettings.ScrollSpeed.ValueChanged -=
                 onScrollSpeedChanged;
             if (skinSettings != null)
@@ -1841,6 +1848,21 @@ public partial class GameplayScreen : Screen
         }
     }
 
+    private void onUserOffsetChanged(
+        osu.Framework.Bindables.ValueChangedEvent<double> change) =>
+        refreshActiveUserOffset(adjustPausedTimeline: isPaused);
+
+    private void refreshActiveUserOffset(bool adjustPausedTimeline = false)
+    {
+        double next = audioSettings.UserOffsetMilliseconds.Value;
+
+        if (adjustPausedTimeline && isPaused)
+            pausedGameplayTime += next - activeUserOffsetMilliseconds;
+
+        activeUserOffsetMilliseconds = next;
+        rawKeysoundDispatcher?.SetUserOffset(activeUserOffsetMilliseconds);
+    }
+
     private async Task startAudioAsync()
     {
         CancellationToken lifetimeToken = gameplayLifetimeCancellation.Token;
@@ -1850,10 +1872,7 @@ public partial class GameplayScreen : Screen
             await waitForLatestKeysoundPreparationAsync(lifetimeToken)
                 .ConfigureAwait(true);
             lifetimeToken.ThrowIfCancellationRequested();
-            activeUserOffsetMilliseconds =
-                audioSettings.UserOffsetMilliseconds.Value;
-            rawKeysoundDispatcher?.SetUserOffset(
-                activeUserOffsetMilliseconds);
+            refreshActiveUserOffset();
             double initialPlaybackRate =
                 currentPlaybackRate(currentGameplayTime);
             AudioEngineStartRequest startRequest =
