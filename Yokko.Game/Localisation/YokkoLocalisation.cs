@@ -1035,6 +1035,10 @@ internal static class YokkoStrings
                 "Extended chart to {0} rows.",
                 "谱面已扩展至 {0} 行。",
                 "譜面を {0} 行まで拡張しました。"),
+            ["editor.status.importing"] = new(
+                "Importing {0}...",
+                "正在导入 {0}……",
+                "{0} をインポートしています…"),
             ["editor.status.imported"] = new(
                 "Imported {0}.{1}",
                 "已导入 {0}。{1}",
