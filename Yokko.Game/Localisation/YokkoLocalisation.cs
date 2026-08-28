@@ -1130,26 +1130,40 @@ internal static class YokkoStrings
             ["settings.general.section_updates"] = new("Updates", "更新", "アップデート"),
             ["settings.general.current_language"] = new("Current language", "当前语言", "現在の言語"),
             ["settings.general.language"] = new("Language", "语言", "言語"),
-            ["settings.general.language_note"] = new(
-                "Language changes apply immediately and are saved automatically.",
-                "语言更改会立即生效并自动保存。",
-                "言語の変更はすぐに反映され、自動的に保存されます。"),
-            ["settings.general.mania_scroll_speed"] = new(
-                "Scroll speed",
-                "流速",
-                "スクロール速度"),
-            ["settings.general.mania_scroll_speed_note"] = new(
-                "Fine off: whole levels only. Fine on: drag by tenths; wheel, arrows and gameplay shortcuts adjust 1 ms.",
-                "微调关闭：拖动、滚轮和方向键按整档；开启：拖动可细调，滚轮、方向键或游玩快捷键每次 1 ms。",
-                "微調整オフ：整数段階のみ。オン：ドラッグで細かく、ホイール・方向キー・プレイ中のキーは 1 ms ずつ調整。"),
-            ["settings.general.fine_adjustment"] = new(
-                "Fine",
-                "微调",
-                "微調整"),
+            ["settings.general.home_music"] = new(
+                "Home screen music",
+                "主页背景音乐",
+                "ホーム画面の音楽"),
+            ["settings.general.player_name"] = new(
+                "Display name",
+                "显示名称",
+                "表示名"),
+            ["settings.general.player_id_value"] = new(
+                "Player ID: {0}",
+                "玩家 ID：{0}",
+                "プレイヤー ID: {0}"),
+            ["settings.general.version"] = new(
+                "Current version",
+                "当前版本",
+                "現在のバージョン"),
+            ["settings.general.updates_note"] = new(
+                "Visit About for credits and acknowledgements.",
+                "完整版本信息与致谢请前往「关于」页面。",
+                "クレジットと謝辞は「About」ページをご覧ください。"),
             ["settings.general.debug_console"] = new(
                 "Live debug console · F12",
                 "实时调试控制台 · F12",
                 "リアルタイムデバッグコンソール · F12"),
+            ["settings.general.enabled"] = new("Enabled", "已开启", "オン"),
+            ["settings.general.disabled"] = new("Disabled", "已关闭", "オフ"),
+            ["settings.general.debug_console_visible"] = new(
+                "Visible",
+                "已显示",
+                "表示中"),
+            ["settings.general.debug_console_hidden"] = new(
+                "Hidden",
+                "已隐藏",
+                "非表示"),
             ["settings.language.english"] = new("English", "English", "English"),
             ["settings.language.chinese"] = new("简体中文", "简体中文", "简体中文"),
             ["settings.language.japanese"] = new("日本語", "日本語", "日本語"),
@@ -1180,18 +1194,10 @@ internal static class YokkoStrings
                 "Performance readout",
                 "性能读数",
                 "パフォーマンス表示"),
-            ["settings.display.difficulty_rating"] = new(
-                "Difficulty rating",
-                "难度显示",
-                "難易度表示"),
-            ["settings.display.difficulty_rating.etterna"] = new(
-                "Etterna MSD",
-                "Etterna MSD",
-                "Etterna MSD"),
-            ["settings.display.difficulty_rating.rebirth"] = new(
-                "Rebirth stars",
-                "Rebirth 星级",
-                "Rebirth 星評価"),
+            ["settings.display.mobile_note"] = new(
+                "Window and resolution options are managed by your device on this platform.",
+                "此平台的窗口与分辨率由系统管理。",
+                "このプラットフォームではウィンドウと解像度は端末側で管理されます。"),
             ["settings.display.enabled"] = new("Enabled", "已开启", "オン"),
             ["settings.display.disabled"] = new("Disabled", "已关闭", "オフ"),
             ["settings.display.windowed"] = new("Windowed", "窗口化", "ウィンドウ"),
@@ -1212,14 +1218,13 @@ internal static class YokkoStrings
                 "Alt+Tab\u3001\u975e\u30a2\u30af\u30c6\u30a3\u30d6\u6642\u306e\u6027\u80fd\u3001\u97f3\u58f0\u3001\u30d5\u30eb\u30b9\u30af\u30ea\u30fc\u30f3\u51fa\u529b\u3092\u8abf\u6574\u3057\u307e\u3059\u3002"),
             ["settings.desktop.current_output"] = new("Current output", "\u5f53\u524d\u8f93\u51fa", "\u73fe\u5728\u306e\u51fa\u529b"),
             ["settings.desktop.fast_alt_tab"] = new("Fast Alt+Tab", "\u5feb\u901f Alt+Tab", "\u9ad8\u901f Alt+Tab"),
+            ["settings.desktop.enabled"] = new("Enabled", "已开启", "オン"),
+            ["settings.desktop.disabled"] = new("Disabled", "已关闭", "オフ"),
             ["settings.desktop.dynamic_fps"] = new("Dynamic frame rate", "\u52a8\u6001\u5e27\u6570", "\u52d5\u7684\u30d5\u30ec\u30fc\u30e0\u30ec\u30fc\u30c8"),
             ["settings.desktop.background_fps"] = new("Background frame rate", "\u540e\u53f0\u5e27\u7387", "\u30d0\u30c3\u30af\u30b0\u30e9\u30a6\u30f3\u30c9 FPS"),
             ["settings.desktop.background_audio"] = new("Background audio", "\u540e\u53f0\u97f3\u9891", "\u30d0\u30c3\u30af\u30b0\u30e9\u30a6\u30f3\u30c9\u97f3\u58f0"),
             ["settings.desktop.fullscreen_display"] = new("Fullscreen display", "\u5168\u5c4f\u663e\u793a\u5668", "\u30d5\u30eb\u30b9\u30af\u30ea\u30fc\u30f3\u8868\u793a\u5148"),
             ["settings.desktop.boss_key"] = new("Minimise shortcut", "\u4e00\u952e\u6700\u5c0f\u5316", "\u6700\u5c0f\u5316\u30b7\u30e7\u30fc\u30c8\u30ab\u30c3\u30c8"),
-            ["settings.desktop.audio_keep"] = new("Keep", "\u4fdd\u6301", "\u7dad\u6301"),
-            ["settings.desktop.audio_dim"] = new("20%", "20%", "20%"),
-            ["settings.desktop.audio_mute"] = new("Mute", "\u9759\u97f3", "\u30df\u30e5\u30fc\u30c8"),
 
             ["debug_console.title"] = new("YOKKO LIVE DEBUG", "YOKKO 实时调试", "YOKKO ライブデバッグ"),
             ["debug_console.pause"] = new("Pause", "暂停", "一時停止"),
@@ -1281,6 +1286,10 @@ internal static class YokkoStrings
             ["settings.audio.enabled"] = new("Enabled", "已开启", "オン"),
             ["settings.audio.disabled"] = new("Disabled", "已关闭", "オフ"),
             ["settings.audio.offset"] = new("Timing offset", "时序偏移", "タイミングオフセット"),
+            ["settings.audio.offset_note"] = new(
+                "Shared with Gameplay timing so offset has one source of truth.",
+                "与玩法时序设置共享，确保偏移只有一个真源。",
+                "ゲームプレイのタイミング設定と共有し、オフセットを一元管理します。"),
             ["settings.audio.exclusive"] = new("WASAPI Exclusive", "WASAPI 独占", "WASAPI 排他"),
             ["settings.audio.shared"] = new("WASAPI Shared", "WASAPI 共享", "WASAPI 共有"),
             ["settings.audio.asio"] = new("ASIO", "ASIO", "ASIO"),
@@ -1884,6 +1893,22 @@ internal static class YokkoStrings
                 "Changes presentation only; timing and judgement stay the same.",
                 "只改变音符移动方向，不影响谱面时间与判定。",
                 "表示方向のみを変更し、タイミングと判定には影響しません。"),
+            ["settings.gameplay.difficulty_rating"] = new(
+                "Difficulty rating",
+                "难度显示",
+                "難易度表示"),
+            ["settings.gameplay.difficulty_rating_note"] = new(
+                "Controls how chart difficulty is shown in song select and results.",
+                "控制选曲与结果界面的谱面难度展示方式。",
+                "選曲とリザルトでの譜面難易度表示方式を切り替えます。"),
+            ["settings.gameplay.difficulty_rating.etterna"] = new(
+                "Etterna MSD",
+                "Etterna MSD",
+                "Etterna MSD"),
+            ["settings.gameplay.difficulty_rating.rebirth"] = new(
+                "Rebirth stars",
+                "Rebirth 星级",
+                "Rebirth 星評価"),
             ["settings.gameplay.scroll_direction_down"] = new(
                 "Downscroll",
                 "Downscroll · 向下",

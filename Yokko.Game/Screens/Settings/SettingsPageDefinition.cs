@@ -56,8 +56,8 @@ internal static class SettingsPages
             YokkoStrings.SearchTerms("settings.general.title"),
             YokkoStrings.SearchTermsForPrefix(
                 "settings.general.",
-                "ui interface locale startup update scroll speed",
-                "界面 语言 启动 更新 滚速")),
+                "ui interface locale startup update home music player name version",
+                "界面 语言 启动 更新 主页音乐 玩家名 版本")),
         SettingsPageKind.Display => new(
             kind,
             YokkoStrings.Get("settings.display.title"),
@@ -117,8 +117,8 @@ internal static class SettingsPages
             YokkoStrings.SearchTerms("settings.gameplay.title"),
             YokkoStrings.SearchTermsForPrefix(
                 "settings.gameplay.",
-                "keybind timing judgement feedback keysound pause unfocused countdown",
-                "键位 按键 判定 反馈 按键音 暂停 失焦 倒计时")),
+                "keybind timing judgement feedback keysound pause unfocused countdown difficulty rating msd star",
+                "键位 按键 判定 反馈 按键音 暂停 失焦 倒计时 难度 MSD 星级")),
         SettingsPageKind.Shortcuts => new(
             kind,
             YokkoStrings.Get("settings.shortcuts.title"),

@@ -31,7 +31,15 @@ internal partial class SettingsSidebar : CompositeDrawable
     private readonly SpriteText noResults;
     private readonly Box divider;
     private readonly Container selectionGlider;
+    private readonly SettingsContentScrollContainer navigationScroll;
+    private readonly FillFlowContainer navigationFlow;
     private float gliderTargetY = -1;
+
+    internal const float NavigationTop = 288;
+    internal const float NavigationHeight = 364;
+
+    internal float NavigationScrollPosition => (float)navigationScroll.Current;
+    internal float NavigationScrollableExtent => (float)navigationScroll.ScrollableExtent;
 
     internal string SearchQuery => searchBox.Current.Value;
     internal bool SearchHasFocus => searchBox.HasFocus;
@@ -97,14 +105,18 @@ internal partial class SettingsSidebar : CompositeDrawable
             {
                 Position = new Vector2(38, 234),
             },
-            new FillFlowContainer
+            navigationScroll = new SettingsContentScrollContainer
             {
-                Position = new Vector2(30, 288),
-                Width = 252,
-                AutoSizeAxes = Axes.Y,
-                Direction = FillDirection.Vertical,
-                Spacing = Vector2.Zero,
-                Children = navigation,
+                Position = new Vector2(30, NavigationTop),
+                Size = new Vector2(252, NavigationHeight),
+                Child = navigationFlow = new FillFlowContainer
+                {
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                    Direction = FillDirection.Vertical,
+                    Spacing = Vector2.Zero,
+                    Children = navigation,
+                },
             },
             noResults = new SpriteText
             {
@@ -176,7 +188,8 @@ internal partial class SettingsSidebar : CompositeDrawable
             return;
         }
 
-        float target = 288 + selectedItem.Position.Y + 4;
+        float target = ToLocalSpace(
+            selectedItem.ScreenSpaceDrawQuad.TopLeft).Y + 4;
         selectionGlider.Show();
 
         if (MathF.Abs(target - gliderTargetY) > 0.5f)
@@ -197,31 +210,65 @@ internal partial class SettingsSidebar : CompositeDrawable
         SettingsNavItem gameplay = createNavItem(SettingsPageKind.Gameplay);
         SettingsNavItem shortcuts = createNavItem(SettingsPageKind.Shortcuts);
         SettingsNavItem skins = createNavItem(SettingsPageKind.Skins);
-        SettingsNavItem editor = createNavItem(SettingsPageKind.Editor);
         SettingsNavItem import = createNavItem(SettingsPageKind.Import);
 
         var systemHeader = new SettingsNavHeader(YokkoStrings.Get("settings.group_system"));
-        SettingsNavItem desktop = createNavItem(SettingsPageKind.Desktop);
-        SettingsNavItem accessibility = createNavItem(SettingsPageKind.Accessibility);
+        SettingsNavItem desktop = SettingsNavigation.IsVisible(SettingsPageKind.Desktop)
+            ? createNavItem(SettingsPageKind.Desktop)
+            : null;
         SettingsNavItem safety = createNavItem(SettingsPageKind.Safety);
         SettingsNavItem about = createNavItem(SettingsPageKind.About);
 
         navigationGroups.Add((coreHeader, new[] { general, display, audio }));
-        navigationGroups.Add((creationHeader, new[] { gameplay, shortcuts, skins, editor, import }));
-        navigationGroups.Add((systemHeader, new[] { desktop, accessibility, safety, about }));
+        navigationGroups.Add((creationHeader, new[] { gameplay, shortcuts, skins, import }));
 
-        return new Drawable[]
+        var systemItems = new List<SettingsNavItem> { safety, about };
+        if (desktop != null)
+            systemItems.Insert(0, desktop);
+        navigationGroups.Add((systemHeader, systemItems.ToArray()));
+
+        var navigation = new List<Drawable>
         {
             coreHeader, general, display, audio,
-            creationHeader, gameplay, shortcuts, skins, editor, import,
-            systemHeader, desktop, accessibility, safety, about,
+            creationHeader, gameplay, shortcuts, skins, import,
+            systemHeader,
         };
+        if (desktop != null)
+            navigation.Add(desktop);
+        navigation.Add(safety);
+        navigation.Add(about);
+        return navigation.ToArray();
     }
 
     public void SetSelected(SettingsPageKind page)
     {
         foreach ((SettingsPageKind kind, SettingsNavItem item) in navigationItems)
             item.SetSelected(kind == page);
+
+        if (navigationItems.TryGetValue(page, out SettingsNavItem selected)
+            && selected.IsFilteredVisible)
+        {
+            scrollNavigationItemIntoView(selected);
+        }
+    }
+
+    private void scrollNavigationItemIntoView(SettingsNavItem item)
+    {
+        if (navigationScroll.ScrollableExtent <= 0.5)
+        {
+            navigationScroll.ScrollToStart(false);
+            return;
+        }
+
+        float itemTop = item.ToSpaceOfOtherDrawable(Vector2.Zero, navigationFlow).Y;
+        float itemBottom = itemTop + item.DrawHeight;
+        float visibleTop = (float)navigationScroll.Current;
+        float visibleBottom = visibleTop + navigationScroll.DrawHeight;
+
+        if (itemTop < visibleTop)
+            navigationScroll.ScrollTo(itemTop, true);
+        else if (itemBottom > visibleBottom)
+            navigationScroll.ScrollTo(itemBottom - navigationScroll.DrawHeight, true);
     }
 
     internal void SetSearchQuery(string query) =>
@@ -292,6 +339,10 @@ internal partial class SettingsSidebar : CompositeDrawable
 
     private SettingsNavItem createNavItem(SettingsPageKind page)
     {
+        if (!SettingsNavigation.IsVisible(page))
+            throw new InvalidOperationException(
+                $"Settings page {page} is not visible on this platform.");
+
         SettingsPageDefinition definition = SettingsPages.Get(page);
         var item = new SettingsNavItem(
             page,

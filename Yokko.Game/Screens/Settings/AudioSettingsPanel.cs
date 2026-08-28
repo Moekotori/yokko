@@ -56,8 +56,6 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
     internal double CurrentMasterVolume => settings.MasterVolume.Value;
     internal double CurrentMusicVolume => settings.MusicVolume.Value;
     internal double CurrentHitSoundVolume => settings.HitSoundVolume.Value;
-    internal bool HitSoundsEnabled =>
-        gameplaySettings.KeysoundsEnabled.Value;
     internal bool IsDeviceMenuOpen => deviceSelector.IsOpen;
 
     public AudioSettingsPanel(
@@ -115,22 +113,24 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
             createDivider(464),
             createSettingRow(
                 468,
-                YokkoStrings.Get("settings.audio.hitsounds"),
-                new SettingsAudioToggle(
-                    gameplaySettings.KeysoundsEnabled)),
-            createDivider(522),
-            createSettingRow(
-                526,
                 YokkoStrings.Get("settings.audio.test"),
                 testControl = new SettingsAudioTestControl(
                     () => StartAudioTest(AudioSettingsTestKind.Music),
                     () => StartAudioTest(AudioSettingsTestKind.HitSound))),
-            createDivider(580),
+            createDivider(522),
             createSettingRow(
-                584,
+                526,
                 YokkoStrings.Get("settings.audio.offset"),
                 new SettingsOffsetStepper(
                     settings.UserOffsetMilliseconds)),
+            new SpriteText
+            {
+                Position = new Vector2(378, 582),
+                Width = 840,
+                Text = YokkoStrings.Get("settings.audio.offset_note"),
+                Font = HomeTypography.Body(14),
+                Colour = SettingsTheme.MutedNavy,
+            },
         };
 
         selectedDeviceId.BindValueChanged(
@@ -189,9 +189,6 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
     internal void SetHitSoundVolume(double volume) =>
         settings.HitSoundVolume.Value =
             Math.Clamp(Math.Round(volume * 100) / 100, 0, 1);
-
-    internal void SetHitSoundsEnabled(bool enabled) =>
-        gameplaySettings.KeysoundsEnabled.Value = enabled;
 
     internal void StartAudioTest(AudioSettingsTestKind kind)
     {
@@ -1390,135 +1387,6 @@ internal partial class SettingsAudioTestButton : ClickableContainer
     {
         base.OnFocusLost(e);
         focusLine.FadeOut(100, Easing.OutQuint);
-    }
-}
-
-internal partial class SettingsAudioToggle : ClickableContainer
-{
-    private readonly BindableBool value;
-    private readonly Box background;
-    private readonly Box switchTrack;
-    private readonly Circle switchThumb;
-    private readonly SpriteText stateText;
-
-    public override bool AcceptsFocus => true;
-
-    public SettingsAudioToggle(BindableBool value)
-    {
-        this.value = value;
-        Action = () => value.Value = !value.Value;
-        Size = new Vector2(598, 50);
-        Masking = true;
-        CornerRadius = 7;
-        BorderThickness = 1.4f;
-        BorderColour = HomeControlColours.Navy;
-
-        InternalChildren = new Drawable[]
-        {
-            background = new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = Color4.White,
-            },
-            stateText = new SpriteText
-            {
-                Anchor = Anchor.CentreLeft,
-                Origin = Anchor.CentreLeft,
-                X = 18,
-                Font = HomeTypography.Display(17),
-                Colour = HomeControlColours.Navy,
-            },
-            new Container
-            {
-                Anchor = Anchor.CentreRight,
-                Origin = Anchor.CentreRight,
-                X = -16,
-                Size = new Vector2(48, 24),
-                Masking = true,
-                CornerRadius = 12,
-                Children = new Drawable[]
-                {
-                    switchTrack = new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = SettingsTheme.Divider,
-                    },
-                    switchThumb = new Circle
-                    {
-                        Anchor = Anchor.CentreLeft,
-                        Origin = Anchor.Centre,
-                        X = 12,
-                        Size = new Vector2(18),
-                        Colour = Color4.White,
-                    },
-                },
-            },
-        };
-
-        value.BindValueChanged(onValueChanged, true);
-    }
-
-    private void onValueChanged(ValueChangedEvent<bool> change)
-    {
-        switchTrack.FadeColour(
-            change.NewValue
-                ? HomeControlColours.Navy
-                : SettingsTheme.Divider,
-            120,
-            Easing.OutQuint);
-        switchThumb.MoveToX(
-            change.NewValue ? 36 : 12,
-            120,
-            Easing.OutQuint);
-        stateText.Text = YokkoStrings.Get(
-            change.NewValue
-                ? "settings.audio.enabled"
-                : "settings.audio.disabled");
-    }
-
-    protected override bool OnHover(HoverEvent e)
-    {
-        background.FadeColour(
-            SettingsTheme.PaleCyan,
-            120,
-            Easing.OutQuint);
-        return true;
-    }
-
-    protected override void OnHoverLost(HoverLostEvent e) =>
-        background.FadeColour(Color4.White, 120, Easing.OutQuint);
-
-    protected override bool OnKeyDown(KeyDownEvent e)
-    {
-        if (e.Key is Key.Enter or Key.Space)
-        {
-            Action?.Invoke();
-            return true;
-        }
-
-        return base.OnKeyDown(e);
-    }
-
-    protected override void OnFocus(FocusEvent e)
-    {
-        base.OnFocus(e);
-        BorderColour = HomeControlColours.Pink;
-        BorderThickness = 2.4f;
-    }
-
-    protected override void OnFocusLost(FocusLostEvent e)
-    {
-        base.OnFocusLost(e);
-        BorderColour = HomeControlColours.Navy;
-        BorderThickness = 1.4f;
-    }
-
-    protected override void Dispose(bool isDisposing)
-    {
-        if (isDisposing)
-            value.ValueChanged -= onValueChanged;
-
-        base.Dispose(isDisposing);
     }
 }
 

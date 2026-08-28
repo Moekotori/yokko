@@ -28,6 +28,8 @@ namespace Yokko.Game.Tests.Visual
         [Resolved]
         private YokkoDisplaySettings displaySettings { get; set; }
         [Resolved]
+        private YokkoGameplaySettings gameplaySettings { get; set; }
+        [Resolved]
         private YokkoDiagnostics diagnostics { get; set; }
 
         public TestSceneSettingsScreen()
@@ -73,7 +75,7 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("settings navigation supports keyboard focus", () =>
                 settingsScreen.ChildrenOfType<SettingsNavItem>()
                               .All(item => item.AcceptsFocus));
-            foreach (SettingsPageKind page in System.Enum.GetValues<SettingsPageKind>())
+            foreach (SettingsPageKind page in SettingsNavigation.VisiblePages)
             {
                 SettingsPageKind capturedPage = page;
                 AddStep($"open {page}", () => settingsScreen.OpenPage(capturedPage));
@@ -229,9 +231,6 @@ namespace Yokko.Game.Tests.Visual
                     .ChildrenOfType<SettingsAudioTestButton>()
                     .All(control => control.AcceptsFocus)
                 && settingsScreen.ActivePanel
-                    .ChildrenOfType<SettingsAudioToggle>()
-                    .All(control => control.AcceptsFocus)
-                && settingsScreen.ActivePanel
                     .ChildrenOfType<SettingsOffsetStepper>()
                     .All(control => control.AcceptsFocus));
             AddStep("open Import", () =>
@@ -283,23 +282,24 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
-        public void TestDifficultyRatingModeCanBeChangedFromDisplayPage()
+        public void TestDifficultyRatingModeCanBeChangedFromGameplayPage()
         {
             ManiaDifficultyRatingMode originalMode =
                 ManiaDifficultyRatingMode.EtternaMsd;
-            DisplaySettingsPanel display = null;
+            GameplaySettingsPanel gameplay = null;
 
             AddStep("remember difficulty rating mode", () =>
-                originalMode =
-                    displaySettings.DifficultyRatingMode.Value);
-            AddStep("open Display", () =>
+                originalMode = gameplaySettings.DifficultyRatingMode.Value);
+            AddStep("open Gameplay", () =>
             {
-                settingsScreen.OpenPage(SettingsPageKind.Display);
-                display =
-                    (DisplaySettingsPanel)settingsScreen.ActivePanel;
+                settingsScreen.OpenPage(SettingsPageKind.Gameplay);
+                gameplay =
+                    (GameplaySettingsPanel)settingsScreen.ActivePanel;
             });
+            AddStep("open Timing section", () =>
+                gameplay.SelectSection(GameplaySettingsSection.Timing));
             AddStep("select Rebirth stars", () =>
-                display.ChildrenOfType<
+                gameplay.ChildrenOfType<
                         SettingsSegmentedChoiceButton>()
                     .Single(button =>
                         button.Value is ManiaDifficultyRatingMode
@@ -309,12 +309,12 @@ namespace Yokko.Game.Tests.Visual
                                 .RebirthStars)
                     .TriggerClick());
             AddAssert("Rebirth stars is selected", () =>
-                display.CurrentDifficultyRatingMode
+                gameplay.CurrentDifficultyRatingMode
                     == ManiaDifficultyRatingMode.RebirthStars
-                && displaySettings.DifficultyRatingMode.Value
+                && gameplaySettings.DifficultyRatingMode.Value
                     == ManiaDifficultyRatingMode.RebirthStars);
             AddStep("restore difficulty rating mode", () =>
-                displaySettings.DifficultyRatingMode.Value =
+                gameplaySettings.DifficultyRatingMode.Value =
                     originalMode);
         }
 
@@ -358,7 +358,7 @@ namespace Yokko.Game.Tests.Visual
         [Test]
         public void TestSettingsTypographyHasReadableMinimumSize()
         {
-            foreach (SettingsPageKind page in System.Enum.GetValues<SettingsPageKind>())
+            foreach (SettingsPageKind page in SettingsNavigation.VisiblePages)
             {
                 SettingsPageKind capturedPage = page;
                 AddStep($"open {page}", () => settingsScreen.OpenPage(capturedPage));
@@ -398,13 +398,12 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
-        public void TestAudioVolumeAndHitSoundsAreInteractive()
+        public void TestAudioVolumeControlsAreInteractive()
         {
             AudioSettingsPanel audio = null;
             double originalVolume = 1;
             double originalMusicVolume = 1;
             double originalHitSoundVolume = 1;
-            bool originalHitSounds = true;
 
             AddStep("open Audio", () =>
                 settingsScreen.OpenPage(SettingsPageKind.Audio));
@@ -414,7 +413,6 @@ namespace Yokko.Game.Tests.Visual
                 originalVolume = audio.CurrentMasterVolume;
                 originalMusicVolume = audio.CurrentMusicVolume;
                 originalHitSoundVolume = audio.CurrentHitSoundVolume;
-                originalHitSounds = audio.HitSoundsEnabled;
             });
             AddStep("set master volume to 65%", () =>
                 audio.SetMasterVolume(0.65));
@@ -428,13 +426,9 @@ namespace Yokko.Game.Tests.Visual
                 audio.SetHitSoundVolume(0.4));
             AddAssert("hitsound volume changed", () =>
                 audio.CurrentHitSoundVolume == 0.4);
-            AddStep("disable hitsounds", () =>
-                audio.SetHitSoundsEnabled(false));
-            AddAssert("hitsounds disabled", () =>
-                !audio.HitSoundsEnabled);
             AddAssert("three volume sliders are visible", () =>
                 audio.ChildrenOfType<SettingsVolumeSlider>().Count() == 3);
-            AddAssert("seven audio rows fit above footer", () =>
+            AddAssert("six audio rows fit above footer", () =>
             {
                 Container[] rows = audio.ChildrenOfType<Container>()
                                         .Where(container =>
@@ -442,7 +436,7 @@ namespace Yokko.Game.Tests.Visual
                                             && container.Size.X == 840
                                             && container.Size.Y == 50)
                                         .ToArray();
-                return rows.Length == 7
+                return rows.Length == 6
                        && rows.All(row => row.Y + row.Height < 651);
             });
             AddStep("restore audio preferences", () =>
@@ -450,7 +444,6 @@ namespace Yokko.Game.Tests.Visual
                 audio.SetMasterVolume(originalVolume);
                 audio.SetMusicVolume(originalMusicVolume);
                 audio.SetHitSoundVolume(originalHitSoundVolume);
-                audio.SetHitSoundsEnabled(originalHitSounds);
             });
         }
 
@@ -1020,6 +1013,86 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
+        public void TestSidebarScrollsToBottomPages()
+        {
+            SettingsSidebar sidebar = null;
+
+            AddStep("capture sidebar", () =>
+                sidebar = settingsScreen
+                    .ChildrenOfType<SettingsSidebar>()
+                    .Single());
+            AddStep("open About", () =>
+                settingsScreen.OpenPage(SettingsPageKind.About));
+            AddAssert("about page selected", () =>
+                settingsScreen.CurrentPage == SettingsPageKind.About);
+            AddAssert("sidebar scrolls when navigation overflows", () =>
+                SettingsNavigation.VisiblePages.Count > 8
+                    ? sidebar.NavigationScrollableExtent > 0
+                      && sidebar.NavigationScrollPosition > 0
+                    : sidebar.NavigationScrollableExtent >= 0);
+        }
+
+        [Test]
+        public void TestHiddenSettingsPageFallsBackToDisplay()
+        {
+            AddStep("open hidden Editor page", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Editor));
+            AddAssert("Editor falls back to Display", () =>
+                settingsScreen.CurrentPage == SettingsPageKind.Display);
+
+            AddStep("open hidden Accessibility page", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Accessibility));
+            AddAssert("Accessibility falls back to Display", () =>
+                settingsScreen.CurrentPage == SettingsPageKind.Display);
+        }
+
+        [Test]
+        public void TestGeneralPageShowsPlayerId()
+        {
+            GeneralSettingsPanel general = null;
+
+            AddStep("open General", () =>
+                settingsScreen.OpenPage(SettingsPageKind.General));
+            AddStep("capture General", () =>
+                general = (GeneralSettingsPanel)settingsScreen.ActivePanel);
+            AddAssert("player id is available", () =>
+                !string.IsNullOrWhiteSpace(general.CurrentPlayerId));
+        }
+
+        [Test]
+        public void TestDisplayPageMatchesPlatformWindowControls()
+        {
+            DisplaySettingsPanel display = null;
+
+            AddStep("open Display", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Display));
+            AddStep("capture Display", () =>
+                display = (DisplaySettingsPanel)settingsScreen.ActivePanel);
+            AddAssert("window controls match platform", () =>
+                display.ShowsWindowControls
+                == SettingsPlatform.SupportsWindowManagement);
+        }
+
+        [Test]
+        public void TestGameplayTimingSectionUsesExpandedPanel()
+        {
+            GameplaySettingsPanel gameplay = null;
+
+            AddStep("open Gameplay timing", () =>
+            {
+                settingsScreen.OpenPage(SettingsPageKind.Gameplay);
+                gameplay =
+                    (GameplaySettingsPanel)settingsScreen.ActivePanel;
+                gameplay.SelectSection(GameplaySettingsSection.Timing);
+            });
+            AddAssert("timing section panel is tall enough", () =>
+                gameplay.ChildrenOfType<Container>()
+                    .Any(container =>
+                        container.Height
+                        == GameplaySettingsPanel.TimingSectionPanelHeight));
+        }
+
+        [Test]
         public void TestLanguageCanBeChangedImmediately()
         {
             GeneralSettingsPanel general = null;
@@ -1034,71 +1107,6 @@ namespace Yokko.Game.Tests.Visual
             AddAssert("Japanese selected", () => general.CurrentLocale == "ja");
             AddStep("restore English", () => general.SelectLanguage("en"));
             AddAssert("English restored", () => general.CurrentLocale == "en");
-        }
-
-        [Test]
-        public void TestScrollSpeedCanBeAdjustedFromGeneral()
-        {
-            GeneralSettingsPanel general = null;
-            GameplayScrollSpeedSlider scrollSpeedSlider = null;
-            GameplayStepperModeButton fineAdjustmentSwitch = null;
-            double originalSpeed = OsuManiaScrollSpeed.Default;
-            ScrollSpeedAdjustmentMode originalAdjustmentMode =
-                ScrollSpeedAdjustmentMode.OsuManiaScale;
-
-            AddStep("open General", () =>
-                settingsScreen.OpenPage(SettingsPageKind.General));
-            AddStep("capture General", () =>
-            {
-                general = (GeneralSettingsPanel)settingsScreen.ActivePanel;
-                originalSpeed = general.CurrentScrollSpeed;
-                originalAdjustmentMode =
-                    general.CurrentScrollSpeedAdjustmentMode;
-            });
-            AddStep("start with fine adjustment off", () =>
-                general.SetScrollSpeedAdjustmentMode(
-                    ScrollSpeedAdjustmentMode.OsuManiaScale));
-            AddStep("capture fine adjustment switch", () =>
-            {
-                scrollSpeedSlider = general
-                    .ChildrenOfType<GameplayScrollSpeedSlider>()
-                    .Single();
-                fineAdjustmentSwitch = general
-                    .ChildrenOfType<GameplayStepperModeButton>()
-                    .Single();
-            });
-            AddAssert("fine adjustment is below slider", () =>
-                general.ToLocalSpace(
-                    fineAdjustmentSwitch.ScreenSpaceDrawQuad.TopLeft).Y
-                > general.ToLocalSpace(
-                    scrollSpeedSlider.ScreenSpaceDrawQuad.BottomLeft).Y);
-            AddAssert("fine adjustment starts off", () =>
-                !fineAdjustmentSwitch.IsFineAdjustmentEnabled);
-            AddStep("enable fine adjustment", () =>
-                fineAdjustmentSwitch.TriggerClick());
-            AddStep("set approach time to 479 ms", () =>
-                general.SetScrollTimeMilliseconds(479));
-            AddAssert("general advanced mode changed time", () =>
-                general.CurrentScrollSpeedAdjustmentMode
-                    == ScrollSpeedAdjustmentMode.Milliseconds
-                && fineAdjustmentSwitch.IsFineAdjustmentEnabled
-                &&
-                System.Math.Abs(
-                    OsuManiaScrollSpeed.ComputeScrollTime(
-                        general.CurrentScrollSpeed) - 479) < 0.02);
-            AddStep("disable fine adjustment", () =>
-                fineAdjustmentSwitch.TriggerClick());
-            AddAssert("coarse mode snaps to a whole level", () =>
-                general.CurrentScrollSpeedAdjustmentMode
-                    == ScrollSpeedAdjustmentMode.OsuManiaScale
-                && general.CurrentScrollSpeed
-                    == System.Math.Round(general.CurrentScrollSpeed));
-            AddStep("restore speed", () =>
-            {
-                general.SetScrollSpeed(originalSpeed);
-                general.SetScrollSpeedAdjustmentMode(
-                    originalAdjustmentMode);
-            });
         }
 
         [Test]

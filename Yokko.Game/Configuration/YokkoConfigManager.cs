@@ -3,6 +3,7 @@ using System.Globalization;
 using osu.Framework.Configuration;
 using osu.Framework.Platform;
 using Yokko.Audio;
+using Yokko.Core.Difficulty;
 using Yokko.Game.Audio;
 using Yokko.Game.Diagnostics;
 using Yokko.Game.Gameplay;
@@ -64,6 +65,7 @@ internal enum YokkoSetting
     ManiaScrollSpeedAdjustmentMode,
     ManiaScrollDirection,
     QuaverScrollRateNormalization,
+    GameplayDifficultyRatingMode,
     GameplayJudgementMode,
     GameplayEtternaJustice,
     GameplayShowLanePressFeedback,
@@ -236,6 +238,10 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             0.0,
             100.0,
             10.0);
+        SetDefault(
+            YokkoSetting.GameplayDifficultyRatingMode,
+            Yokko.Core.Difficulty.ManiaDifficultyRatingMode
+                .RebirthStars);
         SetDefault(
             YokkoSetting.GameplayJudgementMode,
             Yokko.Core.Scoring.JudgementMode.Yokko);
@@ -690,6 +696,41 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.QuaverScrollRateNormalization,
             settings.QuaverScrollRateNormalization);
+        ManiaDifficultyRatingMode legacyDifficultyRating =
+            Get<ManiaDifficultyRatingMode>(
+                YokkoSetting.DisplayDifficultyRatingMode);
+        ManiaDifficultyRatingMode gameplayDifficultyRating =
+            Get<ManiaDifficultyRatingMode>(
+                YokkoSetting.GameplayDifficultyRatingMode);
+        if (legacyDifficultyRating
+                != ManiaDifficultyRatingMode.RebirthStars
+            && gameplayDifficultyRating
+                == ManiaDifficultyRatingMode.RebirthStars)
+        {
+            SetValue(
+                YokkoSetting.GameplayDifficultyRatingMode,
+                legacyDifficultyRating);
+        }
+        else if (legacyDifficultyRating != gameplayDifficultyRating)
+        {
+            // Prefer the explicit gameplay value when both keys disagree.
+            SetValue(
+                YokkoSetting.DisplayDifficultyRatingMode,
+                gameplayDifficultyRating);
+            legacyDifficultyRating = gameplayDifficultyRating;
+        }
+
+        BindWith(
+            YokkoSetting.GameplayDifficultyRatingMode,
+            settings.DifficultyRatingMode);
+
+        if (legacyDifficultyRating
+            != ManiaDifficultyRatingMode.RebirthStars)
+        {
+            SetValue(
+                YokkoSetting.DisplayDifficultyRatingMode,
+                ManiaDifficultyRatingMode.RebirthStars);
+        }
         BindWith(
             YokkoSetting.GameplayJudgementMode,
             settings.JudgementMode);
@@ -870,9 +911,6 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
         BindWith(
             YokkoSetting.DisplayBackgroundFrameRateLimit,
             settings.BackgroundFrameRate);
-        BindWith(
-            YokkoSetting.DisplayDifficultyRatingMode,
-            settings.DifficultyRatingMode);
     }
 
     public void BindDiagnosticSettings(YokkoDiagnostics diagnostics)
@@ -934,9 +972,6 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
     public string GetLastSettingsPage() =>
         Get<string>(YokkoSetting.SettingsLastPage);
 
-    public void SetLastSettingsPage(string page)
-    {
+    public void SetLastSettingsPage(string page) =>
         SetValue(YokkoSetting.SettingsLastPage, page);
-        Save();
-    }
 }

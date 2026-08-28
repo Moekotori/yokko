@@ -454,6 +454,9 @@ public partial class SettingsScreen : Screen
 
     internal void OpenPage(SettingsPageKind page)
     {
+        if (!SettingsNavigation.IsVisible(page))
+            page = SettingsPageKind.Display;
+
         if (contentHost == null)
         {
             CurrentPage = page;
@@ -465,13 +468,15 @@ public partial class SettingsScreen : Screen
 
         CurrentPage = page;
         yokkoConfig.SetLastSettingsPage(page.ToString());
+        yokkoConfig.Save();
 
         sidebar.SetSelected(page);
         activePanel = page switch
         {
             SettingsPageKind.General => new GeneralSettingsPanel(
                 locale,
-                gameplaySettings,
+                audioSettings,
+                yokkoConfig,
                 diagnostics.ConsoleVisible),
             SettingsPageKind.Display => new DisplaySettingsPanel(
                 windowedSize,
@@ -479,7 +484,6 @@ public partial class SettingsScreen : Screen
                 displaySettings.UiScale,
                 displaySettings.FrameLimit,
                 displaySettings.ShowPerformanceReadout,
-                displaySettings.DifficultyRatingMode,
                 currentDisplayMode,
                 size => frameworkConfig.SetValue(FrameworkSetting.WindowedSize, size),
                 mode => frameworkConfig.SetValue(FrameworkSetting.WindowMode, mode)),
@@ -655,6 +659,7 @@ public partial class SettingsScreen : Screen
 
     private static SettingsPageKind parseRememberedPage(string page) =>
         Enum.TryParse(page, out SettingsPageKind remembered)
+        && SettingsNavigation.IsVisible(remembered)
             ? remembered
             : SettingsPageKind.Display;
 }
