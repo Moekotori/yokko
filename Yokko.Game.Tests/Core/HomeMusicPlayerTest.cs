@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
+using Yokko.Audio;
 using Yokko.Core.Beatmaps;
 using Yokko.Game.Audio;
 using Yokko.Game.Importing;
@@ -141,5 +144,101 @@ public sealed class HomeMusicPlayerTest
         ((ISongSelectPreviewHost)player).AdoptPreview(beatmap);
 
         Assert.That(settings.HomeMusicEnabled.Value, Is.False);
+    }
+
+    [Test]
+    public void UpdateReadsEngineStateThroughSingleSnapshot()
+    {
+        var engine = new CountingAudioEngine();
+        using var player = new HomeMusicPlayer();
+        setPrivateField(player, "audioEngine", engine);
+        setPrivateField(player, "screenActive", true);
+        setPrivateField(player, "desiredPlaying", true);
+        setPrivateField(
+            player,
+            "tracks",
+            new HomeMusicPlayer.ImportedHomeTrack[]
+            {
+                new("song.ogg", "Song", "Artist", 180, 60_000),
+            });
+
+        typeof(HomeMusicPlayer)
+            .GetMethod(
+                "Update",
+                BindingFlags.Instance
+                | BindingFlags.NonPublic
+                | BindingFlags.DeclaredOnly)!
+            .Invoke(player, null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(engine.StatusReads, Is.EqualTo(1));
+            Assert.That(engine.PlaybackTimeReads, Is.EqualTo(1));
+        });
+    }
+
+    private static void setPrivateField(
+        HomeMusicPlayer player,
+        string name,
+        object value) =>
+        typeof(HomeMusicPlayer)
+            .GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(player, value);
+
+    /// <summary>
+    /// 记录 Status 与播放时间被读取的次数；两者在真实引擎上各对应一次
+    /// 原生状态查询，用来回归 Update 每帧只取一次快照。
+    /// </summary>
+    private sealed class CountingAudioEngine : IAudioEngine
+    {
+        public int StatusReads { get; private set; }
+
+        public int PlaybackTimeReads { get; private set; }
+
+        public AudioEngineStatus Status
+        {
+            get
+            {
+                StatusReads++;
+                return default;
+            }
+        }
+
+        public double PlaybackTimeMilliseconds
+        {
+            get
+            {
+                PlaybackTimeReads++;
+                return 1_000;
+            }
+        }
+
+        public double DurationMilliseconds => 60_000;
+
+        public IReadOnlyList<AudioBackendCapabilities> Backends { get; } = [];
+
+        public ValueTask<IReadOnlyList<AudioDeviceInfo>> GetOutputDevicesAsync(
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IReadOnlyList<AudioDeviceInfo>>([]);
+
+        public ValueTask StartAsync(
+            AudioEngineStartRequest request,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
+
+        public ValueTask PauseAsync(
+            CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
+
+        public ValueTask SeekAsync(
+            double timeMilliseconds,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
+
+        public ValueTask StopAsync(
+            CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

@@ -139,8 +139,9 @@ public partial class GameplayScreen : Screen
     private readonly InputDropTracker inputDropTracker = new();
     private readonly AudioSampleTriggerLatencyTracker
         audioSampleTriggerLatencyTracker = new();
-    private ulong previousAudioSampleTelemetryDropped;
-    private ulong accumulatedAudioSampleTelemetryDropped;
+    private readonly AudioSampleTelemetryDropTracker
+        audioSampleTelemetryDropTracker = new();
+    private double audioSampleTelemetryStatusElapsedMilliseconds;
     private bool gameplayBlocked;
     private bool gameplayCompleted;
     private bool gameplayCompletionTransitionActive;
@@ -1056,7 +1057,11 @@ public partial class GameplayScreen : Screen
         GameplayClockObservation clockObservation = observeGameplayClock();
         double frameGameplayTime = clockObservation.GameplayTime;
         updatePlayfieldLayout();
-        drainAudioSampleTriggerTelemetry();
+        // Sample-trigger telemetry is only produced by traced raw keysound
+        // triggers, so skip the per-frame native queue P/Invoke unless the
+        // raw keysound fast path has been set up for this session.
+        if (rawKeysoundDispatcher != null)
+            drainAudioSampleTriggerTelemetry();
         updateQuickRetryHold();
         updateDiagnosticSnapshot(frameGameplayTime);
         replayControls?.UpdateState(
@@ -3881,7 +3886,8 @@ public partial class GameplayScreen : Screen
         }
     }
 
-    private void drainAudioSampleTriggerTelemetry()
+    private void drainAudioSampleTriggerTelemetry(
+        bool forceStatusRefresh = false)
     {
         if (audioEngine is not ITimestampedPreparedAudioSamplePlayback telemetry)
             return;
@@ -3892,18 +3898,25 @@ public partial class GameplayScreen : Screen
             audioSampleTriggerLatencyTracker.Record(sample);
         }
 
-        ulong dropped = telemetry.SampleTriggerTelemetryStatus.DroppedCount;
-        if (dropped < previousAudioSampleTelemetryDropped)
+        // SampleTriggerTelemetryStatus is a native call whose dropped counter
+        // only feeds the timing summary; polling roughly once per second is
+        // enough to catch counter resets without a per-frame P/Invoke.
+        audioSampleTelemetryStatusElapsedMilliseconds +=
+            Math.Max(0, Time.Elapsed);
+        if (!forceStatusRefresh
+            && audioSampleTelemetryStatusElapsedMilliseconds < 1000)
         {
-            accumulatedAudioSampleTelemetryDropped +=
-                previousAudioSampleTelemetryDropped;
+            return;
         }
-        previousAudioSampleTelemetryDropped = dropped;
+
+        audioSampleTelemetryStatusElapsedMilliseconds %= 1000;
+        audioSampleTelemetryDropTracker.Observe(
+            telemetry.SampleTriggerTelemetryStatus.DroppedCount);
     }
 
     private void logInputTimingSummary()
     {
-        drainAudioSampleTriggerTelemetry();
+        drainAudioSampleTriggerTelemetry(forceStatusRefresh: true);
         KeyInputTimestampBackendStatus backend =
             keyInputTimestamps.Status;
         InputDropObservation drops = inputDropTracker.Observe(
@@ -3914,8 +3927,7 @@ public partial class GameplayScreen : Screen
         AudioSampleTriggerLatencyStatistics nativeSamples =
             audioSampleTriggerLatencyTracker.Snapshot();
         ulong nativeTelemetryDropped =
-            accumulatedAudioSampleTelemetryDropped
-            + previousAudioSampleTelemetryDropped;
+            audioSampleTelemetryDropTracker.TotalDropped;
         string ageSummary = ages.Count == 0
             ? "no scored input samples"
             : $"input age p50={ages.P50Milliseconds:0.00} ms, "

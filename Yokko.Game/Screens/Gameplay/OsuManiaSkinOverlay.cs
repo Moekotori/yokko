@@ -18,6 +18,10 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
     // Reference: ppy/osu LegacyManiaJudgementPiece.cs @ 9f227ed.
     internal const double JudgementAnimationDuration = 220;
 
+    // int.MaxValue has 10 decimal digits, so a fixed pool of this size can
+    // display any combo without allocating sprites per combo change.
+    private const int maxComboDigitCount = 10;
+
     private readonly OsuManiaSkin skin;
     private readonly JudgementConfiguration judgementConfiguration;
     private readonly Container judgementContainer;
@@ -28,6 +32,8 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
     private readonly SpriteText comboFallback;
     private readonly Container comboBreakDigits;
     private readonly SpriteText comboBreakFallback;
+    private readonly Sprite[] comboDigitSprites;
+    private readonly Sprite[] comboBreakDigitSprites;
     private readonly Texture[] digitTextures = new Texture[10];
     private readonly float overlayScale;
     private readonly float baseJudgementY;
@@ -50,6 +56,12 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
         comboDigits.Alpha > 0 || comboFallback.Alpha > 0;
 
     internal bool ComboVisibleForTest => comboContainer.Alpha > 0;
+
+    internal IReadOnlyList<Sprite> ComboDigitSpritesForTest =>
+        comboDigitSprites;
+
+    internal IReadOnlyList<Sprite> ComboBreakDigitSpritesForTest =>
+        comboBreakDigitSprites;
 
     internal bool JudgementVisibleForTest => judgementContainer.Alpha > 0;
 
@@ -158,6 +170,8 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
                 },
             },
         };
+        comboDigitSprites = createDigitSpritePool(comboDigits);
+        comboBreakDigitSprites = createDigitSpritePool(comboBreakDigits);
         judgementSprite.FrameChanged += texture =>
         {
             if (texture != null)
@@ -289,6 +303,7 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
         Drawable activeCombo = populateCombo(
             combo,
             comboDigits,
+            comboDigitSprites,
             comboFallback);
 
         activeCombo.FinishTransforms();
@@ -321,20 +336,31 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
         displayedCombo = -1;
     }
 
+    private static Sprite[] createDigitSpritePool(Container digits)
+    {
+        var sprites = new Sprite[maxComboDigitCount];
+
+        for (int index = 0; index < sprites.Length; index++)
+            sprites[index] = new Sprite { Alpha = 0 };
+
+        digits.AddRange(sprites);
+        return sprites;
+    }
+
     private Drawable populateCombo(
         int combo,
         Container digits,
+        Sprite[] digitSprites,
         SpriteText fallback)
     {
         string text = combo.ToString(CultureInfo.InvariantCulture);
-        var sprites = new List<Drawable>(text.Length);
         float x = 0;
         float height = 0;
         bool hasAllDigits = true;
 
-        foreach (char character in text)
+        for (int index = 0; index < text.Length; index++)
         {
-            Texture texture = digitTextures[character - '0'];
+            Texture texture = digitTextures[text[index] - '0'];
 
             if (texture == null)
             {
@@ -342,17 +368,16 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
                 break;
             }
 
-            sprites.Add(new Sprite
-            {
-                X = x,
-                Size = new Vector2(texture.DisplayWidth, texture.DisplayHeight),
-                Texture = texture,
-            });
+            Sprite sprite = digitSprites[index];
+            sprite.X = x;
+            sprite.Size = new Vector2(
+                texture.DisplayWidth,
+                texture.DisplayHeight);
+            sprite.Texture = texture;
+            sprite.Alpha = 1;
             x += texture.DisplayWidth - skin.Info.ComboOverlap;
             height = Math.Max(height, texture.DisplayHeight);
         }
-
-        digits.Clear();
 
         if (!hasAllDigits)
         {
@@ -362,10 +387,12 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
             return fallback;
         }
 
+        for (int index = text.Length; index < digitSprites.Length; index++)
+            digitSprites[index].Alpha = 0;
+
         digits.Size = new Vector2(
             Math.Max(1, x + skin.Info.ComboOverlap),
             Math.Max(1, height));
-        digits.AddRange(sprites);
         digits.Alpha = 1;
         fallback.Alpha = 0;
         return digits;
@@ -376,6 +403,7 @@ internal partial class OsuManiaSkinOverlay : CompositeDrawable
         Drawable activeBreak = populateCombo(
             combo,
             comboBreakDigits,
+            comboBreakDigitSprites,
             comboBreakFallback);
         Drawable inactiveBreak = ReferenceEquals(
             activeBreak,

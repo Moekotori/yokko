@@ -114,15 +114,31 @@ public sealed class BeatTimingMap
         return (row - segment.StartRow) % rowsPerMeasure == 0;
     }
 
+    /// <summary>
+    /// Binary-searches the last segment starting at or before the given row,
+    /// mirroring <see cref="segmentIndexAtTime"/>. Rows before the first
+    /// segment clamp to index 0.
+    /// </summary>
     private TimingSegment segmentAtRow(int row)
     {
-        for (int i = segments.Length - 1; i >= 0; i--)
+        int low = 0;
+        int high = segments.Length - 1;
+        int result = 0;
+
+        while (low <= high)
         {
-            if (row >= segments[i].StartRow)
-                return segments[i];
+            int middle = low + (high - low) / 2;
+
+            if (segments[middle].StartRow <= row)
+            {
+                result = middle;
+                low = middle + 1;
+            }
+            else
+                high = middle - 1;
         }
 
-        return segments[0];
+        return segments[result];
     }
 
     private TimingSegment segmentAtTime(double timeMilliseconds)

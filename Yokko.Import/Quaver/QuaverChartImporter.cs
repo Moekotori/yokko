@@ -93,6 +93,7 @@ public sealed class QuaverChartImporter : IChartImporter
 
     private static ChartImportResult importChartFile(string path)
     {
+        ChartFileSizeGuard.EnsureWithinLimit(path, "Quaver");
         ParsedQua parsed = parse(File.ReadAllLines(path));
         var warnings = new List<string>();
 

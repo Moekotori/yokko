@@ -71,6 +71,8 @@ public sealed class MalodyChartImporter : IChartImporter
 
     private static ChartImportResult importChart(ChartImportRequest request)
     {
+        ChartFileSizeGuard.EnsureWithinLimit(request.Path, "Malody");
+
         try
         {
             using JsonDocument document = JsonDocument.Parse(

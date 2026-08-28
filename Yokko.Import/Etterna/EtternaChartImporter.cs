@@ -72,6 +72,7 @@ public sealed partial class EtternaChartImporter : IChartImporter
 
     private static ChartImportResult importChartFile(string path)
     {
+        ChartFileSizeGuard.EnsureWithinLimit(path, "Etterna/StepMania");
         string text = File.ReadAllText(path);
         List<SimfileTag> tags = parseTags(text);
         bool isSsc = Path.GetExtension(path).Equals(".ssc", StringComparison.OrdinalIgnoreCase);
