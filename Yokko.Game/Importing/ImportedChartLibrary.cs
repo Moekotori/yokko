@@ -835,10 +835,18 @@ internal sealed class ImportedChartLibrary : IDisposable
             int cacheHitCount = 0;
             var parsedSources = new HashSet<string>(
                 StringComparer.OrdinalIgnoreCase);
+            // 每个 source 对应一个槽位：先串行完成廉价的索引缓存判定，
+            // 再只对需要实际解析的 source 并行解析，最后按槽位顺序合并，
+            // 保证 loaded/updatedEntries 与串行扫描的结果顺序一致。
+            var slots = new (IReadOnlyList<ImportedChart> Charts,
+                ManagedChartIndexEntry Entry)?[sources.Length];
+            var pendingParses =
+                new List<(int Slot, string Source, FileInfo Info)>();
 
-            foreach (string source in sources)
+            for (int sourceIndex = 0; sourceIndex < sources.Length; sourceIndex++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                string source = sources[sourceIndex];
 
                 try
                 {
@@ -852,27 +860,14 @@ internal sealed class ImportedChartLibrary : IDisposable
                             LibraryPath,
                             sourceInfo))
                     {
-                        loaded.AddRange(entry.Charts);
-                        updatedEntries.Add(entry);
+                        slots[sourceIndex] = (entry.Charts, entry);
                         cacheHitCount++;
                         continue;
                     }
 
                     contentReadCount++;
                     parsedSources.Add(source);
-                    IReadOnlyList<ChartImportResult> results =
-                        await KnownChartImporters.ImportAllAsync(
-                            new ChartImportRequest(
-                                source,
-                                preferKeysounds,
-                                preferSscSimfiles,
-                                enableBmsScratch,
-                                cancellationToken));
-                    ImportedChart[] imported = createImportedCharts(results, source);
-                    loaded.AddRange(imported);
-                    updatedEntries.Add(createManagedIndexEntry(
-                        sourceInfo,
-                        imported));
+                    pendingParses.Add((sourceIndex, source, sourceInfo));
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -881,6 +876,60 @@ internal sealed class ImportedChartLibrary : IDisposable
                         LoggingTarget.Runtime,
                         LogLevel.Error);
                 }
+            }
+
+            if (pendingParses.Count > 0)
+            {
+                // 与 RefreshExternalOsuAsync 的外部扫描保持同一并行策略；
+                // importLock 已在方法入口持有，各任务只写自己的槽位，
+                // 评分缓存内部自带锁，无需额外同步。
+                await Parallel.ForEachAsync(
+                    pendingParses,
+                    new ParallelOptions
+                    {
+                        MaxDegreeOfParallelism = Math.Clamp(
+                            Environment.ProcessorCount / 2,
+                            2,
+                            8),
+                        CancellationToken = cancellationToken,
+                    },
+                    async (pending, token) =>
+                    {
+                        try
+                        {
+                            IReadOnlyList<ChartImportResult> results =
+                                await KnownChartImporters.ImportAllAsync(
+                                    new ChartImportRequest(
+                                        pending.Source,
+                                        preferKeysounds,
+                                        preferSscSimfiles,
+                                        enableBmsScratch,
+                                        token)).ConfigureAwait(false);
+                            ImportedChart[] imported = createImportedCharts(
+                                results,
+                                pending.Source);
+                            slots[pending.Slot] = (
+                                imported,
+                                createManagedIndexEntry(pending.Info, imported));
+                        }
+                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        {
+                            Logger.Log(
+                                $"Could not load persisted beatmap "
+                                + $"'{pending.Source}': {ex.Message}",
+                                LoggingTarget.Runtime,
+                                LogLevel.Error);
+                        }
+                    }).ConfigureAwait(false);
+            }
+
+            foreach (var slot in slots)
+            {
+                if (slot is not { } resolved)
+                    continue;
+
+                loaded.AddRange(resolved.Charts);
+                updatedEntries.Add(resolved.Entry);
             }
 
             bool indexChanged = index == null
