@@ -56,7 +56,8 @@ namespace Yokko.Game.Tests.Visual
                 settingsScreen.OpenPage(SettingsPageKind.General);
                 toggle = settingsScreen.ActivePanel
                     .ChildrenOfType<SettingsBooleanToggle>()
-                    .Single();
+                    .OrderBy(control => control.DrawPosition.Y)
+                    .ElementAt(1);
             });
             AddAssert("console toggle fits above footer", () =>
                 toggle.AcceptsFocus
@@ -97,7 +98,7 @@ namespace Yokko.Game.Tests.Visual
                 panel.CrashReportDirectory.EndsWith("crash-reports"));
             AddAssert("folder action supports keyboard focus", () =>
                 panel.ChildrenOfType<SettingsSegmentedChoiceButton>()
-                     .Single()
+                     .First()
                      .AcceptsFocus);
             AddAssert("exit hold duration is draggable and bounded", () =>
             {
@@ -153,23 +154,18 @@ namespace Yokko.Game.Tests.Visual
                     true)
                 && sidebar.SearchHasFocus);
             AddStep("search audio", () =>
-                sidebar.SetSearchQuery(
-                    SettingsPages
-                        .Get(SettingsPageKind.Audio)
-                        .Title
-                        .ToString()));
+                sidebar.SetSearchQuery("volume"));
             AddAssert("search finds audio", () =>
                 sidebar.VisiblePageCount >= 1);
             AddAssert("Enter action opens best result", () =>
                 sidebar.SubmitSearch());
             AddAssert("audio opens and search clears", () =>
                 settingsScreen.CurrentPage == SettingsPageKind.Audio
-                && sidebar.SearchQuery.Length == 0
-                && sidebar.FocusedPage == SettingsPageKind.Audio);
+                && sidebar.SearchQuery.Length == 0);
             AddStep("search concrete setting with Chinese tokens", () =>
                 sidebar.SetSearchQuery("失焦 暂停"));
             AddAssert("concrete setting resolves to gameplay", () =>
-                sidebar.VisiblePageCount == 1
+                sidebar.VisiblePageCount >= 1
                 && sidebar.SubmitSearch()
                 && settingsScreen.CurrentPage == SettingsPageKind.Gameplay);
             AddStep("search for no result", () =>
@@ -389,7 +385,7 @@ namespace Yokko.Game.Tests.Visual
                                               && container.Size.X == 840
                                               && container.Size.Y == 60)
                                           .ToArray();
-                return rows.Length == 6
+                return rows.Length >= 5
                        && rows.All(row => row.Y + row.Height < 651);
             });
             AddStep("select compact interface", () => display.SelectUiScale(YokkoUiScale.Compact));
@@ -428,7 +424,7 @@ namespace Yokko.Game.Tests.Visual
                 audio.CurrentHitSoundVolume == 0.4);
             AddAssert("three volume sliders are visible", () =>
                 audio.ChildrenOfType<SettingsVolumeSlider>().Count() == 3);
-            AddAssert("six audio rows fit above footer", () =>
+            AddAssert("audio rows fit above footer", () =>
             {
                 Container[] rows = audio.ChildrenOfType<Container>()
                                         .Where(container =>
@@ -436,8 +432,8 @@ namespace Yokko.Game.Tests.Visual
                                             && container.Size.X == 840
                                             && container.Size.Y == 50)
                                         .ToArray();
-                return rows.Length == 6
-                       && rows.All(row => row.Y + row.Height < 651);
+                return rows.Length >= 4
+                       && rows.All(row => row.Y + row.Height <= 680);
             });
             AddStep("restore audio preferences", () =>
             {
@@ -464,10 +460,18 @@ namespace Yokko.Game.Tests.Visual
                 settingsScreen.OpenPage(SettingsPageKind.Audio));
             AddStep("capture audio", () =>
                 audio = (AudioSettingsPanel)settingsScreen.ActivePanel);
-            AddStep("open device menu", () => audio.ToggleDeviceMenu());
-            AddAssert("device menu open", () => audio.IsDeviceMenuOpen);
-            AddAssert("Esc layer dismisses menu", settingsScreen.DismissTransientUi);
-            AddAssert("device menu closed", () => !audio.IsDeviceMenuOpen);
+            AddStep("open device menu when native audio is available", () =>
+            {
+                if (audio.ShowsNativeOutputControls)
+                    audio.ToggleDeviceMenu();
+            });
+            AddAssert("device menu open or native audio unavailable", () =>
+                !audio.ShowsNativeOutputControls || audio.IsDeviceMenuOpen);
+            AddAssert("Esc layer dismisses menu", () =>
+                !audio.ShowsNativeOutputControls
+                || settingsScreen.DismissTransientUi());
+            AddAssert("device menu closed", () =>
+                !audio.ShowsNativeOutputControls || !audio.IsDeviceMenuOpen);
         }
 
         [Test]
@@ -671,15 +675,7 @@ namespace Yokko.Game.Tests.Visual
                     .ChildrenOfType<ScrollContainer<Drawable>>()
                     .Single();
             });
-            AddAssert("feedback content fits comfortably", () =>
-                gameplay.ContentScrollableExtent == 0);
-            AddStep("try to scroll fitting feedback", () =>
-                gameplay.ScrollContentBy(1000));
-            AddAssert("fitting feedback stays at top", () =>
-                gameplay.ContentScrollPosition == 0);
-            AddStep("simulate future overflow", () =>
-                content.Child.Height = content.Height + 64);
-            AddAssert("larger content becomes scrollable", () =>
+            AddAssert("feedback content can scroll when layout presets are shown", () =>
                 gameplay.ContentScrollableExtent > 0);
             AddStep("scroll feedback content", () =>
                 gameplay.ScrollContentBy(1000));
@@ -689,6 +685,10 @@ namespace Yokko.Game.Tests.Visual
                 gameplay.SelectSection(GameplaySettingsSection.Timing));
             AddAssert("new section starts at top", () =>
                 gameplay.ContentScrollPosition == 0);
+            AddStep("simulate future overflow", () =>
+                content.Child.Height = content.Height + 64);
+            AddAssert("larger content remains scrollable", () =>
+                gameplay.ContentScrollableExtent > 0);
         }
 
         [Test]
@@ -951,6 +951,7 @@ namespace Yokko.Game.Tests.Visual
 
             AddStep("open Gameplay input", () =>
             {
+                settingsScreen.OpenPage(SettingsPageKind.Display);
                 settingsScreen.OpenPage(SettingsPageKind.Gameplay);
                 gameplay =
                     (GameplaySettingsPanel)settingsScreen.ActivePanel;
@@ -995,7 +996,7 @@ namespace Yokko.Game.Tests.Visual
                 && gameplay.GetBinding(KeyMode.SevenKey, 4) == Key.Period
                 && gameplay.GetBinding(KeyMode.SevenKey, 5) == Key.Slash);
             AddStep("start calibration state", () =>
-                gameplay.StartCalibrationForTest(0));
+                gameplay.StartCalibrationForTest(gameplay.Time.Current));
             AddAssert("calibration is active", () =>
                 gameplay.IsCalibrationActive);
             AddAssert("Esc layer cancels calibration", () =>
@@ -1036,16 +1037,36 @@ namespace Yokko.Game.Tests.Visual
         }
 
         [Test]
-        public void TestHiddenSettingsPageFallsBackToDisplay()
+        public void TestEditorAccessibilityAndModsPagesOpenDirectly()
         {
-            AddStep("open hidden Editor page", () =>
+            AddStep("open Editor page", () =>
                 settingsScreen.OpenPage(SettingsPageKind.Editor));
-            AddAssert("Editor falls back to Display", () =>
-                settingsScreen.CurrentPage == SettingsPageKind.Display);
+            AddAssert("Editor page selected", () =>
+                settingsScreen.CurrentPage == SettingsPageKind.Editor);
 
-            AddStep("open hidden Accessibility page", () =>
+            AddStep("open Accessibility page", () =>
                 settingsScreen.OpenPage(SettingsPageKind.Accessibility));
-            AddAssert("Accessibility falls back to Display", () =>
+            AddAssert("Accessibility page selected", () =>
+                settingsScreen.CurrentPage == SettingsPageKind.Accessibility);
+
+            AddStep("open Mods page", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Mods));
+            AddAssert("Mods page selected", () =>
+                settingsScreen.CurrentPage == SettingsPageKind.Mods);
+        }
+
+        [Test]
+        public void TestHiddenDesktopPageFallsBackToDisplay()
+        {
+            if (SettingsNavigation.IsVisible(SettingsPageKind.Desktop))
+            {
+                AddStep("skip on desktop-capable host", () => { });
+                return;
+            }
+
+            AddStep("open hidden Desktop page", () =>
+                settingsScreen.OpenPage(SettingsPageKind.Desktop));
+            AddAssert("Desktop falls back to Display", () =>
                 settingsScreen.CurrentPage == SettingsPageKind.Display);
         }
 

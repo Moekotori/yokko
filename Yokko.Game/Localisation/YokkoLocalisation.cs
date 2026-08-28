@@ -1164,6 +1164,58 @@ internal static class YokkoStrings
                 "Hidden",
                 "已隐藏",
                 "非表示"),
+            ["settings.general.open_last_screen"] = new(
+                "Open last screen",
+                "打开上次界面",
+                "前回の画面を開く"),
+            ["settings.general.configuration_backup"] = new(
+                "Configuration backup",
+                "配置备份",
+                "設定のバックアップ"),
+            ["settings.general.save_local_replays"] = new(
+                "Save local replays",
+                "保存本地回放",
+                "ローカルリプレイを保存"),
+            ["settings.general.include_username_in_exports"] = new(
+                "Include username in exports",
+                "导出时包含用户名",
+                "エクスポートにユーザー名を含める"),
+            ["settings.general.section_privacy"] = new(
+                "Privacy",
+                "隐私",
+                "プライバシー"),
+            ["settings.general.config_export"] = new(
+                "Export",
+                "导出",
+                "エクスポート"),
+            ["settings.general.config_import"] = new(
+                "Import",
+                "导入",
+                "インポート"),
+            ["settings.general.config_reset"] = new(
+                "Reset defaults",
+                "恢复默认",
+                "既定値に戻す"),
+            ["settings.general.config_exported"] = new(
+                "Configuration copied to clipboard",
+                "配置已复制到剪贴板",
+                "設定をクリップボードにコピーしました"),
+            ["settings.general.config_imported"] = new(
+                "Configuration imported from clipboard",
+                "已从剪贴板导入配置",
+                "クリップボードから設定をインポートしました"),
+            ["settings.general.config_import_failed"] = new(
+                "Could not import configuration from clipboard",
+                "无法从剪贴板导入配置",
+                "クリップボードから設定をインポートできませんでした"),
+            ["settings.general.config_reset_done"] = new(
+                "Configuration reset to defaults",
+                "配置已恢复默认",
+                "設定を既定値に戻しました"),
+            ["settings.general.fine_adjustment"] = new(
+                "Fine adjust",
+                "精细调整",
+                "微調整"),
             ["settings.language.english"] = new("English", "English", "English"),
             ["settings.language.chinese"] = new("简体中文", "简体中文", "简体中文"),
             ["settings.language.japanese"] = new("日本語", "日本語", "日本語"),
@@ -1635,6 +1687,46 @@ internal static class YokkoStrings
             ["settings.gameplay.preset_standard"] = new("Standard", "标准", "標準"),
             ["settings.gameplay.preset_left"] = new("Left hand", "左手", "左手"),
             ["settings.gameplay.preset_split"] = new("Split", "双手", "両手"),
+            ["settings.gameplay.layout_presets"] = new(
+                "HUD layout presets",
+                "HUD 布局预设",
+                "HUD レイアウトプリセット"),
+            ["settings.gameplay.layout_preset_default"] = new(
+                "Default",
+                "默认",
+                "既定"),
+            ["settings.gameplay.layout_preset_compact"] = new(
+                "Compact HUD",
+                "紧凑 HUD",
+                "コンパクト HUD"),
+            ["settings.gameplay.layout_preset_stream"] = new(
+                "Stream",
+                "Stream",
+                "Stream"),
+            ["settings.gameplay.layout_preset_applied"] = new(
+                "Layout preset applied: {0}",
+                "已应用布局预设：{0}",
+                "レイアウトプリセットを適用：{0}"),
+            ["settings.gameplay.layout_preset_saved"] = new(
+                "Current layout saved as preset",
+                "当前布局已保存为预设",
+                "現在のレイアウトをプリセットとして保存しました"),
+            ["settings.gameplay.save_layout_preset"] = new(
+                "Save current",
+                "保存当前",
+                "現在を保存"),
+            ["settings.gameplay.named_key_profiles"] = new(
+                "Named key profiles",
+                "命名键位配置",
+                "名前付きキープロファイル"),
+            ["settings.gameplay.named_key_profile_save"] = new(
+                "Save profile",
+                "保存配置",
+                "プロファイルを保存"),
+            ["settings.gameplay.named_key_profile_saved"] = new(
+                "Key profile saved",
+                "键位配置已保存",
+                "キープロファイルを保存しました"),
             ["settings.gameplay.copy_other_mode"] = new(
                 "Copy to other",
                 "复制到另一模式",
@@ -2140,6 +2232,48 @@ internal static class YokkoStrings
             ["settings.editor.section_workspace"] = new("Workspace", "工作区", "ワークスペース"),
             ["settings.editor.section_grid"] = new("Grid & snapping", "网格与吸附", "グリッドとスナップ"),
             ["settings.editor.section_autosave"] = new("Autosave", "自动保存", "自動保存"),
+            ["settings.editor.default_key_mode"] = new(
+                "Default key mode",
+                "默认键位模式",
+                "既定のキーモード"),
+            ["settings.editor.snap_divisor"] = new(
+                "Snap divisor",
+                "吸附分度",
+                "スナップ分割"),
+            ["settings.editor.snap_divisor_value"] = new(
+                "1/{0}",
+                "1/{0}",
+                "1/{0}"),
+            ["settings.editor.visible_rows"] = new(
+                "Visible rows",
+                "可见行数",
+                "表示行数"),
+            ["settings.editor.visible_rows_value"] = new(
+                "{0} rows",
+                "{0} 行",
+                "{0} 行"),
+            ["settings.editor.autosave"] = new(
+                "Autosave",
+                "自动保存",
+                "自動保存"),
+            ["settings.editor.autosave_on"] = new(
+                "Enabled",
+                "已开启",
+                "オン"),
+            ["settings.editor.autosave_off"] = new(
+                "Disabled",
+                "已关闭",
+                "オフ"),
+            ["settings.editor.autosave_interval"] = new(
+                "Autosave interval",
+                "自动保存间隔",
+                "自動保存間隔"),
+            ["settings.editor.autosave_interval_value"] = new(
+                "{0} s",
+                "{0} 秒",
+                "{0} 秒"),
+            ["settings.editor.key_mode_4k"] = new("4K", "4K", "4K"),
+            ["settings.editor.key_mode_7k"] = new("7K", "7K", "7K"),
 
             ["settings.import.title"] = new("Import", "导入", "インポート"),
             ["settings.import.subtitle"] = new(
@@ -2293,6 +2427,87 @@ internal static class YokkoStrings
             ["settings.accessibility.section_visual"] = new("Visual assistance", "视觉辅助", "視覚支援"),
             ["settings.accessibility.section_input"] = new("Input accessibility", "输入辅助", "入力支援"),
             ["settings.accessibility.section_motion"] = new("Reduced motion", "减少动态效果", "動きを減らす"),
+            ["settings.accessibility.reduce_motion"] = new(
+                "Reduce motion",
+                "减少动态效果",
+                "動きを減らす"),
+            ["settings.accessibility.reduce_motion_on"] = new(
+                "Reduced",
+                "已减少",
+                "減らす"),
+            ["settings.accessibility.reduce_motion_off"] = new(
+                "Standard",
+                "标准",
+                "標準"),
+            ["settings.accessibility.high_contrast"] = new(
+                "High contrast",
+                "高对比度",
+                "高コントラスト"),
+            ["settings.accessibility.high_contrast_on"] = new(
+                "Enabled",
+                "已开启",
+                "オン"),
+            ["settings.accessibility.high_contrast_off"] = new(
+                "Disabled",
+                "已关闭",
+                "オフ"),
+            ["settings.accessibility.text_scale"] = new(
+                "Text scale",
+                "文字缩放",
+                "文字サイズ"),
+            ["settings.accessibility.text_scale_90"] = new("90%", "90%", "90%"),
+            ["settings.accessibility.text_scale_100"] = new("100%", "100%", "100%"),
+            ["settings.accessibility.text_scale_110"] = new("110%", "110%", "110%"),
+
+            ["settings.mods.title"] = new("Mods", "模组", "Mod"),
+            ["settings.mods.subtitle"] = new(
+                "Session memory and saved configurations",
+                "会话记忆与已保存配置",
+                "セッション記憶と保存済み設定"),
+            ["settings.mods.description"] = new(
+                "Control whether active Mod selections carry over between charts and launches.",
+                "控制活跃 Mod 是否在谱面切换与重启后保留。",
+                "アクティブな Mod 選択を譜面間や起動後も保持するかを設定します。"),
+            ["settings.mods.session_memory"] = new(
+                "Mod session memory",
+                "Mod 会话记忆",
+                "Mod セッション記憶"),
+            ["settings.mods.remember_active_mods"] = new(
+                "Remember active Mods",
+                "记住活跃 Mod",
+                "アクティブ Mod を記憶"),
+            ["settings.mods.remember_active_mods_on"] = new(
+                "Remembered across launches",
+                "跨启动保留",
+                "起動後も保持"),
+            ["settings.mods.remember_active_mods_off"] = new(
+                "Session only",
+                "仅当前会话",
+                "セッションのみ"),
+            ["settings.mods.saved_configuration"] = new(
+                "Saved Mod configuration",
+                "已保存 Mod 配置",
+                "保存済み Mod 設定"),
+            ["settings.mods.clear_configuration"] = new(
+                "Clear",
+                "清除",
+                "クリア"),
+            ["settings.mods.detail_note"] = new(
+                "Configurable Mod values are remembered separately from the active Mod list.",
+                "可配置 Mod 数值会与活跃 Mod 列表分开记忆。",
+                "設定可能な Mod 値は、アクティブ Mod 一覧とは別に記憶されます。"),
+            ["settings.mods.configuration_cleared"] = new(
+                "Saved Mod configuration cleared",
+                "已清除保存的 Mod 配置",
+                "保存済み Mod 設定をクリアしました"),
+            ["settings.mods.configuration_saved"] = new(
+                "Configuration saved · {0}",
+                "配置已保存 · {0}",
+                "設定を保存 · {0}"),
+            ["settings.mods.configuration_empty"] = new(
+                "No saved configuration · {0}",
+                "暂无保存配置 · {0}",
+                "保存済み設定なし · {0}"),
 
             ["settings.about.title"] = new("About", "关于", "情報"),
             ["settings.about.subtitle"] = new(

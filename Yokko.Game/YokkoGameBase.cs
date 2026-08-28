@@ -130,7 +130,8 @@ namespace Yokko.Game
 
             // Ensure game and tests scale with window size and screen DPI.
             base.Content.Add(Content = new YokkoUiScalingContainer(
-                displaySettings.UiScale));
+                displaySettings.UiScale,
+                accessibilitySettings.TextScalePercent));
         }
 
         protected override LocalisationManager CreateLocalisationManager(FrameworkConfigManager frameworkConfig) =>
@@ -177,9 +178,10 @@ namespace Yokko.Game
             yokkoConfig.BindExternalOsuSettings(externalOsuSettings);
             yokkoConfig.BindResourceSettings(resourceSettings);
             yokkoConfig.BindGameplaySettings(gameplaySettings);
-            yokkoConfig.BindModPreferences(modPreferences);
+            yokkoConfig.BindModPreferences(modPreferences, startupSettings);
             yokkoConfig.BindSkinSettings(skinSettings);
             yokkoConfig.BindAccessibilitySettings(accessibilitySettings);
+            bindAccessibilityPresentation();
             yokkoConfig.BindEditorSettings(editorSettings);
             yokkoConfig.BindPrivacySettings(privacySettings);
             yokkoConfig.BindStartupSettings(startupSettings);
@@ -222,6 +224,20 @@ namespace Yokko.Game
                 window.DragDrop += onFileDropped;
                 window.Resized += onWindowResized;
             }
+        }
+
+        private void bindAccessibilityPresentation()
+        {
+            void refresh()
+            {
+                YokkoAccessibilityPresentation.Apply(
+                    uiTheme,
+                    accessibilitySettings);
+            }
+
+            accessibilitySettings.ReduceMotion.ValueChanged += _ => refresh();
+            accessibilitySettings.HighContrast.ValueChanged += _ => refresh();
+            refresh();
         }
 
         [BackgroundDependencyLoader]

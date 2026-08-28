@@ -990,22 +990,46 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
     }
 
     public void BindModPreferences(
-        YokkoManiaModPreferences preferences)
+        YokkoManiaModPreferences preferences,
+        YokkoStartupSettings startupSettings = null)
     {
         ArgumentNullException.ThrowIfNull(preferences);
         BindWith(
             YokkoSetting.ManiaModConfiguration,
             preferences.SerializedConfiguration);
 
-        // Active Mods are session-only. Keep their configurable values above,
-        // but always begin a new game launch with every Mod disabled and clear
-        // selections persisted by older versions.
-        preferences.SerializedActiveMods.Value = string.Empty;
-        if (!string.IsNullOrEmpty(Get<string>(YokkoSetting.ManiaActiveMods)))
+        bool rememberActiveMods = startupSettings?.RememberActiveMods.Value
+                                  ?? Get<bool>(YokkoSetting.StartupRememberActiveMods);
+        if (rememberActiveMods)
         {
+            BindWith(
+                YokkoSetting.ManiaActiveMods,
+                preferences.SerializedActiveMods);
+        }
+        else
+        {
+            preferences.SerializedActiveMods.Value = string.Empty;
+            if (!string.IsNullOrEmpty(Get<string>(YokkoSetting.ManiaActiveMods)))
+            {
+                SetValue(YokkoSetting.ManiaActiveMods, string.Empty);
+                Save();
+            }
+        }
+
+        startupSettings?.RememberActiveMods.BindValueChanged(change =>
+        {
+            if (change.NewValue)
+            {
+                BindWith(
+                    YokkoSetting.ManiaActiveMods,
+                    preferences.SerializedActiveMods);
+                return;
+            }
+
+            preferences.SerializedActiveMods.Value = string.Empty;
             SetValue(YokkoSetting.ManiaActiveMods, string.Empty);
             Save();
-        }
+        });
     }
 
     public void BindSkinSettings(YokkoSkinSettings settings)

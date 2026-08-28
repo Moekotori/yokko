@@ -10,22 +10,28 @@ namespace Yokko.Game.Tests.Core;
 public sealed class SettingsNavigationTest
 {
     [Test]
-    public void HiddenPagesAreNotVisibleInNavigation()
+    public void CreationAndAccessibilityPagesAreVisibleInNavigation()
     {
         Assert.Multiple(() =>
         {
             Assert.That(
                 SettingsNavigation.IsVisible(SettingsPageKind.Editor),
-                Is.False);
+                Is.True);
             Assert.That(
                 SettingsNavigation.IsVisible(SettingsPageKind.Accessibility),
-                Is.False);
+                Is.True);
+            Assert.That(
+                SettingsNavigation.IsVisible(SettingsPageKind.Mods),
+                Is.True);
             Assert.That(
                 SettingsNavigation.VisiblePages,
-                Does.Not.Contain(SettingsPageKind.Editor));
+                Does.Contain(SettingsPageKind.Editor));
             Assert.That(
                 SettingsNavigation.VisiblePages,
-                Does.Not.Contain(SettingsPageKind.Accessibility));
+                Does.Contain(SettingsPageKind.Accessibility));
+            Assert.That(
+                SettingsNavigation.VisiblePages,
+                Does.Contain(SettingsPageKind.Mods));
             Assert.That(
                 SettingsNavigation.VisiblePages,
                 Does.Contain(SettingsPageKind.General));

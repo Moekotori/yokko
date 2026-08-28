@@ -16,12 +16,16 @@ namespace Yokko.Game.Presentation;
 internal partial class YokkoUiScalingContainer : DrawSizePreservingFillContainer
 {
     private readonly IBindable<YokkoUiScale> uiScale;
+    private readonly IBindable<int> accessibilityTextScale;
 
     internal float CurrentContentScale { get; private set; } = 1;
 
-    public YokkoUiScalingContainer(IBindable<YokkoUiScale> uiScale)
+    public YokkoUiScalingContainer(
+        IBindable<YokkoUiScale> uiScale,
+        IBindable<int> accessibilityTextScale = null)
     {
         this.uiScale = uiScale;
+        this.accessibilityTextScale = accessibilityTextScale;
         Strategy = DrawSizePreservationStrategy.Minimum;
     }
 
@@ -31,7 +35,8 @@ internal partial class YokkoUiScalingContainer : DrawSizePreservingFillContainer
                                     ?? YokkoDisplaySettings.ReferenceLayoutSize;
         CurrentContentScale = YokkoDisplaySettings.CalculateContentScale(
             availableDrawSize,
-            uiScale.Value);
+            uiScale.Value)
+            * ((accessibilityTextScale?.Value ?? 100) / 100f);
 
         // Matching the target aspect ratio to the live viewport makes both
         // axes resolve to the same exact scale in the framework container.

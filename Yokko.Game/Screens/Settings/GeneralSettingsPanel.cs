@@ -143,7 +143,7 @@ internal partial class GeneralSettingsPanel
                 SettingsChrome.CreateDivider(612),
                 SettingsChrome.CreateSettingRow(
                     620,
-                    "Open last screen",
+                    YokkoStrings.Get("settings.general.open_last_screen"),
                     new SettingsBooleanToggle(
                         startupSettings.OpenLastScreen,
                         "settings.general.enabled",
@@ -152,7 +152,7 @@ internal partial class GeneralSettingsPanel
                 new SpriteText
                 {
                     Position = new Vector2(SettingsChrome.ContentX, 680),
-                    Text = "Configuration backup",
+                    Text = YokkoStrings.Get("settings.general.configuration_backup"),
                     Font = HomeTypography.Display(25),
                     Colour = HomeControlColours.Navy,
                 },
@@ -163,7 +163,7 @@ internal partial class GeneralSettingsPanel
                 SettingsChrome.CreateDivider(830),
                 SettingsChrome.CreateSettingRow(
                     836,
-                    "Save local replays",
+                    YokkoStrings.Get("settings.general.save_local_replays"),
                     new SettingsBooleanToggle(
                         privacySettings.SaveLocalReplays,
                         "settings.general.enabled",
@@ -171,7 +171,7 @@ internal partial class GeneralSettingsPanel
                 SettingsChrome.CreateDivider(898),
                 SettingsChrome.CreateSettingRow(
                     904,
-                    "Include username in exports",
+                    YokkoStrings.Get("settings.general.include_username_in_exports"),
                     new SettingsBooleanToggle(
                         privacySettings.IncludeUsernameInExports,
                         "settings.general.enabled",

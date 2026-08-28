@@ -21,6 +21,7 @@ using Yokko.Core.Difficulty;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Scoring;
 using Yokko.Game.Audio;
+using Yokko.Game.Configuration;
 using Yokko.Game.Gameplay;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Gameplay;
@@ -41,8 +42,12 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 {
     private readonly YokkoGameplaySettings settings;
     private readonly YokkoAudioSettings audioSettings;
+    private readonly YokkoConfigManager yokkoConfig;
+    private readonly Bindable<string> layoutPresetsJson;
+    private readonly Bindable<string> namedProfilesJson;
     private readonly List<GameplaySectionTab> sectionTabs = new();
     private readonly List<GameplayBindingCard> bindingCards = new();
+    private readonly List<SettingsSegmentedChoiceButton> namedProfileButtons = new();
     private readonly List<InputKey> sequentialKeys = new();
     private readonly HashSet<InputKey> pressedKeys = new();
     private readonly Clipboard clipboard;
@@ -75,6 +80,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private InputKey[] resetUndoSnapshot;
     private string resetProfileKey;
     private KeyMode selectedKeyMode = KeyMode.FourKey;
+
+    private int selectedNamedProfileIndex;
 
     internal GameplaySettingsSection CurrentSection { get; private set; } =
         GameplaySettingsSection.Input;
@@ -167,10 +174,23 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         YokkoGameplaySettings settings,
         YokkoAudioSettings audioSettings,
         string testDirectory,
-        Clipboard clipboard)
+        Clipboard clipboard,
+        YokkoConfigManager yokkoConfig)
     {
         this.settings = settings;
         this.audioSettings = audioSettings;
+        this.yokkoConfig = yokkoConfig
+            ?? throw new ArgumentNullException(nameof(yokkoConfig));
+        layoutPresetsJson = yokkoConfig.GetBindable<string>(
+            YokkoSetting.GameplayLayoutPresetsJson);
+        namedProfilesJson = yokkoConfig.GetBindable<string>(
+            YokkoSetting.GameplayNamedKeyProfilesJson);
+        if (string.IsNullOrWhiteSpace(namedProfilesJson.Value))
+        {
+            namedProfilesJson.Value = GameplayNamedKeyProfileStore.EnsureDefaultProfile(
+                yokkoConfig.Get<string>(YokkoSetting.GameplayKeyProfiles));
+        }
+
         this.clipboard = clipboard;
         calibrationPlayer = new AudioSettingsTestPlayer(
             audioSettings,
@@ -849,6 +869,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         children.AddRange(createProfileTransferControls(
             !bmsProfileSelected
             && selectedKeyMode is KeyMode.FourKey or KeyMode.SevenKey));
+        if (!bmsProfileSelected)
+            children.AddRange(createNamedProfileControls());
         setPanelChildren(panel, children);
 
         setContent(panel, animate);
@@ -927,6 +949,123 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         {
             Position = new Vector2(348, 58),
         };
+    }
+
+    private IEnumerable<Drawable> createNamedProfileControls()
+    {
+        yield return new SpriteText
+        {
+            Position = new Vector2(20, 248),
+            Text = YokkoStrings.Get("settings.gameplay.named_key_profiles"),
+            Font = HomeTypography.Display(17),
+            Colour = HomeControlColours.Navy,
+        };
+
+        foreach (Drawable control in createNamedProfileButtons())
+            yield return control;
+
+        yield return new GameplayCompactButton(
+            YokkoStrings.Get("settings.gameplay.named_key_profile_save"),
+            saveNamedKeyProfile,
+            120,
+            FontAwesome.Solid.Save)
+        {
+            Position = new Vector2(688, 236),
+        };
+    }
+
+    private IEnumerable<Drawable> createNamedProfileButtons()
+    {
+        namedProfileButtons.Clear();
+        IReadOnlyList<GameplayNamedKeyProfile> profiles =
+            GameplayNamedKeyProfileStore.Parse(namedProfilesJson.Value);
+        float width = Math.Min(
+            140,
+            profiles.Count > 0
+                ? 640f / profiles.Count
+                : 140);
+
+        for (int index = 0; index < profiles.Count; index++)
+        {
+            int capturedIndex = index;
+            GameplayNamedKeyProfile profile = profiles[index];
+            var button = new SettingsSegmentedChoiceButton(
+                profile.Name,
+                FontAwesome.Solid.Keyboard,
+                () => activateNamedKeyProfile(capturedIndex),
+                width)
+            {
+                Value = index,
+            };
+            button.SetSelected(index == selectedNamedProfileIndex);
+            namedProfileButtons.Add(button);
+            yield return new Container
+            {
+                Position = new Vector2(196 + index * (width + 8), 236),
+                Child = button,
+            };
+        }
+    }
+
+    private void activateNamedKeyProfile(int index)
+    {
+        cancelCapture();
+        IReadOnlyList<GameplayNamedKeyProfile> profiles =
+            GameplayNamedKeyProfileStore.Parse(namedProfilesJson.Value);
+        if ((uint)index >= profiles.Count)
+            return;
+
+        selectedNamedProfileIndex = index;
+        string payload = profiles[index].Payload;
+        if (string.IsNullOrWhiteSpace(payload))
+            return;
+
+        try
+        {
+            GameplayKeyProfileCodec.DecodeAndApply(payload, settings);
+            invalidateResetRecovery();
+            showInputMessage(YokkoStrings.Get(
+                "settings.gameplay.profile_imported"));
+            showInputSection(false);
+        }
+        catch (Exception ex) when (
+            ex is FormatException
+            or ArgumentException
+            or InvalidOperationException)
+        {
+            showInputMessage(YokkoStrings.Get(
+                "settings.gameplay.profile_import_failed"));
+        }
+    }
+
+    private void saveNamedKeyProfile()
+    {
+        cancelCapture();
+        IReadOnlyList<GameplayNamedKeyProfile> profiles =
+            GameplayNamedKeyProfileStore.Parse(namedProfilesJson.Value);
+        var updated = profiles.ToList();
+        string encoded = GameplayKeyProfileCodec.Encode(settings);
+        if (selectedNamedProfileIndex >= 0
+            && selectedNamedProfileIndex < updated.Count)
+        {
+            updated[selectedNamedProfileIndex].Payload = encoded;
+        }
+        else
+        {
+            updated.Add(new GameplayNamedKeyProfile
+            {
+                Name = $"Profile {updated.Count + 1}",
+                Payload = encoded,
+            });
+            selectedNamedProfileIndex = updated.Count - 1;
+        }
+
+        namedProfilesJson.Value =
+            GameplayNamedKeyProfileStore.Serialize(updated);
+        yokkoConfig.Save();
+        showInputMessage(YokkoStrings.Get(
+            "settings.gameplay.named_key_profile_saved"));
+        showInputSection(false);
     }
 
     private IEnumerable<Drawable> createProfileTransferControls(
@@ -1341,7 +1480,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     private Drawable createFeedbackSection()
     {
-        var panel = createPanel();
+        var panel = createPanel(400);
         setPanelChildren(panel, new Drawable[]
         {
             new SpriteText
@@ -1433,9 +1572,96 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Position = new Vector2(20, 272),
                 Size = new Vector2(800, 26),
             },
+            new SpriteText
+            {
+                Position = new Vector2(20, 312),
+                Text = YokkoStrings.Get("settings.gameplay.layout_presets"),
+                Font = HomeTypography.Display(17),
+                Colour = HomeControlColours.Navy,
+            },
+            new GameplayCompactButton(
+                YokkoStrings.Get("settings.gameplay.layout_preset_default"),
+                () => applyLayoutPreset("default"),
+                88)
+            {
+                Position = new Vector2(196, 304),
+            },
+            new GameplayCompactButton(
+                YokkoStrings.Get("settings.gameplay.layout_preset_compact"),
+                () => applyLayoutPreset("compact"),
+                118)
+            {
+                Position = new Vector2(292, 304),
+            },
+            new GameplayCompactButton(
+                YokkoStrings.Get("settings.gameplay.layout_preset_stream"),
+                () => applyLayoutPreset("stream"),
+                88)
+            {
+                Position = new Vector2(418, 304),
+            },
+            new GameplayCompactButton(
+                YokkoStrings.Get("settings.gameplay.save_layout_preset"),
+                saveCurrentLayoutPreset,
+                120,
+                FontAwesome.Solid.Save)
+            {
+                Position = new Vector2(514, 304),
+            },
         });
 
         return panel;
+    }
+
+    internal void ApplyLayoutPreset(string presetId) => applyLayoutPreset(presetId);
+
+    private void applyLayoutPreset(string presetId)
+    {
+        GameplayLayoutPresetStore.ApplyBuiltIn(settings, presetId);
+        showLayoutPresetMessage(presetId);
+    }
+
+    private void saveCurrentLayoutPreset()
+    {
+        IReadOnlyList<GameplayLayoutPreset> presets =
+            GameplayLayoutPresetStore.ParsePresets(layoutPresetsJson.Value);
+        var updated = presets.ToList();
+        string name = $"Layout {updated.Count + 1}";
+        updated.Add(new GameplayLayoutPreset
+        {
+            Name = name,
+            Values = System.Text.Json.JsonSerializer.Deserialize<
+                Dictionary<string, double>>(
+                GameplayLayoutPresetStore.Capture(settings))
+                ?? new Dictionary<string, double>(),
+        });
+        layoutPresetsJson.Value =
+            GameplayLayoutPresetStore.SerializePresets(updated);
+        yokkoConfig.Save();
+        showSectionMessage(YokkoStrings.Get(
+            "settings.gameplay.layout_preset_saved"));
+    }
+
+    private void showLayoutPresetMessage(string presetId)
+    {
+        LocalisableString label = presetId switch
+        {
+            "compact" => YokkoStrings.Get(
+                "settings.gameplay.layout_preset_compact"),
+            "stream" => YokkoStrings.Get(
+                "settings.gameplay.layout_preset_stream"),
+            _ => YokkoStrings.Get(
+                "settings.gameplay.layout_preset_default"),
+        };
+        showSectionMessage(YokkoStrings.Get(
+            "settings.gameplay.layout_preset_applied",
+            label));
+    }
+
+    private void showSectionMessage(LocalisableString message)
+    {
+        if (statusMetadata != null)
+            statusMetadata.Text = message;
     }
 
     private static Container createPanel(float height = 328) => new()

@@ -133,7 +133,7 @@ public sealed class ManiaModPreferencesTest
     }
 
     [Test]
-    public void ActiveModsResetAcrossConfigInstances()
+    public void ActiveModsResetAcrossConfigInstancesWhenRememberDisabled()
     {
         string directory = Path.Combine(
             TestContext.CurrentContext.WorkDirectory,
@@ -146,6 +146,9 @@ public sealed class ManiaModPreferencesTest
             using (var config =
                    new YokkoConfigManager(new NativeStorage(directory)))
             {
+                config.SetValue(
+                    YokkoSetting.StartupRememberActiveMods,
+                    false);
                 var first = new YokkoManiaModPreferences();
                 config.BindModPreferences(first);
                 first.RememberActiveMods(
@@ -167,6 +170,9 @@ public sealed class ManiaModPreferencesTest
             using (var config =
                    new YokkoConfigManager(new NativeStorage(directory)))
             {
+                config.SetValue(
+                    YokkoSetting.StartupRememberActiveMods,
+                    false);
                 var restored = new YokkoManiaModPreferences();
                 config.BindModPreferences(restored);
                 ManiaModSet active = restored.RestoreActiveMods();
@@ -177,6 +183,60 @@ public sealed class ManiaModPreferencesTest
                     Assert.That(
                         config.Get<string>(YokkoSetting.ManiaActiveMods),
                         Is.Empty);
+                });
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Test]
+    public void ActiveModsPersistAcrossConfigInstancesWhenRememberEnabled()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "mania-active-mods-remember",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            using (var config =
+                   new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                config.SetValue(
+                    YokkoSetting.StartupRememberActiveMods,
+                    true);
+                var first = new YokkoManiaModPreferences();
+                config.BindModPreferences(first);
+                first.RememberActiveMods(
+                    ManiaModSet.Empty
+                        .WithFixedRate(
+                            ManiaModId.HalfTime,
+                            0.82,
+                            true)
+                        .With(ManiaModId.Hidden, true));
+                Assert.That(config.Save(), Is.True);
+            }
+
+            using (var config =
+                   new YokkoConfigManager(new NativeStorage(directory)))
+            {
+                config.SetValue(
+                    YokkoSetting.StartupRememberActiveMods,
+                    true);
+                var restored = new YokkoManiaModPreferences();
+                config.BindModPreferences(restored);
+                ManiaModSet active = restored.RestoreActiveMods();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(active.Contains(ManiaModId.HalfTime), Is.True);
+                    Assert.That(active.Contains(ManiaModId.Hidden), Is.True);
+                    Assert.That(active.FixedRateSpeedChange, Is.EqualTo(0.82));
                 });
             }
         }

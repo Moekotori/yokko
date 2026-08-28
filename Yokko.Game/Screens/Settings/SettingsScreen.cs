@@ -533,7 +533,8 @@ public partial class SettingsScreen : Screen
                 gameplaySettings,
                 audioSettings,
                 host.Storage.GetFullPath("audio-tests", true),
-                clipboard),
+                clipboard,
+                yokkoConfig),
             SettingsPageKind.Mods => new ModPreferencesSettingsPanel(
                 startupSettings,
                 modPreferences),

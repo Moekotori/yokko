@@ -79,6 +79,52 @@ internal static class GameplayLayoutPresetStore
         }
     }
 
+    internal static void ApplyBuiltIn(
+        YokkoGameplaySettings settings,
+        string presetId)
+    {
+        switch (presetId)
+        {
+            case "compact":
+                settings.LayoutHudScaleX.Value = 0.85;
+                settings.LayoutHudScaleY.Value = 0.85;
+                settings.LayoutAccuracyScaleX.Value = 0.9;
+                settings.LayoutAccuracyScaleY.Value = 0.9;
+                settings.LayoutComboScaleX.Value = 0.9;
+                settings.LayoutComboScaleY.Value = 0.9;
+                settings.LayoutProgressScaleX.Value = 0.92;
+                settings.LayoutProgressScaleY.Value = 0.92;
+                break;
+
+            case "stream":
+                settings.LayoutPlayfieldHeightScale.Value = 1.08;
+                settings.LayoutTopCoverRatio.Value = 0.12;
+                settings.LayoutBottomCoverRatio.Value = 0.08;
+                settings.BackgroundDim.Value = 0.55;
+                break;
+
+            default:
+                settings.ResetGameplayLayout();
+                break;
+        }
+    }
+
+    internal static string CapturePresetJson(
+        YokkoGameplaySettings settings,
+        string name)
+    {
+        return JsonSerializer.Serialize(
+            new GameplayLayoutPreset
+            {
+                Name = name,
+                Values = JsonSerializer.Deserialize<Dictionary<string, double>>(
+                             Capture(settings),
+                             json_options)
+                         ?? new Dictionary<string, double>(),
+            },
+            json_options);
+    }
+
     internal static IEnumerable<(string Key, Bindable<double> Bindable)>
         enumerateLayoutBindables(YokkoGameplaySettings settings)
     {
