@@ -756,12 +756,21 @@ public sealed class NativeAudioEngine :
             }
 
             core.Start();
-            if (outputClosedForPause)
+            try
             {
-                await openOutputAsync(
-                        activeRequest,
-                        cancellationToken)
-                    .ConfigureAwait(false);
+                if (outputClosedForPause)
+                {
+                    await openOutputAsync(
+                            activeRequest,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                core.Pause();
+                status = status with { IsRunning = false };
+                throw;
             }
 
             outputClosedForPause = false;

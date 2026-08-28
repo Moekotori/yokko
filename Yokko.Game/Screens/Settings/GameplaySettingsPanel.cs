@@ -1830,8 +1830,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                         calibrationEngine = engine;
                         calibrationPreparing = false;
                         calibrationSession = new GameplayCalibrationSession();
-                        calibrationSession.BeginAudioSession(
-                            engine.PlaybackTimeMilliseconds);
+                        calibrationSession.BeginAudioSession(0);
                         nextCalibrationStatusUpdate = 0;
                         lastCalibrationPulseBeat = -1;
                         refreshCalibrationStatus(

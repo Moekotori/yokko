@@ -1858,7 +1858,7 @@ public partial class GameplayScreen : Screen
             activeJudgementOffsetMilliseconds =
                 activeUserOffsetMilliseconds + activeLocalOffsetMilliseconds;
             rawKeysoundDispatcher?.SetUserOffset(
-                activeUserOffsetMilliseconds);
+                activeJudgementOffsetMilliseconds);
             double initialPlaybackRate =
                 currentPlaybackRate(currentGameplayTime);
             AudioEngineStartRequest startRequest =
@@ -2610,7 +2610,7 @@ public partial class GameplayScreen : Screen
             samplePlayback,
             keysoundSelector,
             headSamplesByHitObject);
-        rawKeysoundDispatcher.SetUserOffset(activeUserOffsetMilliseconds);
+        rawKeysoundDispatcher.SetUserOffset(activeJudgementOffsetMilliseconds);
         rawKeysoundDispatcher.RefreshAllAndEnable();
         keyInputTimestamps.SetRawInputFastPathSink(
             rawKeysoundDispatcher);
@@ -5503,7 +5503,10 @@ public partial class GameplayScreen : Screen
     {
         try
         {
-            await audioEngine.SeekAsync(targetMilliseconds)
+            double audioTarget = Math.Max(
+                0,
+                targetMilliseconds - activeJudgementOffsetMilliseconds);
+            await audioEngine.SeekAsync(audioTarget)
                              .ConfigureAwait(true);
             lastAppliedPlaybackRate = double.NaN;
         }
