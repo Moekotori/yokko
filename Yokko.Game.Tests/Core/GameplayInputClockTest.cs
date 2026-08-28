@@ -286,6 +286,31 @@ public sealed class GameplayInputClockTest
     }
 
     [Test]
+    public void AudioSampleTelemetryDropTrackerAccumulatesAcrossCounterResets()
+    {
+        var tracker = new AudioSampleTelemetryDropTracker();
+
+        Assert.That(tracker.TotalDropped, Is.EqualTo(0));
+
+        tracker.Observe(0);
+        tracker.Observe(4);
+        Assert.That(tracker.TotalDropped, Is.EqualTo(4));
+
+        // Repeated observations of an unchanged counter must not inflate
+        // the total.
+        tracker.Observe(4);
+        Assert.That(tracker.TotalDropped, Is.EqualTo(4));
+
+        // An engine restart resets the native counter; the previous total
+        // must be retained and new drops accumulate on top of it.
+        tracker.Observe(1);
+        Assert.That(tracker.TotalDropped, Is.EqualTo(5));
+
+        tracker.Observe(3);
+        Assert.That(tracker.TotalDropped, Is.EqualTo(7));
+    }
+
+    [Test]
     public void NativeSampleStatisticsReportQueueAndPresentationLatency()
     {
         var tracker = new AudioSampleTriggerLatencyTracker();
