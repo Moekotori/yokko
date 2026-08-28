@@ -29,7 +29,8 @@ public sealed partial class EtternaChartImporter : IChartImporter
             return ValueTask.FromResult(importChartFile(request.Path));
         }
 
-        IReadOnlyList<string> charts = ChartArchive.ExtractCharts(request.Path, ".sm", ".ssc");
+        ChartArchiveExtraction extraction = ChartArchive.ExtractCharts(request.Path, ".sm", ".ssc");
+        IReadOnlyList<string> charts = extraction.ChartPaths;
         string[] orderedCharts = charts.OrderBy(static chart => Path.GetDirectoryName(chart), StringComparer.OrdinalIgnoreCase)
                                        .ThenBy(static chart => Path.GetFileNameWithoutExtension(chart), StringComparer.OrdinalIgnoreCase)
                                        .ThenBy(chart => Path.GetExtension(chart).Equals(".ssc", StringComparison.OrdinalIgnoreCase)
@@ -51,7 +52,11 @@ public sealed partial class EtternaChartImporter : IChartImporter
                     $"This package contains {charts.Count} simfiles; imported {Path.GetFileName(chart)}.",
                 };
                 warnings.AddRange(result.Warnings);
-                return ValueTask.FromResult(result with { Warnings = warnings });
+                return ValueTask.FromResult(result with
+                {
+                    Warnings = warnings,
+                    ExtractedArchiveRoot = extraction.RootPath,
+                });
             }
             catch (InvalidDataException ex)
             {
@@ -59,6 +64,7 @@ public sealed partial class EtternaChartImporter : IChartImporter
             }
         }
 
+        ChartArchive.TryDeleteExtraction(extraction.RootPath);
         throw new InvalidDataException(
             "The Etterna/StepMania package does not contain a supported 4K/7K chart.",
             failures.FirstOrDefault());

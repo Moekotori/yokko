@@ -78,6 +78,94 @@ CircleSize:4
         }
 
         [Test]
+        public void OszImportCarriesCallerOwnedExtractionRoot()
+        {
+            string archivePath = createArchivePath("extraction-root", ".osz");
+
+            using (ZipArchive archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+            {
+                writeEntry(archive, "audio.ogg", string.Empty);
+                writeEntry(archive, "chart.osu", """
+osu file format v14
+
+[General]
+AudioFilename: audio.ogg
+Mode: 3
+
+[Metadata]
+Title:Extraction Root
+Artist:Artist
+Creator:Mapper
+Version:4K
+
+[Difficulty]
+CircleSize:4
+
+[TimingPoints]
+0,500,4,2,0,100,1,0
+
+[HitObjects]
+64,192,500,1,0,0:0:0:0:
+""");
+            }
+
+            ChartImportResult result = import(archivePath);
+
+            Assert.That(result.ExtractedArchiveRoot, Is.Not.Null.And.Not.Empty);
+            Assert.That(Directory.Exists(result.ExtractedArchiveRoot), Is.True);
+            Assert.That(
+                Path.GetFullPath(result.Beatmap.AudioPath!),
+                Does.StartWith(
+                    Path.GetFullPath(result.ExtractedArchiveRoot!)
+                    + Path.DirectorySeparatorChar));
+
+            ChartArchive.TryDeleteExtraction(result.ExtractedArchiveRoot);
+
+            Assert.That(Directory.Exists(result.ExtractedArchiveRoot), Is.False);
+        }
+
+        [Test]
+        public void OszImportRemovesExtractionWhenNoChartIsSupported()
+        {
+            string archivePath = createArchivePath("unsupported-only", ".osz");
+
+            using (ZipArchive archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+            {
+                writeEntry(archive, "taiko.osu", """
+osu file format v14
+
+[General]
+Mode: 1
+
+[Difficulty]
+CircleSize:4
+""");
+            }
+
+            string[] before = snapshotExtractionDirectories();
+
+            Assert.That(
+                () => import(archivePath),
+                Throws.TypeOf<InvalidDataException>());
+
+            Assert.That(
+                snapshotExtractionDirectories(),
+                Is.EquivalentTo(before),
+                "A failed .osz import must not leave its extraction directory behind.");
+        }
+
+        private static string[] snapshotExtractionDirectories()
+        {
+            string extractionsRoot = Path.Combine(
+                Path.GetTempPath(),
+                "Yokko",
+                "ChartImports");
+            return Directory.Exists(extractionsRoot)
+                ? Directory.GetDirectories(extractionsRoot)
+                : Array.Empty<string>();
+        }
+
+        [Test]
         public void OsuMetadataPrefersUnicodeSongTitleOverPackageFileName()
         {
             string archivePath = createArchivePath("This Is Only The Package Name", ".osz");

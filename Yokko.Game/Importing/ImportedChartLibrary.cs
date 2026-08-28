@@ -184,6 +184,9 @@ internal sealed class ImportedChartLibrary : IDisposable
         new(StringComparer.OrdinalIgnoreCase);
     private readonly LinkedList<string> externalBeatmapLru = new();
     private const int externalBeatmapCacheCapacity = 64;
+    // 年龄阈值避免误删另一个正在运行的 Yokko 实例刚解压的目录。
+    private static readonly TimeSpan staleExtractionMinimumAge =
+        TimeSpan.FromHours(24);
 
     internal int LastManagedScannedFileCount { get; private set; }
     internal int LastManagedContentReadCount { get; private set; }
@@ -266,6 +269,9 @@ internal sealed class ImportedChartLibrary : IDisposable
                 return startupLoadTask;
 
             startupLoadStarted = true;
+            // 回收之前会话遗留的谱面解压临时目录；失败静默，不影响启动。
+            _ = Task.Run(static () =>
+                ChartArchive.CleanUpStaleExtractions(staleExtractionMinimumAge));
             startupLoadTask = Task.Run(async () =>
             {
                 await loadCachedExternalOsuAsync().ConfigureAwait(false);
@@ -760,6 +766,12 @@ internal sealed class ImportedChartLibrary : IDisposable
                 Directory.Delete(destination, true);
 
             throw;
+        }
+        finally
+        {
+            // 第一次解析仅用于复制引用资产；后续都以库内副本
+            // （managedResults）为准，本次解压目录用完即弃。
+            scheduleExtractionCleanup(sourceResults);
         }
     }
 
@@ -2441,10 +2453,58 @@ internal sealed class ImportedChartLibrary : IDisposable
             LinkedListNode<string> next = node.Next;
             if (predicate(node.Value))
             {
-                externalBeatmapCache.Remove(node.Value);
+                if (externalBeatmapCache.Remove(
+                        node.Value,
+                        out ChartImportResult removed))
+                {
+                    scheduleExtractionCleanup(removed.ExtractedArchiveRoot);
+                }
                 externalBeatmapLru.Remove(node);
             }
             node = next;
+        }
+    }
+
+    private void cacheMaterialisedResult(string chartId, ChartImportResult result)
+    {
+        Debug.Assert(Monitor.IsEntered(syncRoot));
+        externalBeatmapCache[chartId] = result;
+        externalBeatmapLru.Remove(chartId);
+        externalBeatmapLru.AddFirst(chartId);
+        while (externalBeatmapLru.Count > externalBeatmapCacheCapacity)
+        {
+            string evicted = externalBeatmapLru.Last!.Value;
+            externalBeatmapLru.RemoveLast();
+            if (externalBeatmapCache.Remove(
+                    evicted,
+                    out ChartImportResult evictedResult))
+            {
+                scheduleExtractionCleanup(evictedResult.ExtractedArchiveRoot);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Best-effort 地在后台删除压缩包解压产生的临时目录。文件被占用等
+    /// 失败会被忽略，由下次启动的陈旧目录清理兜底。
+    /// </summary>
+    private static void scheduleExtractionCleanup(string extractionRoot)
+    {
+        if (string.IsNullOrEmpty(extractionRoot))
+            return;
+
+        _ = Task.Run(() => ChartArchive.TryDeleteExtraction(extractionRoot));
+    }
+
+    private static void scheduleExtractionCleanup(
+        IEnumerable<ChartImportResult> results)
+    {
+        foreach (string root in results
+                     .Select(result => result.ExtractedArchiveRoot)
+                     .Where(root => !string.IsNullOrEmpty(root))
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            scheduleExtractionCleanup(root);
         }
     }
 
@@ -2560,27 +2620,28 @@ internal sealed class ImportedChartLibrary : IDisposable
                 .AsTask()
                 .GetAwaiter()
                 .GetResult();
-        result = selectMaterialisedResult(chart, results);
 
-        lock (syncRoot)
+        try
         {
-            ImportedChart current = findChartByIdCore(chart.Id);
-            if (current == null
-                || !externalChartEquivalentIgnoringRatings(current, chart))
-            {
-                throw new InvalidDataException(
-                    "The beatmap changed while it was loading.");
-            }
+            result = selectMaterialisedResult(chart, results);
 
-            externalBeatmapCache[chart.Id] = result;
-            externalBeatmapLru.Remove(chart.Id);
-            externalBeatmapLru.AddFirst(chart.Id);
-            while (externalBeatmapLru.Count > externalBeatmapCacheCapacity)
+            lock (syncRoot)
             {
-                string evicted = externalBeatmapLru.Last!.Value;
-                externalBeatmapLru.RemoveLast();
-                externalBeatmapCache.Remove(evicted);
+                ImportedChart current = findChartByIdCore(chart.Id);
+                if (current == null
+                    || !externalChartEquivalentIgnoringRatings(current, chart))
+                {
+                    throw new InvalidDataException(
+                        "The beatmap changed while it was loading.");
+                }
+
+                cacheMaterialisedResult(chart.Id, result);
             }
+        }
+        catch
+        {
+            scheduleExtractionCleanup(results);
+            throw;
         }
 
         return chart with { Result = result };
@@ -2636,30 +2697,41 @@ internal sealed class ImportedChartLibrary : IDisposable
                         chart.SourceKind == ImportedChartSourceKind.Managed
                             && managedEnableBmsScratch,
                         cancellationToken)).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-            return selectMaterialisedResult(chart, results);
+
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return selectMaterialisedResult(chart, results);
+            }
+            catch
+            {
+                scheduleExtractionCleanup(results);
+                throw;
+            }
         }, cancellationToken).ConfigureAwait(false);
 
-        cancellationToken.ThrowIfCancellationRequested();
-        lock (syncRoot)
+        try
         {
-            ImportedChart current = findChartByIdCore(chart.Id);
-            if (current == null
-                || !externalChartEquivalentIgnoringRatings(current, chart))
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (syncRoot)
             {
-                throw new InvalidDataException(
-                    "The beatmap changed while it was loading.");
-            }
+                ImportedChart current = findChartByIdCore(chart.Id);
+                if (current == null
+                    || !externalChartEquivalentIgnoringRatings(current, chart))
+                {
+                    throw new InvalidDataException(
+                        "The beatmap changed while it was loading.");
+                }
 
-            externalBeatmapCache[chart.Id] = result;
-            externalBeatmapLru.Remove(chart.Id);
-            externalBeatmapLru.AddFirst(chart.Id);
-            while (externalBeatmapLru.Count > externalBeatmapCacheCapacity)
-            {
-                string evicted = externalBeatmapLru.Last!.Value;
-                externalBeatmapLru.RemoveLast();
-                externalBeatmapCache.Remove(evicted);
+                cacheMaterialisedResult(chart.Id, result);
             }
+        }
+        catch (Exception exception) when (exception
+                                           is OperationCanceledException
+                                           or InvalidDataException)
+        {
+            scheduleExtractionCleanup(result.ExtractedArchiveRoot);
+            throw;
         }
 
         return chart with { Result = result };
@@ -2736,6 +2808,8 @@ internal sealed class ImportedChartLibrary : IDisposable
                 Beatmap = createExternalSummary(
                     chart.Result.Beatmap,
                     chart.Bpm ?? primaryBpm(chart.Result.Beatmap)),
+                // 解压临时目录只在本会话有效，不写入持久索引。
+                ExtractedArchiveRoot = null,
             },
             RequiresMaterialisation = true,
         }).ToArray();

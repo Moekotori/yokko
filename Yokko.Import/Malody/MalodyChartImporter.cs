@@ -419,18 +419,21 @@ public sealed class MalodyChartImporter : IChartImporter
         int ChartCount,
         int FailureCount) importPackage(ChartImportRequest request)
     {
-        IReadOnlyList<string> charts = ChartArchive.ExtractCharts(
+        ChartArchiveExtraction extraction = ChartArchive.ExtractCharts(
             request.Path,
             ".mc");
         var results = new List<ChartImportResult>();
         var failures = new List<Exception>();
 
-        foreach (string chart in charts)
+        foreach (string chart in extraction.ChartPaths)
         {
             request.CancellationToken.ThrowIfCancellationRequested();
             try
             {
-                results.Add(importChart(request with { Path = chart }));
+                results.Add(importChart(request with { Path = chart }) with
+                {
+                    ExtractedArchiveRoot = extraction.RootPath,
+                });
             }
             catch (InvalidDataException ex)
             {
@@ -440,12 +443,13 @@ public sealed class MalodyChartImporter : IChartImporter
 
         if (results.Count == 0)
         {
+            ChartArchive.TryDeleteExtraction(extraction.RootPath);
             throw new InvalidDataException(
                 "The .mcz package does not contain a supported 4K-9K Malody Key chart.",
                 failures.FirstOrDefault());
         }
 
-        return (results, charts.Count, failures.Count);
+        return (results, extraction.ChartPaths.Count, failures.Count);
     }
 
     private static bool isPackage(string path) =>
