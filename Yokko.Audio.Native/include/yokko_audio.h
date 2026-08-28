@@ -20,8 +20,11 @@ extern "C"
 {
 #endif
 
-#define YOKKO_AUDIO_ABI_VERSION 12u
+#define YOKKO_AUDIO_ABI_VERSION 13u
 #define YOKKO_AUDIO_SAMPLE_TELEMETRY_ABI_VERSION 1u
+
+#define YOKKO_AUDIO_WASAPI_DEVICE_ID_CAPACITY 512u
+#define YOKKO_AUDIO_WASAPI_DEVICE_NAME_CAPACITY 512u
 
     typedef struct yokko_audio_engine yokko_audio_engine;
 
@@ -123,6 +126,13 @@ extern "C"
         uint32_t shared_explicit_period;
         int32_t shared_explicit_period_error;
     } yokko_audio_output_status;
+
+    typedef struct yokko_audio_wasapi_device_info
+    {
+        wchar_t id[YOKKO_AUDIO_WASAPI_DEVICE_ID_CAPACITY];
+        wchar_t name[YOKKO_AUDIO_WASAPI_DEVICE_NAME_CAPACITY];
+        uint32_t is_default;
+    } yokko_audio_wasapi_device_info;
 
     typedef struct yokko_audio_sample_trigger_telemetry
     {
@@ -329,17 +339,22 @@ extern "C"
     YOKKO_AUDIO_API void YOKKO_AUDIO_CALL yokko_audio_close_output(
         yokko_audio_engine* engine);
 
+    /*
+     * Enumerates every active render endpoint with a single enumerator and
+     * endpoint collection instead of one COM round trip per device. At most
+     * device_capacity entries are written consecutively; endpoints that
+     * disappear mid-enumeration are skipped. written_device_count receives
+     * the number of entries written and active_device_count the number of
+     * active endpoints, so a caller whose buffer was too small can retry
+     * with active_device_count entries. devices may be null only when
+     * device_capacity is zero.
+     */
     YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL
-        yokko_audio_get_wasapi_device_count(uint32_t* device_count);
-
-    YOKKO_AUDIO_API yokko_audio_result YOKKO_AUDIO_CALL
-        yokko_audio_get_wasapi_device_info(
-            uint32_t device_index,
-            wchar_t* device_id,
-            uint32_t device_id_capacity,
-            wchar_t* device_name,
-            uint32_t device_name_capacity,
-            uint32_t* is_default);
+        yokko_audio_enumerate_wasapi_devices(
+            yokko_audio_wasapi_device_info* devices,
+            uint32_t device_capacity,
+            uint32_t* written_device_count,
+            uint32_t* active_device_count);
 
     /*
      * ASIO discovery is passive: it reads registered 64-bit drivers without

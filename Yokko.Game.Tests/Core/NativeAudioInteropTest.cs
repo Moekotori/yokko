@@ -48,7 +48,7 @@ namespace Yokko.Game.Tests.Core
             NativeAudioStatus correlated = core.GetStatus();
             Assert.Multiple(() =>
             {
-                Assert.That(correlated.AbiVersion, Is.EqualTo(12));
+                Assert.That(correlated.AbiVersion, Is.EqualTo(13));
                 Assert.That(correlated.HasPresentedPosition, Is.EqualTo(1));
                 Assert.That(correlated.PresentedFramePosition, Is.EqualTo(4800));
                 Assert.That(correlated.PositionObservationTime100ns, Is.Zero);
@@ -68,6 +68,55 @@ namespace Yokko.Game.Tests.Core
             Assert.That(stopped.State, Is.EqualTo(NativeAudioState.Idle));
             Assert.That(stopped.BufferedFrames, Is.Zero);
             Assert.That(stopped.UnderrunCount, Is.Zero);
+        }
+
+        [Test]
+        [Platform(Include = "Win")]
+        [NonParallelizable]
+        public void WasapiDiscoveryReturnsAllEndpointsFromOneNativeCall()
+        {
+            string nativeLibraryPath =
+                Environment.GetEnvironmentVariable(
+                    "YOKKO_NATIVE_AUDIO_TEST_DLL")
+                ?? findDefaultNativeLibraryPath();
+
+            if (!File.Exists(nativeLibraryPath))
+            {
+                Assert.Ignore(
+                    $"Native audio library is not built: {nativeLibraryPath}");
+            }
+
+            Environment.SetEnvironmentVariable(
+                "YOKKO_NATIVE_AUDIO_TEST_DLL",
+                nativeLibraryPath);
+
+            NativeWasapiDevice[] devices;
+            try
+            {
+                devices = NativeWasapiDevices.Enumerate().ToArray();
+            }
+            catch (NativeAudioException)
+            {
+                Assert.Ignore(
+                    "WASAPI enumeration is unavailable in this environment.");
+                return;
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    devices.Select(device => device.Id),
+                    Is.Unique);
+                Assert.That(
+                    devices,
+                    Has.All.Matches<NativeWasapiDevice>(
+                        device =>
+                            !string.IsNullOrWhiteSpace(device.Id)
+                            && !string.IsNullOrWhiteSpace(device.Name)));
+                Assert.That(
+                    devices.Count(device => device.IsDefault),
+                    Is.LessThanOrEqualTo(1));
+            });
         }
 
         [Test]

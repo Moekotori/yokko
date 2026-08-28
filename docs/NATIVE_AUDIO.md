@@ -65,6 +65,9 @@ The P0 ABI covers:
   clock;
 - ABI v12 routing for callback-mixed music samples, including a music-volume
   bus and playback rate independent from ordinary hit sounds;
+- ABI v13 single-call WASAPI endpoint enumeration that fills a caller-owned
+  device array from one enumerator/endpoint collection instead of one COM
+  round trip per device;
 - buffer, clock, underrun, callback-work and callback-cadence telemetry.
 
 The audio callback entry point exists for native output backends. It is not a

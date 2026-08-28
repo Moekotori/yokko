@@ -916,6 +916,91 @@ namespace
         require(ring.available_frames() == 0, "SPSC drains fully");
     }
 
+    bool is_terminated_within(const wchar_t* const text, const size_t capacity)
+    {
+        for (size_t index = 0; index < capacity; ++index)
+        {
+            if (text[index] == L'\0')
+                return true;
+        }
+
+        return false;
+    }
+
+    void test_wasapi_device_enumeration_contract()
+    {
+        uint32_t written = 0;
+        uint32_t active = 0;
+        yokko_audio_wasapi_device_info devices[4]{};
+
+        require(
+            yokko_audio_enumerate_wasapi_devices(nullptr, 4, &written, &active)
+                == YOKKO_AUDIO_INVALID_ARGUMENT,
+            "null device array with non-zero capacity rejected");
+        require(
+            yokko_audio_enumerate_wasapi_devices(devices, 4, nullptr, &active)
+                == YOKKO_AUDIO_INVALID_ARGUMENT,
+            "null written count rejected");
+        require(
+            yokko_audio_enumerate_wasapi_devices(devices, 4, &written, nullptr)
+                == YOKKO_AUDIO_INVALID_ARGUMENT,
+            "null active count rejected");
+
+        written = 0xffffffffu;
+        active = 0xffffffffu;
+        const yokko_audio_result result =
+            yokko_audio_enumerate_wasapi_devices(
+                devices,
+                4,
+                &written,
+                &active);
+        if (result == YOKKO_AUDIO_OK)
+        {
+            require(written <= 4, "written count respects capacity");
+            require(written <= active, "written count never exceeds active");
+            uint32_t default_count = 0;
+            for (uint32_t index = 0; index < written; ++index)
+            {
+                require(
+                    is_terminated_within(
+                        devices[index].id,
+                        YOKKO_AUDIO_WASAPI_DEVICE_ID_CAPACITY),
+                    "device id is terminated");
+                require(
+                    is_terminated_within(
+                        devices[index].name,
+                        YOKKO_AUDIO_WASAPI_DEVICE_NAME_CAPACITY),
+                    "device name is terminated");
+                require(
+                    devices[index].is_default <= 1,
+                    "is_default is boolean");
+                default_count += devices[index].is_default;
+            }
+            require(default_count <= 1, "at most one default device");
+
+            // Count-only probing stays valid with a null array.
+            uint32_t probe_written = 0xffffffffu;
+            uint32_t probe_active = 0xffffffffu;
+            require(
+                yokko_audio_enumerate_wasapi_devices(
+                    nullptr,
+                    0,
+                    &probe_written,
+                    &probe_active) == YOKKO_AUDIO_OK,
+                "count-only enumeration succeeds");
+            require(probe_written == 0, "count-only probe writes nothing");
+        }
+        else
+        {
+            require(
+                result == YOKKO_AUDIO_BACKEND_UNAVAILABLE,
+                "unavailable backend is the only expected failure");
+            require(
+                written == 0 && active == 0,
+                "unavailable enumeration zeroes both counts");
+        }
+    }
+
     void test_stop_can_race_with_output_callback()
     {
         EngineHandle engine(512, 1);
@@ -980,6 +1065,7 @@ int main()
     test_hardware_clock_supersedes_callback_clock();
     test_callback_deadline_telemetry();
     test_ring_buffer_is_safe_for_one_producer_and_consumer();
+    test_wasapi_device_enumeration_contract();
     test_stop_can_race_with_output_callback();
 
     std::cout << "Yokko native audio core tests passed.\n";

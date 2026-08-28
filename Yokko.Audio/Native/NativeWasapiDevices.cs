@@ -7,51 +7,60 @@ internal sealed record NativeWasapiDevice(
 
 internal static class NativeWasapiDevices
 {
+    private const uint initialCapacity = 16;
+
     internal static unsafe IReadOnlyList<NativeWasapiDevice> Enumerate()
     {
         NativeAudioLibrary.EnsureLoaded();
-        NativeAudioResult countResult =
-            NativeAudioInterop.GetWasapiDeviceCount(out uint deviceCount);
-        if (countResult != NativeAudioResult.Ok)
-            throw new NativeAudioException(
-                $"WASAPI device enumeration failed with {countResult}.");
 
-        var devices = new List<NativeWasapiDevice>((int)deviceCount);
-        for (uint index = 0; index < deviceCount; index++)
+        uint capacity = initialCapacity;
+        while (true)
         {
-            const int capacity = 512;
-            var id = new char[capacity];
-            var name = new char[capacity];
-            fixed (char* idPointer = id)
-            fixed (char* namePointer = name)
+            var entries = new NativeWasapiDeviceInfo[capacity];
+            uint activeCount;
+            fixed (NativeWasapiDeviceInfo* entriesPointer = entries)
             {
-                NativeAudioResult infoResult =
-                    NativeAudioInterop.GetWasapiDeviceInfo(
-                        index,
-                        idPointer,
+                NativeAudioResult result =
+                    NativeAudioInterop.EnumerateWasapiDevices(
+                        entriesPointer,
                         capacity,
-                        namePointer,
-                        capacity,
-                        out uint isDefault);
-                if (infoResult != NativeAudioResult.Ok)
-                    continue;
+                        out uint writtenCount,
+                        out activeCount);
+                if (result != NativeAudioResult.Ok)
+                    throw new NativeAudioException(
+                        $"WASAPI device enumeration failed with {result}.");
 
-                devices.Add(new NativeWasapiDevice(
-                    terminatedString(id),
-                    terminatedString(name),
-                    isDefault != 0));
+                if (activeCount <= capacity)
+                {
+                    var devices = new List<NativeWasapiDevice>(
+                        (int)writtenCount);
+                    for (uint index = 0; index < writtenCount; index++)
+                    {
+                        NativeWasapiDeviceInfo* entry = entriesPointer + index;
+                        devices.Add(new NativeWasapiDevice(
+                            terminatedString(
+                                entry->Id,
+                                NativeWasapiDeviceInfo.IdCapacity),
+                            terminatedString(
+                                entry->Name,
+                                NativeWasapiDeviceInfo.NameCapacity),
+                            entry->IsDefault != 0));
+                    }
+
+                    return devices;
+                }
             }
-        }
 
-        return devices;
+            capacity = activeCount;
+        }
     }
 
-    private static string terminatedString(char[] characters)
+    private static unsafe string terminatedString(
+        char* characters,
+        int capacity)
     {
-        int terminator = Array.IndexOf(characters, '\0');
-        return new string(
-            characters,
-            0,
-            terminator < 0 ? characters.Length : terminator);
+        var span = new ReadOnlySpan<char>(characters, capacity);
+        int terminator = span.IndexOf('\0');
+        return new string(terminator < 0 ? span : span[..terminator]);
     }
 }
