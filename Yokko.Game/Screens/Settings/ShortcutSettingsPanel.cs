@@ -29,7 +29,7 @@ internal enum ManiaShortcutPage
 internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTransientUi
 {
     private readonly YokkoGameplaySettings settings;
-    private readonly Container contentHost;
+    private readonly SettingsContentScrollContainer contentHost;
     private readonly SpriteText statusTitle;
     private readonly SpriteText statusMetadata;
     private readonly SpriteIcon statusIcon;
@@ -70,7 +70,7 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
                 out statusMetadata,
                 out statusIcon,
                 out statusIconBackground),
-            contentHost = new Container
+            contentHost = new SettingsContentScrollContainer
             {
                 Position = new Vector2(378, 264),
                 Size = new Vector2(840, 352),

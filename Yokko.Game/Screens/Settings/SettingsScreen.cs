@@ -468,6 +468,7 @@ public partial class SettingsScreen : Screen
 
         CurrentPage = page;
         yokkoConfig.SetLastSettingsPage(page.ToString());
+        yokkoConfig.Save();
 
         sidebar.SetSelected(page);
         activePanel = page switch

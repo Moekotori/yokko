@@ -74,7 +74,10 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
             SettingsChrome.CreateSettingRow(
                 344,
                 YokkoStrings.Get("settings.general.home_music"),
-                new SettingsBooleanToggle(audioSettings.HomeMusicEnabled)),
+                new SettingsBooleanToggle(
+                    audioSettings.HomeMusicEnabled,
+                    "settings.general.enabled",
+                    "settings.general.disabled")),
             SettingsChrome.CreateDivider(406),
             SettingsChrome.CreateSettingRow(
                 412,
@@ -111,7 +114,10 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
             SettingsChrome.CreateSettingRow(
                 588,
                 YokkoStrings.Get("settings.general.debug_console"),
-                new SettingsBooleanToggle(showDebugConsole)),
+                new SettingsBooleanToggle(
+                    showDebugConsole,
+                    "settings.general.debug_console_visible",
+                    "settings.general.debug_console_hidden")),
             new HomeDotCross
             {
                 Position = new Vector2(1088, 594),

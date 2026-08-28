@@ -78,7 +78,9 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
             YokkoStrings.Get("settings.desktop.fullscreen_display"),
             displayControlHost);
         dynamicFrameRateToggle = new SettingsBooleanToggle(
-            displaySettings.DynamicBackgroundFrameRate);
+            displaySettings.DynamicBackgroundFrameRate,
+            "settings.desktop.enabled",
+            "settings.desktop.disabled");
         InternalChildren = new Drawable[]
         {
             SettingsChrome.CreateHeader(
@@ -96,7 +98,10 @@ internal partial class DesktopSettingsPanel : CompositeDrawable
             SettingsChrome.CreateSettingRow(
                 274,
                 YokkoStrings.Get("settings.desktop.fast_alt_tab"),
-                new SettingsBooleanToggle(displaySettings.FastAltTab)),
+                new SettingsBooleanToggle(
+                    displaySettings.FastAltTab,
+                    "settings.desktop.enabled",
+                    "settings.desktop.disabled")),
             SettingsChrome.CreateDivider(334),
             SettingsChrome.CreateSettingRow(
                 338,

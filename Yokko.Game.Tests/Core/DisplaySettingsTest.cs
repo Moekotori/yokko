@@ -276,6 +276,35 @@ public sealed class DisplaySettingsTest
     }
 
     [Test]
+    public void SetLastSettingsPageRequiresSaveToPersist()
+    {
+        string directory = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            "settings-page-no-save-config",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+
+        YokkoConfigManager firstConfig = null;
+
+        try
+        {
+            firstConfig = new YokkoConfigManager(new NativeStorage(directory));
+            firstConfig.SetLastSettingsPage(SettingsPageKind.Audio.ToString());
+
+            using var restoredConfig = new YokkoConfigManager(new NativeStorage(directory));
+            Assert.That(
+                restoredConfig.GetLastSettingsPage(),
+                Is.EqualTo(SettingsPageKind.Display.ToString()));
+        }
+        finally
+        {
+            firstConfig?.Dispose();
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+    }
+
+    [Test]
     public void LocalPlayerIdentityIsCreatedAndPersists()
     {
         string directory = Path.Combine(

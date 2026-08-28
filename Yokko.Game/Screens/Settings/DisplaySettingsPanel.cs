@@ -509,6 +509,8 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
 internal partial class SettingsBooleanToggle : ClickableContainer
 {
     private readonly Bindable<bool> value;
+    private readonly string enabledKey;
+    private readonly string disabledKey;
     private readonly Container cardBody;
     private readonly Box background;
     private readonly Box switchTrack;
@@ -517,9 +519,14 @@ internal partial class SettingsBooleanToggle : ClickableContainer
 
     public override bool AcceptsFocus => true;
 
-    public SettingsBooleanToggle(Bindable<bool> value)
+    public SettingsBooleanToggle(
+        Bindable<bool> value,
+        string enabledKey = "settings.display.enabled",
+        string disabledKey = "settings.display.disabled")
     {
         this.value = value;
+        this.enabledKey = enabledKey;
+        this.disabledKey = disabledKey;
         Action = () => value.Value = !value.Value;
         Size = new Vector2(598, 54);
 
@@ -620,8 +627,8 @@ internal partial class SettingsBooleanToggle : ClickableContainer
             Easing.OutBack);
         stateText.Text = YokkoStrings.Get(
             change.NewValue
-                ? "settings.display.enabled"
-                : "settings.display.disabled");
+                ? enabledKey
+                : disabledKey);
     }
 
     protected override bool OnHover(HoverEvent e)

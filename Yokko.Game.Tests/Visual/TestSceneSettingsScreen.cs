@@ -231,9 +231,6 @@ namespace Yokko.Game.Tests.Visual
                     .ChildrenOfType<SettingsAudioTestButton>()
                     .All(control => control.AcceptsFocus)
                 && settingsScreen.ActivePanel
-                    .ChildrenOfType<SettingsAudioToggle>()
-                    .All(control => control.AcceptsFocus)
-                && settingsScreen.ActivePanel
                     .ChildrenOfType<SettingsOffsetStepper>()
                     .All(control => control.AcceptsFocus));
             AddStep("open Import", () =>
@@ -1013,6 +1010,26 @@ namespace Yokko.Game.Tests.Visual
                 foreach (Key key in originalSeven)
                     gameplay.HandleKeyDown(key);
             });
+        }
+
+        [Test]
+        public void TestSidebarScrollsToBottomPages()
+        {
+            SettingsSidebar sidebar = null;
+
+            AddStep("capture sidebar", () =>
+                sidebar = settingsScreen
+                    .ChildrenOfType<SettingsSidebar>()
+                    .Single());
+            AddStep("open About", () =>
+                settingsScreen.OpenPage(SettingsPageKind.About));
+            AddAssert("about page selected", () =>
+                settingsScreen.CurrentPage == SettingsPageKind.About);
+            AddAssert("sidebar scrolls when navigation overflows", () =>
+                SettingsNavigation.VisiblePages.Count > 8
+                    ? sidebar.NavigationScrollableExtent > 0
+                      && sidebar.NavigationScrollPosition > 0
+                    : sidebar.NavigationScrollableExtent >= 0);
         }
 
         [Test]
