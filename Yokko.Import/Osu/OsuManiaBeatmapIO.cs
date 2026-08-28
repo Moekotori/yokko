@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Editing;
@@ -7,6 +8,14 @@ using Yokko.Core.Mods;
 using Yokko.Core.Timing;
 
 namespace Yokko.Import.Osu;
+
+/// <summary>
+/// 导入一个 .osu 文件所需的全部产物；由单次文件读取与单次分节解析得到。
+/// </summary>
+public sealed record OsuBeatmapFileImport(
+    YokkoBeatmap Beatmap,
+    string? BackgroundPath,
+    string Md5Hash);
 
 public static class OsuManiaBeatmapIO
 {
@@ -35,15 +44,41 @@ public static class OsuManiaBeatmapIO
         return beatmap with { AudioPath = resolveAudioPath(path, beatmap.AudioPath) };
     }
 
+    /// <summary>
+    /// 一次性读取 .osu 文件并返回导入所需的谱面、背景路径和文件 MD5，
+    /// 避免为同一文件重复执行三次读盘与解析。
+    /// </summary>
+    public static OsuBeatmapFileImport ReadBeatmapForImport(
+        string path,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        byte[] bytes = readBytesFromFileWithinBudget(path);
+        string text = decodeText(bytes);
+        var sections = parseSections(text, cancellationToken);
+        YokkoBeatmap beatmap = readBeatmapCore(text, sections, cancellationToken);
+        return new OsuBeatmapFileImport(
+            beatmap with { AudioPath = resolveAudioPath(path, beatmap.AudioPath) },
+            backgroundPathFromSections(sections, path),
+            Convert.ToHexString(MD5.HashData(bytes)).ToLowerInvariant());
+    }
+
     public static string? ReadBackgroundPathFromFile(
         string path,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var sections = parseSections(
-            readTextFromFileWithinBudget(path),
-            cancellationToken);
+        return backgroundPathFromSections(
+            parseSections(
+                readTextFromFileWithinBudget(path),
+                cancellationToken),
+            path);
+    }
 
+    private static string? backgroundPathFromSections(
+        Dictionary<string, List<string>> sections,
+        string path)
+    {
         foreach (string rawLine in sections.GetValueOrDefault("Events") ?? [])
         {
             string line = rawLine.Trim();
@@ -67,9 +102,19 @@ public static class OsuManiaBeatmapIO
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        return readBeatmapCore(
+            text,
+            parseSections(text, cancellationToken),
+            cancellationToken);
+    }
+
+    private static YokkoBeatmap readBeatmapCore(
+        string text,
+        Dictionary<string, List<string>> sections,
+        CancellationToken cancellationToken)
+    {
         int formatVersion = parseFormatVersion(text);
         double legacyTimingOffset = formatVersion < 5 ? 24 : 0;
-        var sections = parseSections(text, cancellationToken);
         Dictionary<string, string> general = parseKeyValueSection(sections, "General");
         Dictionary<string, string> metadata = parseKeyValueSection(sections, "Metadata");
         Dictionary<string, string> difficulty = parseKeyValueSection(sections, "Difficulty");
@@ -425,6 +470,9 @@ public static class OsuManiaBeatmapIO
     }
 
     private static string readTextFromFileWithinBudget(string path)
+        => decodeText(readBytesFromFileWithinBudget(path));
+
+    private static byte[] readBytesFromFileWithinBudget(string path)
     {
         var info = new FileInfo(path);
         if (info.Length > MaximumFileBytes)
@@ -434,16 +482,27 @@ public static class OsuManiaBeatmapIO
                 + $"the safety limit is {MaximumFileBytes:N0} bytes.");
         }
 
-        string text = File.ReadAllText(path, Encoding.UTF8);
+        byte[] bytes = File.ReadAllBytes(path);
         // Protect against a file growing between the metadata check and read.
-        if (text.Length > MaximumFileBytes)
+        if (bytes.LongLength > MaximumFileBytes)
         {
             throw new InvalidDataException(
                 $"osu! beatmap '{path}' grew beyond the "
                 + $"{MaximumFileBytes:N0}-byte safety limit while reading.");
         }
 
-        return text;
+        return bytes;
+    }
+
+    private static string decodeText(byte[] bytes)
+    {
+        // 与 File.ReadAllText(path, Encoding.UTF8) 保持一致：按 BOM 自动
+        // 识别编码，默认 UTF-8。
+        using var reader = new StreamReader(
+            new MemoryStream(bytes),
+            Encoding.UTF8,
+            detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
     }
 
     private static Dictionary<string, string> parseKeyValueSection(Dictionary<string, List<string>> sections, string section)
