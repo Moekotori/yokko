@@ -81,6 +81,11 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
 
     private readonly ManiaModId[] mods;
 
+    // Pre-computed in the constructor so per-frame callers such as
+    // PlaybackRate and AdjustRank avoid repeated LINQ allocations.
+    private readonly ManiaModId? fixedRateMod;
+    private readonly bool hasVisibilityMod;
+
     public static ManiaModSet Empty { get; } = new([]);
 
     public ManiaModSet(
@@ -267,7 +272,7 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
                 "Only one fixed-rate Mod may be selected.",
                 nameof(mods));
         }
-        ManiaModId? fixedRateMod = this.mods
+        fixedRateMod = this.mods
             .Where(rateMods.Contains)
             .Cast<ManiaModId?>()
             .FirstOrDefault();
@@ -311,12 +316,15 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
                 nameof(mods));
         }
 
-        if (this.mods.Count(visibilityMods.Contains) > 1)
+        int selectedVisibilityMods =
+            this.mods.Count(visibilityMods.Contains);
+        if (selectedVisibilityMods > 1)
         {
             throw new ArgumentException(
                 "Fade In, Hidden, Cover and Flashlight are mutually exclusive.",
                 nameof(mods));
         }
+        hasVisibilityMod = selectedVisibilityMods > 0;
 
         if (this.mods.Count(failRuleMods.Contains) > 1)
         {
@@ -492,10 +500,7 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
     public bool HasAdaptiveSpeed =>
         Contains(ManiaModId.AdaptiveSpeed);
 
-    public ManiaModId? FixedRateMod => mods
-        .Where(rateMods.Contains)
-        .Select(static mod => (ManiaModId?)mod)
-        .FirstOrDefault();
+    public ManiaModId? FixedRateMod => fixedRateMod;
 
     public bool HasDualStages => Contains(ManiaModId.DualStages);
 
@@ -526,7 +531,7 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
             ? TimeRampInitialRate
             : HasAdaptiveSpeed
                 ? AdaptiveInitialRate
-                : mods.Any(rateMods.Contains)
+                : fixedRateMod != null
                     ? FixedRateSpeedChange
                     : 1;
 
@@ -822,7 +827,7 @@ public sealed class ManiaModSet : IEquatable<ManiaModSet>
 
     public ScoreRank AdjustRank(ScoreRank rank)
     {
-        if (!mods.Any(visibilityMods.Contains))
+        if (!hasVisibilityMod)
             return rank;
 
         return rank switch

@@ -58,20 +58,23 @@ internal partial class LegacyManiaBarLine : CompositeDrawable
         }
     }
 
+    /// <summary>
+    /// Moves the bar line for the current frame. The scroll speed factor and
+    /// current scroll position are shared by every bar line, so the caller
+    /// resolves them once per frame and passes them in instead of repeating
+    /// the binary-searched map lookups per bar line.
+    /// </summary>
     public void UpdatePosition(
-        double gameplayTime,
         float topY,
         float judgementY,
         double approachTime,
-        ScrollVelocityMap velocityMap,
-        ScrollSpeedFactorMap speedFactorMap)
+        double scrollSpeedFactor,
+        double currentPosition)
     {
-        double factor = speedFactorMap.FactorAt(gameplayTime);
-        double currentPosition = velocityMap.PositionAt(gameplayTime);
         double progress = 1
                           - (startPosition - currentPosition)
                           / approachTime
-                          * factor;
+                          * scrollSpeedFactor;
         Y = topY + (float)(progress * (judgementY - topY))
             - baseHeight / 2;
         Alpha = progress is

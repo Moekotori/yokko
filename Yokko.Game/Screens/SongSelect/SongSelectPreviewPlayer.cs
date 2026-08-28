@@ -302,6 +302,9 @@ internal sealed class SongSelectPreviewPlayer : IAsyncDisposable
                     request.PitchMode,
                     request.FixedFrequencyScale) with
                 {
+                    // Lets rate-mod toggles retune the running preview via
+                    // TryUpdatePlaybackRate. SoundTouch stays bypassed inside
+                    // the decoder while the preview plays at 1x.
                     DynamicPlaybackRate = true,
                 };
             await audioEngine.StartAsync(

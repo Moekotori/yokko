@@ -67,6 +67,82 @@ namespace Yokko.Game.Tests.Core
         }
 
         [Test]
+        public async Task SeekKeepsPreparedSampleHandlesValid()
+        {
+            string directory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "seek-prepared-samples",
+                TestContext.CurrentContext.Test.ID);
+            Directory.CreateDirectory(directory);
+            string audioPath = Path.Combine(directory, "sample.wav");
+            createSilentWave(audioPath, 48000, 2, 50);
+
+            await using var engine = new NativeAudioEngine();
+            await engine.PrepareSamplesAsync([audioPath]);
+            Assert.That(
+                engine.TryGetPreparedSampleHandle(audioPath, out var before),
+                Is.True);
+
+            await engine.SeekAsync(1000);
+
+            Assert.That(
+                engine.TryGetPreparedSampleHandle(audioPath, out var after),
+                Is.True,
+                "Seeking must not invalidate the prepared sample set.");
+            Assert.Multiple(() =>
+            {
+                Assert.That(after.Generation, Is.EqualTo(before.Generation));
+                Assert.That(after.Slot, Is.EqualTo(before.Slot));
+            });
+        }
+
+        [Test]
+        public async Task PrepareSamplesDecodesInParallelPreservingSlotOrder()
+        {
+            string directory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "parallel-prepared-samples",
+                TestContext.CurrentContext.Test.ID);
+            Directory.CreateDirectory(directory);
+            var paths = new List<string>();
+            for (int index = 0; index < 8; index++)
+            {
+                string path = Path.Combine(
+                    directory,
+                    $"keysound-{index}.wav");
+                createSilentWave(path, 48000, 2, 30 + index * 10);
+                paths.Add(path);
+            }
+            string corruptPath = Path.Combine(directory, "corrupt.wav");
+            File.WriteAllBytes(corruptPath, [1, 2, 3]);
+            paths.Insert(3, corruptPath);
+
+            await using var engine = new NativeAudioEngine();
+            await engine.PrepareSamplesAsync(paths);
+
+            Assert.That(
+                engine.TryGetPreparedSampleHandle(corruptPath, out _),
+                Is.False,
+                "A corrupt keysound must be skipped without failing the set.");
+            int expectedSlot = 0;
+            foreach (string path in paths)
+            {
+                if (path == corruptPath)
+                    continue;
+
+                Assert.That(
+                    engine.TryGetPreparedSampleHandle(path, out var handle),
+                    Is.True,
+                    $"'{Path.GetFileName(path)}' must be prepared.");
+                Assert.That(
+                    handle.Slot,
+                    Is.EqualTo(expectedSlot),
+                    "Parallel decoding must keep slots in input order.");
+                expectedSlot++;
+            }
+        }
+
+        [Test]
         public async Task DisposeReleasesPreparedSamples()
         {
             string directory = Path.Combine(
@@ -298,9 +374,18 @@ namespace Yokko.Game.Tests.Core
                 Is.InRange(950, 1250),
                 "The public playback clock must retain the seek base position.");
             Assert.That(
+                engine.TryGetPreparedSampleHandle(
+                    audioPath,
+                    out var afterSeekHandle),
+                Is.True);
+            Assert.That(
+                afterSeekHandle.Generation,
+                Is.EqualTo(sampleHandle.Generation),
+                "An in-place seek restart must not rebuild the prepared sample set.");
+            Assert.That(
                 engine.TriggerPreparedSample(sampleHandle, 1),
                 Is.True,
-                "Prepared handles must survive a native core rebuild on seek.");
+                "Prepared handles must survive an in-place seek restart.");
 
             await engine.PrepareSamplesAsync([audioPath]);
             Assert.That(

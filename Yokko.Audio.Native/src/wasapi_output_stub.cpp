@@ -28,22 +28,21 @@ namespace yokko::audio
 extern "C"
 {
     yokko_audio_result YOKKO_AUDIO_CALL
-        yokko_audio_get_wasapi_device_count(uint32_t* device_count)
+        yokko_audio_enumerate_wasapi_devices(
+            yokko_audio_wasapi_device_info* devices,
+            const uint32_t device_capacity,
+            uint32_t* written_device_count,
+            uint32_t* active_device_count)
     {
-        if (device_count != nullptr)
-            *device_count = 0;
-        return YOKKO_AUDIO_BACKEND_UNAVAILABLE;
-    }
+        if (written_device_count == nullptr
+            || active_device_count == nullptr
+            || (devices == nullptr && device_capacity != 0))
+        {
+            return YOKKO_AUDIO_INVALID_ARGUMENT;
+        }
 
-    yokko_audio_result YOKKO_AUDIO_CALL
-        yokko_audio_get_wasapi_device_info(
-            uint32_t,
-            wchar_t*,
-            uint32_t,
-            wchar_t*,
-            uint32_t,
-            uint32_t*)
-    {
+        *written_device_count = 0;
+        *active_device_count = 0;
         return YOKKO_AUDIO_BACKEND_UNAVAILABLE;
     }
 }

@@ -66,9 +66,11 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
     private double currentLength;
     private Task previewHandoff = Task.CompletedTask;
 
+    private const int waveform_cache_capacity = 16;
+
     private HomeWaveformVisualiser waveformVisualiser;
-    private readonly Dictionary<string, AudioWaveformAnalysis> waveformCache =
-        new(StringComparer.OrdinalIgnoreCase);
+    private readonly HomeWaveformAnalysisCache waveformCache =
+        new(waveform_cache_capacity);
     private CancellationTokenSource waveformCancellation;
     private int waveformGeneration;
     private string waveformRequestedPath;
@@ -295,9 +297,16 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
             pausePlayback();
     }
 
+    // Status 与播放时间各自读取都会触发一次原生调用；先取一次快照再算，
+    // 保证两个值来自同一时刻且只付出一次 P/Invoke 成本。
     private double currentProgress =>
-        audioEngine?.Status.IsRunning == true
-            ? audioEngine.PlaybackTimeMilliseconds
+        audioEngine == null
+            ? pausedProgress
+            : progressFromSnapshot(audioEngine.Snapshot);
+
+    private double progressFromSnapshot(in AudioEngineSnapshot snapshot) =>
+        snapshot.Status.IsRunning
+            ? snapshot.PlaybackTimeMilliseconds
             : pausedProgress;
 
     internal void TogglePlayPause() => togglePlayPause();
@@ -377,7 +386,7 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
 
         waveformRequestedPath = path;
 
-        if (waveformCache.TryGetValue(path, out AudioWaveformAnalysis cached))
+        if (waveformCache.TryGet(path, out AudioWaveformAnalysis cached))
         {
             waveformVisualiser.SetWaveform(cached);
             return;
@@ -401,7 +410,7 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
                                                                .AnalysisPointCount,
                                                            token)
                                                        .ConfigureAwait(false);
-                waveformCache[path] = analysis;
+                waveformCache.Store(path, analysis);
                 Scheduler.Add(() =>
                 {
                     if (disposed || generation != waveformGeneration)
@@ -877,28 +886,36 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
     {
         base.Update();
 
-        if (screenActive && audioEngine?.DurationMilliseconds > 0)
-            currentLength = audioEngine.DurationMilliseconds;
+        // 每帧只取一次引擎快照并复用；直接反复读 currentProgress 或
+        // Status 会把同一份原生状态查询重复执行好几次。
+        AudioEngineSnapshot snapshot = audioEngine?.Snapshot ?? default;
+        bool engineRunning = audioEngine != null && snapshot.Status.IsRunning;
+        double progress = audioEngine == null
+            ? pausedProgress
+            : progressFromSnapshot(snapshot);
+        double duration = audioEngine?.DurationMilliseconds ?? 0;
+
+        if (screenActive && duration > 0)
+            currentLength = duration;
 
         if (screenActive
             && desiredPlaying
             && currentLength > 0
-            && currentProgress >= currentLength)
+            && progress >= currentLength)
             nextTrack();
 
         progressFill.Width = currentLength <= 0
             ? 0
-            : (float)Math.Clamp(currentProgress / currentLength, 0, 1);
+            : (float)Math.Clamp(progress / currentLength, 0, 1);
 
-        waveformVisualiser?.UpdatePlayback(currentProgress);
+        waveformVisualiser?.UpdatePlayback(progress);
 
         timeText.Text = tracks.Count == 0 || currentLength <= 0
             ? string.Empty
-            : $"{formatTime(currentProgress)} / {formatTime(currentLength)}";
+            : $"{formatTime(progress)} / {formatTime(currentLength)}";
 
         // BPM 圆点平缓呼吸，暂停时定格。
-        pulseDot.Alpha = screenActive
-                         && audioEngine?.Status.IsRunning == true
+        pulseDot.Alpha = screenActive && engineRunning
             ? 0.55f + 0.45f * MathF.Abs(MathF.Sin((float)(Time.Current / 1200 * Math.PI)))
             : 0.35f;
     }

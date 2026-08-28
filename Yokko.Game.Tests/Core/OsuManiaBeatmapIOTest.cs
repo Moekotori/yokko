@@ -70,6 +70,78 @@ namespace Yokko.Game.Tests.Core
         }
 
         [Test]
+        public void ReadBeatmapForImportMatchesSeparateReadsWithSingleFileRead()
+        {
+            string directory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                $"single-read-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(directory);
+            string path = Path.Combine(directory, "chart.osu");
+
+            try
+            {
+                File.WriteAllText(path, """
+osu file format v14
+
+[General]
+AudioFilename: audio.ogg
+Mode: 3
+
+[Metadata]
+Title:Single Read
+Artist:Artist
+Creator:Mapper
+Version:4K
+
+[Difficulty]
+CircleSize:4
+
+[Events]
+0,0,"background.jpg",0,0
+
+[TimingPoints]
+0,500,4,2,0,100,1,0
+
+[HitObjects]
+64,192,500,1,0,0:0:0:0:
+""", new UTF8Encoding(false));
+                File.WriteAllBytes(Path.Combine(directory, "audio.ogg"), []);
+                File.WriteAllBytes(Path.Combine(directory, "background.jpg"), []);
+
+                OsuBeatmapFileImport import =
+                    OsuManiaBeatmapIO.ReadBeatmapForImport(path);
+                YokkoBeatmap separateBeatmap =
+                    OsuManiaBeatmapIO.ReadBeatmapFromFile(path);
+                string separateBackground =
+                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(path);
+                string expectedMd5 = Convert.ToHexString(
+                        System.Security.Cryptography.MD5.HashData(
+                            File.ReadAllBytes(path)))
+                    .ToLowerInvariant();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(import.Beatmap.Title, Is.EqualTo(separateBeatmap.Title));
+                    Assert.That(import.Beatmap.AudioPath, Is.EqualTo(separateBeatmap.AudioPath));
+                    Assert.That(
+                        import.Beatmap.HitObjects,
+                        Has.Count.EqualTo(separateBeatmap.HitObjects.Count));
+                    Assert.That(
+                        import.Beatmap.TimingPoints,
+                        Has.Count.EqualTo(separateBeatmap.TimingPoints.Count));
+                    Assert.That(import.BackgroundPath, Is.EqualTo(separateBackground));
+                    Assert.That(import.BackgroundPath, Does.EndWith("background.jpg"));
+                    Assert.That(import.Md5Hash, Is.EqualTo(expectedMd5));
+                });
+            }
+            finally
+            {
+                if (Directory.Exists(directory))
+                    Directory.Delete(directory, true);
+            }
+        }
+
+        [Test]
         public void ReadsOsuManiaTapAndHoldObjects()
         {
             var beatmap = OsuManiaBeatmapIO.ReadBeatmap(sampleOsu);

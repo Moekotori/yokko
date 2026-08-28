@@ -10,6 +10,8 @@ namespace Yokko.Game.Screens.SongSelect;
 /// <summary>
 /// Owns decoded chart artwork for the application lifetime. Song-select
 /// screens are short-lived, but their immutable source artwork is shared.
+/// Decoding happens outside the cache lock so background loads never stall
+/// update-thread lookups of already-cached artwork.
 /// </summary>
 internal sealed class SongSelectArtworkTextureCache : IDisposable
 {
@@ -30,51 +32,62 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentNullException.ThrowIfNull(currentRenderer);
 
+        LargeTextureStore store;
+
         lock (syncRoot)
         {
-            ObjectDisposedException.ThrowIf(disposed, this);
-            if (textureStore == null)
-            {
-                renderer = currentRenderer;
-                int maximumDimension = Math.Min(
-                    MaximumThumbnailDimension,
-                    currentRenderer.MaxTextureSize);
-                textureStore = new LargeTextureStore(
-                    currentRenderer,
-                    new TextureLoaderStore(
-                        new ConstrainedTextureResourceStore(
-                            new ChartArtworkResourceStore(),
-                            maximumDimension,
-                            maximumPixelCount: Math.Min(
-                                maximum_thumbnail_pixels,
-                                (long)maximumDimension * maximumDimension))),
-                    manualMipmaps: false);
-            }
-            else if (!ReferenceEquals(renderer, currentRenderer))
-            {
-                throw new InvalidOperationException(
-                    "Song-select artwork cannot be shared across renderers.");
-            }
+            store = ensureStore(currentRenderer);
+            if (touchCached(path))
+                return store.Get(path);
+        }
 
-            if (cachedTextures.TryGetValue(path, out CachedArtwork cached))
-            {
-                lru.Remove(cached.Node);
-                lru.AddFirst(cached.Node);
-                return textureStore.Get(path);
-            }
+        // The decode is the expensive part. LargeTextureStore serialises
+        // concurrent lookups per key itself, so no cache lock is needed here
+        // and cached lookups on other threads stay unblocked meanwhile.
+        Texture pin = store.Get(path);
+        if (pin == null)
+            return null;
 
-            // LargeTextureStore returns independent reference-counted wrappers.
-            // Keep one pin in the LRU and return a separate wrapper to the
-            // Sprite. Evicting the pin is therefore safe while a visible
-            // drawable still owns the same native texture.
-            Texture pin = textureStore.Get(path);
-            if (pin == null)
+        lock (syncRoot)
+        {
+            if (disposed)
+            {
+                pin.Dispose();
                 return null;
+            }
 
-            LinkedListNode<string> node = lru.AddFirst(path);
-            cachedTextures[path] = new CachedArtwork(pin, node);
-            trimToCapacity();
-            return textureStore.Get(path);
+            // LargeTextureStore returns independent reference-counted
+            // wrappers. Keep one pin in the LRU and return a separate wrapper
+            // to the Sprite. Evicting the pin is therefore safe while a
+            // visible drawable still owns the same native texture.
+            if (touchCached(path))
+            {
+                pin.Dispose();
+            }
+            else
+            {
+                LinkedListNode<string> node = lru.AddFirst(path);
+                cachedTextures[path] = new CachedArtwork(pin, node);
+                trimToCapacity();
+            }
+
+            return store.Get(path);
+        }
+    }
+
+    /// <summary>
+    /// Returns a wrapper for already-decoded artwork without ever decoding.
+    /// Null means the caller should show a placeholder and load off-thread.
+    /// </summary>
+    internal Texture GetCached(string path, IRenderer currentRenderer)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(currentRenderer);
+
+        lock (syncRoot)
+        {
+            LargeTextureStore store = ensureStore(currentRenderer);
+            return touchCached(path) ? store.Get(path) : null;
         }
     }
 
@@ -122,6 +135,44 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
             cachedTextures.Clear();
             lru.Clear();
         }
+    }
+
+    private LargeTextureStore ensureStore(IRenderer currentRenderer)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (textureStore == null)
+        {
+            renderer = currentRenderer;
+            int maximumDimension = Math.Min(
+                MaximumThumbnailDimension,
+                currentRenderer.MaxTextureSize);
+            textureStore = new LargeTextureStore(
+                currentRenderer,
+                new ConstrainedTextureLoaderStore(
+                    new TextureLoaderStore(new ChartArtworkResourceStore()),
+                    maximumDimension,
+                    maximumPixelCount: Math.Min(
+                        maximum_thumbnail_pixels,
+                        (long)maximumDimension * maximumDimension)),
+                manualMipmaps: false);
+        }
+        else if (!ReferenceEquals(renderer, currentRenderer))
+        {
+            throw new InvalidOperationException(
+                "Song-select artwork cannot be shared across renderers.");
+        }
+
+        return textureStore;
+    }
+
+    private bool touchCached(string path)
+    {
+        if (!cachedTextures.TryGetValue(path, out CachedArtwork cached))
+            return false;
+
+        lru.Remove(cached.Node);
+        lru.AddFirst(cached.Node);
+        return true;
     }
 
     private void trimToCapacity()

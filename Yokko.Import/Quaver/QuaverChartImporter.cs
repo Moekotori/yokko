@@ -47,18 +47,21 @@ public sealed class QuaverChartImporter : IChartImporter
                 [importChartFile(request.Path)]);
         }
 
-        IReadOnlyList<string> charts =
+        ChartArchiveExtraction extraction =
             ChartArchive.ExtractCharts(request.Path, ".qua");
         var results = new List<ChartImportResult>();
         var failures = new List<Exception>();
 
-        foreach (string chart in charts)
+        foreach (string chart in extraction.ChartPaths)
         {
             request.CancellationToken.ThrowIfCancellationRequested();
 
             try
             {
-                results.Add(importChartFile(chart));
+                results.Add(importChartFile(chart) with
+                {
+                    ExtractedArchiveRoot = extraction.RootPath,
+                });
             }
             catch (InvalidDataException ex)
             {
@@ -68,6 +71,7 @@ public sealed class QuaverChartImporter : IChartImporter
 
         if (results.Count == 0)
         {
+            ChartArchive.TryDeleteExtraction(extraction.RootPath);
             throw new InvalidDataException(
                 "The .qp package does not contain a supported 4K/7K Quaver chart.",
                 failures.FirstOrDefault());
@@ -89,6 +93,7 @@ public sealed class QuaverChartImporter : IChartImporter
 
     private static ChartImportResult importChartFile(string path)
     {
+        ChartFileSizeGuard.EnsureWithinLimit(path, "Quaver");
         ParsedQua parsed = parse(File.ReadAllLines(path));
         var warnings = new List<string>();
 

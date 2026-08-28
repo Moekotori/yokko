@@ -265,6 +265,11 @@ public partial class SongSelectScreen : Screen
     private bool entryTransitionInProgress;
     private int entryTransitionVersion;
     private readonly List<string> initialArtworkPrewarmPaths = [];
+    private readonly HashSet<string> pendingArtworkLoads =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> failedArtworkPaths =
+        new(StringComparer.OrdinalIgnoreCase);
+    private Sprite selectedArtworkSprite;
     private bool resumeFromGameplayMods;
     private bool detailsTransitionInProgress;
     private int songListRebuildVersion;
@@ -701,6 +706,24 @@ public partial class SongSelectScreen : Screen
         focusPackageExpansion(selectedEntry?.IsPackage == true
             ? selectedEntry.PackageId
             : null);
+
+        // Decode the selected artwork eagerly: this loader thread may block,
+        // unlike the update thread where textureFor stays non-blocking. The
+        // first frame then shows the real background instead of an async
+        // placeholder crossfade.
+        if (hasChartArtworkFile(selectedEntry))
+        {
+            try
+            {
+                artworkTextureCache.Prewarm(
+                    selectedEntry.WallpaperTexture,
+                    renderer);
+            }
+            catch
+            {
+                // Invalid chart artwork falls back to the bundled image.
+            }
+        }
 
         Texture firstWallpaper = textureFor(selectedEntry);
         Texture logo = textures.Get(
@@ -5146,7 +5169,7 @@ public partial class SongSelectScreen : Screen
                 0.28f),
             Children =
             [
-                SongSelectArtworkCrop.Create(
+                selectedArtworkSprite = SongSelectArtworkCrop.Create(
                     textureFor(selectedEntry),
                     new Vector2(details_artwork_size)),
                 new Box
@@ -6606,15 +6629,19 @@ public partial class SongSelectScreen : Screen
         selectionMemory.ChartId = selectedEntry.ChartId;
     }
 
+    /// <summary>
+    /// Non-blocking artwork lookup. Chart artwork that is not decoded yet
+    /// returns the bundled placeholder immediately and is decoded on a
+    /// background thread; <see cref="onArtworkLoaded"/> then fades the real
+    /// texture into every visible consumer. The update thread never decodes.
+    /// </summary>
     private Texture textureFor(SongSelectEntry entry)
     {
-        if (entry != null
-            && Path.IsPathRooted(entry.WallpaperTexture)
-            && File.Exists(entry.WallpaperTexture))
+        if (hasChartArtworkFile(entry))
         {
             try
             {
-                Texture artwork = artworkTextureCache.Get(
+                Texture artwork = artworkTextureCache.GetCached(
                     entry.WallpaperTexture,
                     renderer);
                 if (artwork != null)
@@ -6624,11 +6651,77 @@ public partial class SongSelectScreen : Screen
             {
                 // Invalid chart artwork falls back to Yokko's bundled image.
             }
+
+            queueArtworkLoad(entry.WallpaperTexture);
+            return textures.Get(SongSelectArtworkPolicy.FallbackTexture);
         }
 
         return textures.Get(
                    SongSelectArtworkPolicy.Resolve(entry?.WallpaperTexture))
                ?? textures.Get(SongSelectArtworkPolicy.FallbackTexture);
+    }
+
+    private static bool hasChartArtworkFile(SongSelectEntry entry) =>
+        entry != null
+        && Path.IsPathRooted(entry.WallpaperTexture)
+        && File.Exists(entry.WallpaperTexture);
+
+    private void queueArtworkLoad(string path)
+    {
+        if (failedArtworkPaths.Contains(path)
+            || !pendingArtworkLoads.Add(path))
+        {
+            return;
+        }
+
+        Task.Run(() =>
+        {
+            Texture loaded = null;
+            try
+            {
+                loaded = artworkTextureCache.Get(path, renderer);
+            }
+            catch
+            {
+                // Invalid chart artwork keeps the bundled placeholder.
+            }
+
+            Scheduler.Add(() => onArtworkLoaded(path, loaded));
+        });
+    }
+
+    private void onArtworkLoaded(string path, Texture texture)
+    {
+        pendingArtworkLoads.Remove(path);
+        if (texture == null)
+        {
+            failedArtworkPaths.Add(path);
+            return;
+        }
+
+        songList?.RefreshArtwork(path, texture);
+
+        if (selectedEntry == null
+            || !string.Equals(
+                selectedEntry.WallpaperTexture,
+                path,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        crossFadeBackground(texture);
+        if (selectedArtworkSprite != null)
+        {
+            selectedArtworkSprite.Texture = texture;
+            selectedArtworkSprite.Size =
+                SongSelectArtworkCrop.CalculateCoverSize(
+                    new Vector2(
+                        texture.DisplayWidth,
+                        texture.DisplayHeight),
+                    new Vector2(details_artwork_size));
+            selectedArtworkSprite.FadeInFromZero(220, Easing.OutQuint);
+        }
     }
 
     // Song-select uses bounded 512 px thumbnails. Gameplay intentionally

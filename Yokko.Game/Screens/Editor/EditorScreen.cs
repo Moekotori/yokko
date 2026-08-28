@@ -44,6 +44,7 @@ public partial class EditorScreen : Screen
 
     private FillFlowContainer workspace;
     private Container editorStage;
+    private EditorHeader header;
     private EditableBeatmap editableBeatmap;
     private TimelineViewport viewport;
     private readonly EditorPreviewClock previewClock = new();
@@ -56,6 +57,7 @@ public partial class EditorScreen : Screen
     private CancellationTokenSource waveformLoadCancellation;
     private readonly Dictionary<string, EditorAudioWaveform> waveformCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly bool presentImportOnLoad;
+    private bool importInProgress;
 
     public EditorScreen(bool presentImportOnLoad = false)
     {
@@ -95,7 +97,7 @@ public partial class EditorScreen : Screen
                     Spacing = new Vector2(0, 16),
                     Children = new Drawable[]
                     {
-                        new EditorHeader(
+                        header = new EditorHeader(
                             () => loadChart(KeyMode.FourKey),
                             () => loadChart(KeyMode.SevenKey),
                             importChart,
@@ -257,6 +259,9 @@ public partial class EditorScreen : Screen
 
     private void importChart()
     {
+        if (importInProgress)
+            return;
+
         ISystemFileSelector selector = host.CreateSystemFileSelector(KnownChartImporters.FileExtensions);
         selector.Selected += file => Schedule(() => importChart(file.FullName));
         selector.Present();
@@ -264,17 +269,44 @@ public partial class EditorScreen : Screen
 
     private void importChart(string path)
     {
+        if (importInProgress)
+            return;
+
+        importInProgress = true;
+        header.SetImportEnabled(false);
+        setStatus(YokkoStrings.Get("editor.status.importing", Path.GetFileName(path)));
+
+        var request = new ChartImportRequest(
+            path,
+            importSettings.PreferKeysounds.Value,
+            importSettings.PreferSscSimfiles.Value,
+            importSettings.EnableBmsScratch.Value);
+
+        // Mirrors ChartLibraryScreen.completeWork: run the import off the update
+        // thread and marshal the outcome back through the scheduler.
+        _ = Task.Run(() => importedChartLibrary.ImportAsync(request))
+                .ContinueWith(completed => Scheduler.Add(() =>
+                {
+                    importInProgress = false;
+                    header.SetImportEnabled(true);
+
+                    if (completed.IsCompletedSuccessfully)
+                        applyImportedChart(path, completed.Result);
+                    else
+                    {
+                        setStatus(YokkoStrings.Get(
+                            "editor.status.import_failed",
+                            completed.Exception?.GetBaseException().Message ?? string.Empty));
+                    }
+                }), TaskScheduler.Default);
+    }
+
+    private void applyImportedChart(string path, IReadOnlyList<ChartImportResult> results)
+    {
         try
         {
+            ChartImportResult result = results[0];
             cancelWaveformLoad();
-            ChartImportResult result = importedChartLibrary.ImportAsync(
-                                                                new ChartImportRequest(
-                                                                    path,
-                                                                    importSettings.PreferKeysounds.Value,
-                                                                    importSettings.PreferSscSimfiles.Value,
-                                                                    importSettings.EnableBmsScratch.Value))
-                                                            .GetAwaiter()
-                                                            .GetResult()[0];
             editableBeatmap = EditableBeatmap.FromBeatmap(result.Beatmap, path);
             viewport = new TimelineViewport(0, defaultVisibleRows);
             previewClock.Stop();

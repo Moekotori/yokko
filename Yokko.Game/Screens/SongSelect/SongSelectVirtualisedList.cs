@@ -427,6 +427,38 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
             animated);
     }
 
+    /// <summary>
+    /// Fades asynchronously decoded artwork into every materialised row and
+    /// package header currently displaying the placeholder for this path.
+    /// </summary>
+    internal void RefreshArtwork(string wallpaperPath, Texture texture)
+    {
+        if (string.IsNullOrWhiteSpace(wallpaperPath) || texture == null)
+            return;
+
+        foreach (KeyValuePair<int, PoolableDrawable> pair in active)
+        {
+            SongSelectVirtualItem item = items[pair.Key];
+            if (pair.Value is SongSelectSongRow row)
+            {
+                if (item.Entry?.IsPackage == false && matches(item.Entry))
+                    row.SetArtwork(texture);
+            }
+            else if (pair.Value is SongSelectPackageHeader header
+                     && matches(item.HeaderEntry))
+            {
+                header.SetArtwork(texture);
+            }
+        }
+
+        bool matches(SongSelectEntry entry) =>
+            entry != null
+            && string.Equals(
+                entry.WallpaperTexture,
+                wallpaperPath,
+                StringComparison.OrdinalIgnoreCase);
+    }
+
     internal void UpdateDifficulties()
     {
         ManiaDifficultyRatingMode mode = ratingMode();

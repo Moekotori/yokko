@@ -12,6 +12,8 @@ namespace Yokko.Game.Screens.Editor;
 
 public partial class EditorHeader : CompositeDrawable
 {
+    private readonly EditorToolButton importButton;
+
     public EditorHeader(Action newFourKey, Action newSevenKey, Action importChart, Action exportOsu, Action playtest)
     {
         Width = 1122;
@@ -52,7 +54,7 @@ public partial class EditorHeader : CompositeDrawable
                 {
                     new EditorToolButton(YokkoStrings.Get("editor.new_4k"), newFourKey),
                     new EditorToolButton(YokkoStrings.Get("editor.new_7k"), newSevenKey),
-                    new EditorToolButton(YokkoStrings.Get("editor.import"), importChart),
+                    importButton = new EditorToolButton(YokkoStrings.Get("editor.import"), importChart),
                     new EditorToolButton(YokkoStrings.Get("editor.export"), exportOsu),
                     new EditorToolButton(
                         YokkoStrings.Get("editor.playtest"),
@@ -62,6 +64,8 @@ public partial class EditorHeader : CompositeDrawable
             },
         };
     }
+
+    internal void SetImportEnabled(bool enabled) => importButton.IsEnabled = enabled;
 }
 
 public partial class EditorToolButton : YokkoButton

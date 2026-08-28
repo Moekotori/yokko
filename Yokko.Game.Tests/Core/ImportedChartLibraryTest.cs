@@ -2293,6 +2293,170 @@ public sealed class ImportedChartLibraryTest
     }
 
     [Test]
+    public async Task OszImportCleansUpItsTransientExtractionDirectory()
+    {
+        string root = createTestRoot("osz-extraction-cleanup");
+        string source = Path.Combine(root, "source");
+        Directory.CreateDirectory(source);
+        string packagePath = Path.Combine(source, "song.osz");
+
+        try
+        {
+            writeOszPackage(packagePath, "Extraction Cleanup");
+            string[] before = snapshotExtractionDirectories();
+
+            using var library = new ImportedChartLibrary();
+            library.Initialise(new NativeStorage(root));
+            IReadOnlyList<ChartImportResult> results = await library.ImportAsync(
+                new ChartImportRequest(packagePath, true));
+
+            // 导入解压两次：第一次仅用于复制引用资产，应被后台回收；
+            // 第二次承载库内结果引用的音频，必须保留。
+            string[] survivors = await waitForNewExtractionDirectories(
+                before,
+                expectedCount: 1);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(survivors, Has.Length.EqualTo(1),
+                    "Only the extraction backing the live import result may remain.");
+                Assert.That(
+                    Path.GetFullPath(results.Single().ExtractedArchiveRoot),
+                    Is.EqualTo(Path.GetFullPath(survivors.Single())));
+                Assert.That(
+                    File.Exists(results.Single().Beatmap.AudioPath),
+                    Is.True,
+                    "The imported chart must still resolve its packaged audio.");
+            });
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task EvictedMaterialisationCleansUpItsExtractionDirectory()
+    {
+        string root = createTestRoot("materialise-extraction-cleanup");
+        string source = Path.Combine(root, "source");
+        Directory.CreateDirectory(source);
+        string packagePath = Path.Combine(source, "song.osz");
+
+        try
+        {
+            writeOszPackage(packagePath, "Materialise Cleanup");
+            using (var first = new ImportedChartLibrary())
+            {
+                first.Initialise(new NativeStorage(root));
+                await first.ImportAsync(new ChartImportRequest(packagePath, true));
+            }
+
+            using var reloaded = new ImportedChartLibrary();
+            reloaded.Initialise(new NativeStorage(root));
+            Assert.That(await reloaded.LoadFromDiskAsync(true, true), Is.EqualTo(1));
+            ImportedChart summary = reloaded.GetCharts().Single();
+            Assert.That(summary.RequiresMaterialisation, Is.True);
+
+            string[] before = snapshotExtractionDirectories();
+            YokkoBeatmap playable = await reloaded.GetPlayableBeatmapAsync(
+                summary.Id);
+            string[] materialised = snapshotExtractionDirectories()
+                .Except(before, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            Assert.That(materialised, Has.Length.EqualTo(1),
+                "Materialising a packaged chart should extract exactly once.");
+            Assert.That(
+                Path.GetFullPath(playable.AudioPath),
+                Does.StartWith(
+                    Path.GetFullPath(materialised.Single())
+                    + Path.DirectorySeparatorChar));
+
+            // 删除源文件后重新扫描会驱逐该谱面的物化缓存，
+            // 其解压目录应随之被后台回收。
+            Directory.Delete(
+                Path.GetDirectoryName(summary.SourcePath)!,
+                true);
+            await reloaded.LoadFromDiskAsync(true, true);
+            string[] survivors = await waitForNewExtractionDirectories(
+                before,
+                expectedCount: 0);
+
+            Assert.That(survivors, Is.Empty,
+                "Evicting a materialised chart must reclaim its extraction directory.");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+        }
+    }
+
+    private static void writeOszPackage(string packagePath, string title)
+    {
+        using ZipArchive archive = ZipFile.Open(
+            packagePath,
+            ZipArchiveMode.Create);
+        writeEntry(archive, "audio.ogg", "audio");
+        writeEntry(archive, "chart.osu", $"""
+osu file format v14
+
+[General]
+AudioFilename: audio.ogg
+Mode: 3
+
+[Metadata]
+Title:{title}
+Artist:Artist
+Creator:Mapper
+Version:4K
+
+[Difficulty]
+CircleSize:4
+
+[TimingPoints]
+0,500,4,2,0,100,1,0
+
+[HitObjects]
+64,192,500,1,0,0:0:0:0:
+""");
+    }
+
+    private static string[] snapshotExtractionDirectories()
+    {
+        string extractionsRoot = Path.Combine(
+            Path.GetTempPath(),
+            "Yokko",
+            "ChartImports");
+        return Directory.Exists(extractionsRoot)
+            ? Directory.GetDirectories(extractionsRoot)
+            : [];
+    }
+
+    private static async Task<string[]> waitForNewExtractionDirectories(
+        string[] before,
+        int expectedCount)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        string[] current;
+
+        do
+        {
+            current = snapshotExtractionDirectories()
+                .Except(before, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (current.Length == expectedCount)
+                return current;
+
+            await Task.Delay(50);
+        } while (stopwatch.ElapsedMilliseconds < 10_000);
+
+        return current;
+    }
+
+    [Test]
     public async Task QuaverPackageDragImportPersistsEveryDifficulty()
     {
         string root = Path.Combine(

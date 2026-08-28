@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Yokko.Audio;
 using Yokko.Audio.Decoding;
@@ -200,6 +202,169 @@ public sealed class DecodedAudioSourceTest
                     Is.InRange(630, 690),
                     "Custom NC must keep lazer's fixed 1.5x frequency.");
             });
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public void DynamicRateAtUnityBypassesTimeStretchProcessing()
+    {
+        string path = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            $"{TestContext.CurrentContext.Test.ID}.wav");
+        createSineWave(path, 48000, 440, 500);
+
+        try
+        {
+            using DecodedAudioSource dynamicSource = DecodedAudioSource.Open(
+                path,
+                1,
+                AudioPitchMode.Preserve,
+                dynamicPlaybackRate: true);
+            using DecodedAudioSource passthrough = DecodedAudioSource.Open(
+                path);
+
+            float[] dynamicSamples = readAll(dynamicSource);
+            float[] passthroughSamples = readAll(passthrough);
+
+            Assert.That(
+                dynamicSamples,
+                Is.EqualTo(passthroughSamples),
+                "A dynamic-rate source playing at 1x must decode bit-exact, "
+                + "without SoundTouch in the chain.");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public void PendingRateWritesCollapseToLatestValueBeforeNextRead()
+    {
+        string path = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            $"{TestContext.CurrentContext.Test.ID}.wav");
+        createSineWave(path, 48000, 440, 500);
+
+        try
+        {
+            using DecodedAudioSource dynamicSource = DecodedAudioSource.Open(
+                path,
+                1,
+                AudioPitchMode.Preserve,
+                dynamicPlaybackRate: true);
+            using DecodedAudioSource passthrough = DecodedAudioSource.Open(
+                path);
+
+            // Rate requests are deferred to the next Read, so the second
+            // write must win and the never-applied 2x request must not
+            // splice SoundTouch into the chain.
+            dynamicSource.SetPlaybackRate(2);
+            dynamicSource.SetPlaybackRate(1);
+
+            float[] dynamicSamples = readAll(dynamicSource);
+            float[] passthroughSamples = readAll(passthrough);
+
+            Assert.That(
+                dynamicSamples,
+                Is.EqualTo(passthroughSamples),
+                "A rate change reverted before any decode must keep the "
+                + "bit-exact 1x bypass.");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public void SetPlaybackRateValidatesSynchronously()
+    {
+        string path = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            $"{TestContext.CurrentContext.Test.ID}.wav");
+        createSineWave(path, 48000, 440, 100);
+
+        try
+        {
+            using DecodedAudioSource fixedSource = DecodedAudioSource.Open(
+                path);
+            using DecodedAudioSource dynamicSource = DecodedAudioSource.Open(
+                path,
+                1,
+                AudioPitchMode.Preserve,
+                dynamicPlaybackRate: true);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => fixedSource.SetPlaybackRate(1),
+                    Throws.Nothing,
+                    "Unity on a fixed-rate source stays a silent no-op.");
+                Assert.That(
+                    () => fixedSource.SetPlaybackRate(1.5),
+                    Throws.InvalidOperationException,
+                    "Deferred application must not defer the dynamic-rate "
+                    + "capability check.");
+                Assert.That(
+                    () => dynamicSource.SetPlaybackRate(double.NaN),
+                    Throws.TypeOf<ArgumentOutOfRangeException>());
+                Assert.That(
+                    () => dynamicSource.SetPlaybackRate(8),
+                    Throws.TypeOf<ArgumentOutOfRangeException>());
+            });
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public void ConcurrentRateWritesDuringDecodeKeepOutputSane()
+    {
+        string path = Path.Combine(
+            TestContext.CurrentContext.WorkDirectory,
+            $"{TestContext.CurrentContext.Test.ID}.wav");
+        createSineWave(path, 48000, 440, 3000);
+
+        try
+        {
+            using DecodedAudioSource source = DecodedAudioSource.Open(
+                path,
+                1,
+                AudioPitchMode.Preserve,
+                dynamicPlaybackRate: true);
+
+            using var readerStarted = new ManualResetEventSlim();
+            Task writer = Task.Run(() =>
+            {
+                readerStarted.Wait();
+                for (int iteration = 0; iteration < 400; iteration++)
+                {
+                    source.SetPlaybackRate(iteration % 2 == 0 ? 2 : 1);
+                    Thread.Yield();
+                }
+            });
+
+            readerStarted.Set();
+            float[] samples = readAll(source);
+            writer.GetAwaiter().GetResult();
+
+            int totalFrames = samples.Length / 2;
+            Assert.That(
+                totalFrames,
+                Is.InRange(66000, 150000),
+                "Rates alternating between 1x and 2x must yield a duration "
+                + "between half and full source length.");
+            Assert.That(
+                estimateFrequency(samples, 48000),
+                Is.InRange(410, 470),
+                "Preserve mode must keep pitch across concurrent tempo writes.");
         }
         finally
         {

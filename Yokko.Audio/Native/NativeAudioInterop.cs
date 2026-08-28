@@ -5,7 +5,7 @@ namespace Yokko.Audio.Native;
 
 internal static partial class NativeAudioInterop
 {
-    internal const uint AbiVersion = 12;
+    internal const uint AbiVersion = 13;
     internal const uint SampleTelemetryAbiVersion = 1;
     internal const string LibraryName = "yokko_audio_native";
 
@@ -181,20 +181,15 @@ internal static partial class NativeAudioInterop
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
     internal static partial void CloseOutput(NativeAudioSafeHandle engine);
 
-    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_wasapi_device_count")]
+    [LibraryImport(
+        LibraryName,
+        EntryPoint = "yokko_audio_enumerate_wasapi_devices")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
-    internal static partial NativeAudioResult GetWasapiDeviceCount(
-        out uint deviceCount);
-
-    [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_wasapi_device_info")]
-    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
-    internal static unsafe partial NativeAudioResult GetWasapiDeviceInfo(
-        uint deviceIndex,
-        char* deviceId,
-        uint deviceIdCapacity,
-        char* deviceName,
-        uint deviceNameCapacity,
-        out uint isDefault);
+    internal static unsafe partial NativeAudioResult EnumerateWasapiDevices(
+        NativeWasapiDeviceInfo* devices,
+        uint deviceCapacity,
+        out uint writtenDeviceCount,
+        out uint activeDeviceCount);
 
     [LibraryImport(LibraryName, EntryPoint = "yokko_audio_get_asio_device_count")]
     [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
@@ -321,6 +316,21 @@ internal struct NativeAudioSampleTelemetryStatus
     {
         StructSize = (uint)Marshal.SizeOf<NativeAudioSampleTelemetryStatus>(),
     };
+}
+
+/// <summary>
+/// Mirrors the native yokko_audio_wasapi_device_info layout so one P/Invoke
+/// call can return every active render endpoint.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct NativeWasapiDeviceInfo
+{
+    internal const int IdCapacity = 512;
+    internal const int NameCapacity = 512;
+
+    internal fixed char Id[IdCapacity];
+    internal fixed char Name[NameCapacity];
+    internal uint IsDefault;
 }
 
 [StructLayout(LayoutKind.Sequential)]

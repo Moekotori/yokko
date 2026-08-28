@@ -14,6 +14,7 @@ using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osu.Framework.Platform;
 using osu.Framework.Screens;
+using osu.Framework.Threading;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
@@ -32,6 +33,7 @@ public partial class ChartLibraryScreen : Screen
     private const float designedWidth = 1280;
     private const float designedHeight = 720;
     private const int pageSize = 120;
+    private const int queryDebounceMilliseconds = 200;
 
     [Resolved]
     private GameHost host { get; set; }
@@ -79,6 +81,8 @@ public partial class ChartLibraryScreen : Screen
     private ImportedChartLibraryChange pendingLibraryChange;
     private volatile bool screenActive;
     private string query = string.Empty;
+    private ScheduledDelegate queryDebounce;
+    private int filterGeneration;
     private int displayLimit = pageSize;
     private bool workInProgress;
     private bool resourcesDisposed;
@@ -705,9 +709,19 @@ public partial class ChartLibraryScreen : Screen
 
     private void onQueryChanged(string value)
     {
-        query = value?.Trim() ?? string.Empty;
-        displayLimit = pageSize;
-        refreshRows();
+        string pendingQuery = value?.Trim() ?? string.Empty;
+        // 与 SongSelect 的搜索防抖同理：等输入停顿后再触发一次
+        // 全量过滤，避免每个按键都重建整个列表。
+        queryDebounce?.Cancel();
+        queryDebounce = Scheduler.AddDelayed(() =>
+        {
+            if (pendingQuery == query)
+                return;
+
+            query = pendingQuery;
+            displayLimit = pageSize;
+            refreshRows();
+        }, queryDebounceMilliseconds);
     }
 
     private void setFilter(ChartLibrarySourceFilter filter)
@@ -725,8 +739,42 @@ public partial class ChartLibraryScreen : Screen
         if (chartRows == null)
             return;
 
-        IEnumerable<ImportedChart> filtered = snapshot;
-        filtered = CurrentSourceFilter switch
+        // 过滤+排序在后台线程完成，UI 线程只负责 renderRows；
+        // 代数校验丢弃过期结果，保证只应用最后一次请求。
+        int generation = ++filterGeneration;
+        IReadOnlyList<ImportedChart> source = snapshot;
+        ChartLibrarySourceFilter sourceFilter = CurrentSourceFilter;
+        string search = query;
+        _ = Task.Run(() =>
+        {
+            ImportedChart[] ordered = filterAndSort(source, sourceFilter, search);
+            Schedule(() =>
+            {
+                if (generation != filterGeneration)
+                    return;
+
+                orderedSnapshot = ordered;
+
+                // 过滤期间若只发生评分更新（refreshDifficultyRows 不会
+                // 重新触发过滤），按最新快照重映射，避免评分显示回退。
+                if (!ReferenceEquals(source, snapshot))
+                {
+                    refreshDifficultyRows();
+                    return;
+                }
+
+                renderRows(ordered);
+            });
+        });
+    }
+
+    private static ImportedChart[] filterAndSort(
+        IReadOnlyList<ImportedChart> source,
+        ChartLibrarySourceFilter sourceFilter,
+        string search)
+    {
+        IEnumerable<ImportedChart> filtered = source;
+        filtered = sourceFilter switch
         {
             ChartLibrarySourceFilter.Managed => filtered.Where(chart =>
                 chart.SourceKind == ImportedChartSourceKind.Managed),
@@ -735,24 +783,22 @@ public partial class ChartLibraryScreen : Screen
             _ => filtered,
         };
 
-        if (!string.IsNullOrWhiteSpace(query))
+        if (!string.IsNullOrWhiteSpace(search))
         {
             filtered = filtered.Where(chart =>
-                contains(chart.Result.Beatmap.Title, query)
-                || contains(chart.Result.Beatmap.Artist, query)
-                || contains(chart.Result.Beatmap.Creator, query)
-                || contains(chart.Result.Beatmap.DifficultyName, query)
-                || contains(chart.PackageName, query));
+                contains(chart.Result.Beatmap.Title, search)
+                || contains(chart.Result.Beatmap.Artist, search)
+                || contains(chart.Result.Beatmap.Creator, search)
+                || contains(chart.Result.Beatmap.DifficultyName, search)
+                || contains(chart.PackageName, search));
         }
 
-        ImportedChart[] ordered = filtered
-                                  .OrderBy(chart => chart.Result.Beatmap.Title,
-                                      StringComparer.CurrentCultureIgnoreCase)
-                                  .ThenBy(chart => chart.Result.Beatmap.DifficultyName,
-                                      StringComparer.CurrentCultureIgnoreCase)
-                                  .ToArray();
-        orderedSnapshot = ordered;
-        renderRows(ordered);
+        return filtered
+               .OrderBy(chart => chart.Result.Beatmap.Title,
+                   StringComparer.CurrentCultureIgnoreCase)
+               .ThenBy(chart => chart.Result.Beatmap.DifficultyName,
+                   StringComparer.CurrentCultureIgnoreCase)
+               .ToArray();
     }
 
     private void refreshDifficultyRows()
@@ -841,7 +887,8 @@ public partial class ChartLibraryScreen : Screen
                 () =>
                 {
                     displayLimit += pageSize;
-                    refreshRows();
+                    // 过滤结果未变，直接用当前排序快照渲染更多行。
+                    renderRows(orderedSnapshot);
                 }));
         }
     }

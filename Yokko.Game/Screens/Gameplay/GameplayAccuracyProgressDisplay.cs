@@ -27,6 +27,9 @@ internal partial class GameplayAccuracyProgressDisplay : CompositeDrawable
     private readonly Container accuracyContainer;
     private readonly Container progressContainer;
 
+    private double formattedAccuracy = double.NaN;
+    private int formattedElapsedSeconds = -1;
+
     internal double DisplayedAccuracy { get; private set; } = 1;
     internal double DisplayedProgress { get; private set; }
     internal bool UsesSkinAccuracyFont => accuracyValue.UsesSkinFont;
@@ -122,8 +125,12 @@ internal partial class GameplayAccuracyProgressDisplay : CompositeDrawable
         BeatmapJudgementState state)
     {
         DisplayedAccuracy = Math.Clamp(state?.Accuracy ?? 1, 0, 1);
-        accuracyValue.SetText(
-            $"{DisplayedAccuracy * 100:0.00}%");
+        if (!DisplayedAccuracy.Equals(formattedAccuracy))
+        {
+            formattedAccuracy = DisplayedAccuracy;
+            accuracyValue.SetText(
+                $"{DisplayedAccuracy * 100:0.00}%");
+        }
 
         // Mirrors ppy/osu SongProgress's playable-bounds behaviour: the
         // lead-in stays at 0% instead of pretending that the chart has begun.
@@ -137,8 +144,16 @@ internal partial class GameplayAccuracyProgressDisplay : CompositeDrawable
             ? 0
             : Math.Clamp(elapsed / duration, 0, 1);
         progressFill.Width = content_width * (float)DisplayedProgress;
-        progressTime.Text =
-            $"PROGRESS  {formatTime(elapsed)} / {formatTime(duration)}";
+
+        // The readout only shows whole seconds; skip re-formatting until the
+        // displayed value can actually change.
+        int elapsedSeconds = (int)Math.Floor(elapsed / 1000);
+        if (elapsedSeconds != formattedElapsedSeconds)
+        {
+            formattedElapsedSeconds = elapsedSeconds;
+            progressTime.Text =
+                $"PROGRESS  {formatTime(elapsed)} / {formatTime(duration)}";
+        }
     }
 
     private static string formatTime(double milliseconds)
@@ -211,7 +226,11 @@ internal partial class OsuScoreFontText : CompositeDrawable
 
     internal void SetText(string text)
     {
-        DisplayedText = text ?? string.Empty;
+        text ??= string.Empty;
+        if (text == DisplayedText)
+            return;
+
+        DisplayedText = text;
         if (!UsesSkinFont || !tryPopulateSkinText(DisplayedText))
         {
             skinText.Clear();

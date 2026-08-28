@@ -248,6 +248,7 @@ public sealed partial class BmsChartImporter : IChartImporter
 
     private static ParsedBms parse(string path)
     {
+        ChartFileSizeGuard.EnsureWithinLimit(path, "BMS");
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         byte[] bytes = File.ReadAllBytes(path);
         string text = decodeText(bytes);

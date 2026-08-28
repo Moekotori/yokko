@@ -1249,15 +1249,24 @@ public partial class GameplayPlayfield : CompositeDrawable
                 && gameplayTimeMilliseconds < firstObjectTime
                     ? 1
                     : 0;
-        foreach (LegacyManiaBarLine barLine in barLines)
+        if (barLines.Length > 0)
         {
-            barLine.UpdatePosition(
-                gameplayTimeMilliseconds,
-                topY,
-                judgementY,
-                approachTimeMilliseconds,
-                defaultScrollVelocityMap,
-                defaultScrollSpeedFactorMap);
+            double barLineSpeedFactor =
+                defaultScrollSpeedFactorMap.FactorAt(
+                    gameplayTimeMilliseconds);
+            double barLineScrollPosition =
+                defaultScrollVelocityMap.PositionAt(
+                    gameplayTimeMilliseconds);
+
+            foreach (LegacyManiaBarLine barLine in barLines)
+            {
+                barLine.UpdatePosition(
+                    topY,
+                    judgementY,
+                    approachTimeMilliseconds,
+                    barLineSpeedFactor,
+                    barLineScrollPosition);
+            }
         }
         visibilityPolicy =
             ManiaVisibilityPolicyResolver.Resolve(mods, state.Combo);
@@ -1380,8 +1389,18 @@ public partial class GameplayPlayfield : CompositeDrawable
 
         if (skinOverlays.Length == 1)
         {
-            skinOverlays[0].SetHoldActive(
-                holdActiveLanes.Any(static active => active));
+            bool anyHoldActive = false;
+
+            for (int lane = 0; lane < holdActiveLanes.Length; lane++)
+            {
+                if (!holdActiveLanes[lane])
+                    continue;
+
+                anyHoldActive = true;
+                break;
+            }
+
+            skinOverlays[0].SetHoldActive(anyHoldActive);
         }
         else
         {

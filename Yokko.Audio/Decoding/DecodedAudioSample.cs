@@ -48,8 +48,9 @@ internal sealed class DecodedAudioSample
                     $"Keysound '{path}' exceeds the {maximumDurationSeconds} second safety limit.");
             }
 
-            for (int index = 0; index < read; index++)
-                decoded.Add(buffer[index]);
+            // ArraySegment implements ICollection<float>, so AddRange copies
+            // the block with Array.Copy instead of per-sample Add calls.
+            decoded.AddRange(new ArraySegment<float>(buffer, 0, read));
         }
 
         if (decoded.Count == 0)
@@ -94,8 +95,7 @@ internal sealed class DecodedAudioSample
             if (read == 0)
                 break;
 
-            for (int index = 0; index < read; index++)
-                output.Add(buffer[index]);
+            output.AddRange(new ArraySegment<float>(buffer, 0, read));
         }
 
         float[] result = output.ToArray();

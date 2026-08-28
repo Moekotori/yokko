@@ -1,5 +1,4 @@
 using Yokko.Core.Beatmaps;
-using System.Security.Cryptography;
 
 namespace Yokko.Import.Osu;
 
@@ -25,36 +24,28 @@ public sealed class OsuManiaChartImporter : IChartImporter
         request.CancellationToken.ThrowIfCancellationRequested();
 
         if (Path.GetExtension(request.Path).Equals(".osu", StringComparison.OrdinalIgnoreCase))
-            return ValueTask.FromResult(new ChartImportResult(
-                OsuManiaBeatmapIO.ReadBeatmapFromFile(
-                    request.Path,
-                    request.CancellationToken),
+            return ValueTask.FromResult(importChartFile(
+                request.Path,
                 [],
-                OsuManiaBeatmapIO.ReadBackgroundPathFromFile(
-                    request.Path,
-                    request.CancellationToken),
-                computeMd5(request.Path)));
+                extractedArchiveRoot: null,
+                request.CancellationToken));
 
-        IReadOnlyList<string> charts = ChartArchive.ExtractCharts(request.Path, ".osu");
+        ChartArchiveExtraction extraction = ChartArchive.ExtractCharts(request.Path, ".osu");
+        IReadOnlyList<string> charts = extraction.ChartPaths;
         var failures = new List<Exception>();
 
         foreach (string chart in charts)
         {
             try
             {
-                YokkoBeatmap beatmap = OsuManiaBeatmapIO.ReadBeatmapFromFile(
-                    chart,
-                    request.CancellationToken);
                 IReadOnlyList<string> warnings = charts.Count > 1
                     ? [$"This .osz contains {charts.Count} charts; imported {Path.GetFileName(chart)}."]
                     : [];
-                return ValueTask.FromResult(new ChartImportResult(
-                    beatmap,
+                return ValueTask.FromResult(importChartFile(
+                    chart,
                     warnings,
-                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(
-                        chart,
-                        request.CancellationToken),
-                    computeMd5(chart)));
+                    extraction.RootPath,
+                    request.CancellationToken));
             }
             catch (InvalidDataException ex)
             {
@@ -62,6 +53,7 @@ public sealed class OsuManiaChartImporter : IChartImporter
             }
         }
 
+        ChartArchive.TryDeleteExtraction(extraction.RootPath);
         throw new InvalidDataException(
             "The .osz package does not contain a supported osu!standard or osu!mania chart.",
             failures.FirstOrDefault());
@@ -75,36 +67,28 @@ public sealed class OsuManiaChartImporter : IChartImporter
         if (Path.GetExtension(request.Path).Equals(".osu", StringComparison.OrdinalIgnoreCase))
         {
             return ValueTask.FromResult<IReadOnlyList<ChartImportResult>>(
-                [new ChartImportResult(
-                    OsuManiaBeatmapIO.ReadBeatmapFromFile(
-                        request.Path,
-                        request.CancellationToken),
+                [importChartFile(
+                    request.Path,
                     [],
-                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(
-                        request.Path,
-                        request.CancellationToken),
-                    computeMd5(request.Path))]);
+                    extractedArchiveRoot: null,
+                    request.CancellationToken)]);
         }
 
-        IReadOnlyList<string> charts = ChartArchive.ExtractCharts(request.Path, ".osu");
+        ChartArchiveExtraction extraction = ChartArchive.ExtractCharts(request.Path, ".osu");
         var results = new List<ChartImportResult>();
         var failures = new List<Exception>();
 
-        foreach (string chart in charts)
+        foreach (string chart in extraction.ChartPaths)
         {
             request.CancellationToken.ThrowIfCancellationRequested();
 
             try
             {
-                results.Add(new ChartImportResult(
-                    OsuManiaBeatmapIO.ReadBeatmapFromFile(
-                        chart,
-                        request.CancellationToken),
+                results.Add(importChartFile(
+                    chart,
                     [],
-                    OsuManiaBeatmapIO.ReadBackgroundPathFromFile(
-                        chart,
-                        request.CancellationToken),
-                    computeMd5(chart)));
+                    extraction.RootPath,
+                    request.CancellationToken));
             }
             catch (InvalidDataException ex)
             {
@@ -114,6 +98,7 @@ public sealed class OsuManiaChartImporter : IChartImporter
 
         if (results.Count == 0)
         {
+            ChartArchive.TryDeleteExtraction(extraction.RootPath);
             throw new InvalidDataException(
                 "The .osz package does not contain a supported osu!standard or osu!mania chart.",
                 failures.FirstOrDefault());
@@ -130,9 +115,20 @@ public sealed class OsuManiaChartImporter : IChartImporter
         return ValueTask.FromResult<IReadOnlyList<ChartImportResult>>(results);
     }
 
-    private static string computeMd5(string path)
+    private static ChartImportResult importChartFile(
+        string path,
+        IReadOnlyList<string> warnings,
+        string? extractedArchiveRoot,
+        CancellationToken cancellationToken)
     {
-        using FileStream stream = File.OpenRead(path);
-        return Convert.ToHexString(MD5.HashData(stream)).ToLowerInvariant();
+        OsuBeatmapFileImport import = OsuManiaBeatmapIO.ReadBeatmapForImport(
+            path,
+            cancellationToken);
+        return new ChartImportResult(
+            import.Beatmap,
+            warnings,
+            import.BackgroundPath,
+            import.Md5Hash,
+            extractedArchiveRoot);
     }
 }

@@ -139,8 +139,9 @@ public partial class GameplayScreen : Screen
     private readonly InputDropTracker inputDropTracker = new();
     private readonly AudioSampleTriggerLatencyTracker
         audioSampleTriggerLatencyTracker = new();
-    private ulong previousAudioSampleTelemetryDropped;
-    private ulong accumulatedAudioSampleTelemetryDropped;
+    private readonly AudioSampleTelemetryDropTracker
+        audioSampleTelemetryDropTracker = new();
+    private double audioSampleTelemetryStatusElapsedMilliseconds;
     private bool gameplayBlocked;
     private bool gameplayCompleted;
     private bool gameplayCompletionTransitionActive;
@@ -210,6 +211,10 @@ public partial class GameplayScreen : Screen
     private GameplayHitSamplePlaybackBinding[][] tailSamplesByHitObject = [];
     private GameplayHitSamplePlaybackBinding[][] slidingSamplesByHitObject = [];
     private GameplayHitSamplePlaybackBinding[] scheduledSamples = [];
+    // Reused by triggerScheduledSamples; TriggerSamples only iterates the
+    // list synchronously, so a shared single-element buffer is safe.
+    private readonly GameplayHitSamplePlaybackBinding[]
+        scheduledSampleTriggerBuffer = new GameplayHitSamplePlaybackBinding[1];
     private int nextScheduledSampleIndex;
     private double previousScheduledSampleTime = double.NegativeInfinity;
     private readonly Dictionary<int, List<uint>> activeSlidingSampleLoops = new();
@@ -1045,14 +1050,24 @@ public partial class GameplayScreen : Screen
     protected override void Update()
     {
         base.Update();
+        // Observe the gameplay clock once per frame and reuse the snapshot
+        // below; every observation queries the native audio engine, so
+        // repeated currentGameplayTime reads in one frame would each pay
+        // that interop cost again.
+        GameplayClockObservation clockObservation = observeGameplayClock();
+        double frameGameplayTime = clockObservation.GameplayTime;
         updatePlayfieldLayout();
-        drainAudioSampleTriggerTelemetry();
+        // Sample-trigger telemetry is only produced by traced raw keysound
+        // triggers, so skip the per-frame native queue P/Invoke unless the
+        // raw keysound fast path has been set up for this session.
+        if (rawKeysoundDispatcher != null)
+            drainAudioSampleTriggerTelemetry();
         updateQuickRetryHold();
-        updateDiagnosticSnapshot();
+        updateDiagnosticSnapshot(frameGameplayTime);
         replayControls?.UpdateState(
-            currentGameplayTime,
+            frameGameplayTime,
             completionTimeMilliseconds,
-            currentPlaybackRate(currentGameplayTime),
+            currentPlaybackRate(frameGameplayTime),
             isPaused);
 
         if (gameplayCompletionTransitionActive)
@@ -1071,7 +1086,6 @@ public partial class GameplayScreen : Screen
 
         if (!ReplayMode)
             adaptiveSpeedState?.Update(Time.Elapsed);
-        GameplayClockObservation clockObservation = observeGameplayClock();
 
         if (hasAudioClock && audioStarted)
         {
@@ -1865,6 +1879,9 @@ public partial class GameplayScreen : Screen
                         audioSettings.ManualPlaybackRatePitchMode.Value),
                     mods.FixedAudioFrequencyScale) with
             {
+                // Keeps in-place rate changes available (time ramp mods,
+                // manual rate shortcuts). SoundTouch itself stays bypassed
+                // inside the decoder until the rate actually leaves 1x.
                 DynamicPlaybackRate = true,
             };
             activeRequestedBackend = startRequest.PreferredBackend;
@@ -2556,9 +2573,11 @@ public partial class GameplayScreen : Screen
                     || gameplaySettings.KeysoundsEnabled.Value)
                 && audioEngine is IAudioSamplePlayback samplePlayback)
             {
+                scheduledSampleTriggerBuffer[0] =
+                    scheduledSamples[nextScheduledSampleIndex];
                 GameplayHitSamplePlayer.TriggerSamples(
                     samplePlayback,
-                    [scheduledSamples[nextScheduledSampleIndex]]);
+                    scheduledSampleTriggerBuffer);
             }
 
             nextScheduledSampleIndex++;
@@ -3852,11 +3871,10 @@ public partial class GameplayScreen : Screen
         {
             artworkTextures = new TextureStore(
                 renderer,
-                new TextureLoaderStore(
-                    new ConstrainedTextureResourceStore(
-                        new ChartArtworkResourceStore(),
-                        renderer.MaxTextureSize,
-                        maximumPixelCount: 1920L * 1080)),
+                new ConstrainedTextureLoaderStore(
+                    new TextureLoaderStore(new ChartArtworkResourceStore()),
+                    renderer.MaxTextureSize,
+                    maximumPixelCount: 1920L * 1080),
                 scaleAdjust: 1);
             return artworkTextures.Get(artworkPath);
         }
@@ -3868,7 +3886,8 @@ public partial class GameplayScreen : Screen
         }
     }
 
-    private void drainAudioSampleTriggerTelemetry()
+    private void drainAudioSampleTriggerTelemetry(
+        bool forceStatusRefresh = false)
     {
         if (audioEngine is not ITimestampedPreparedAudioSamplePlayback telemetry)
             return;
@@ -3879,18 +3898,25 @@ public partial class GameplayScreen : Screen
             audioSampleTriggerLatencyTracker.Record(sample);
         }
 
-        ulong dropped = telemetry.SampleTriggerTelemetryStatus.DroppedCount;
-        if (dropped < previousAudioSampleTelemetryDropped)
+        // SampleTriggerTelemetryStatus is a native call whose dropped counter
+        // only feeds the timing summary; polling roughly once per second is
+        // enough to catch counter resets without a per-frame P/Invoke.
+        audioSampleTelemetryStatusElapsedMilliseconds +=
+            Math.Max(0, Time.Elapsed);
+        if (!forceStatusRefresh
+            && audioSampleTelemetryStatusElapsedMilliseconds < 1000)
         {
-            accumulatedAudioSampleTelemetryDropped +=
-                previousAudioSampleTelemetryDropped;
+            return;
         }
-        previousAudioSampleTelemetryDropped = dropped;
+
+        audioSampleTelemetryStatusElapsedMilliseconds %= 1000;
+        audioSampleTelemetryDropTracker.Observe(
+            telemetry.SampleTriggerTelemetryStatus.DroppedCount);
     }
 
     private void logInputTimingSummary()
     {
-        drainAudioSampleTriggerTelemetry();
+        drainAudioSampleTriggerTelemetry(forceStatusRefresh: true);
         KeyInputTimestampBackendStatus backend =
             keyInputTimestamps.Status;
         InputDropObservation drops = inputDropTracker.Observe(
@@ -3901,8 +3927,7 @@ public partial class GameplayScreen : Screen
         AudioSampleTriggerLatencyStatistics nativeSamples =
             audioSampleTriggerLatencyTracker.Snapshot();
         ulong nativeTelemetryDropped =
-            accumulatedAudioSampleTelemetryDropped
-            + previousAudioSampleTelemetryDropped;
+            audioSampleTelemetryDropTracker.TotalDropped;
         string ageSummary = ages.Count == 0
             ? "no scored input samples"
             : $"input age p50={ages.P50Milliseconds:0.00} ms, "
@@ -3939,7 +3964,7 @@ public partial class GameplayScreen : Screen
             + nativeSampleSummary);
     }
 
-    private void updateDiagnosticSnapshot()
+    private void updateDiagnosticSnapshot(double gameplayTime)
     {
         if (!diagnostics.IsEnabled)
         {
@@ -3954,7 +3979,6 @@ public partial class GameplayScreen : Screen
         diagnosticSnapshotElapsed %= 1000;
         AudioEngineSnapshot audio = audioEngine.Snapshot;
         KeyInputTimestampBackendStatus input = keyInputTimestamps.Status;
-        double gameplayTime = currentGameplayTime;
         diagnostics.Trace(
             "RUNTIME",
             "gameplay-snapshot",
