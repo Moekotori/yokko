@@ -22,6 +22,7 @@ using Yokko.Core.Gameplay;
 using Yokko.Core.Scoring;
 using Yokko.Game.Audio;
 using Yokko.Game.Gameplay;
+using Yokko.Game.Input;
 using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Gameplay;
 using Yokko.Game.Screens.Main;
@@ -47,6 +48,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private readonly HashSet<InputKey> pressedKeys = new();
     private readonly Clipboard clipboard;
     private readonly AudioSettingsTestPlayer calibrationPlayer;
+    private readonly KeyInputTimestampSource keyInputTimestamps;
     private readonly CancellationTokenSource lifetimeCancellation = new();
     private SpriteText statusTitle;
     private SpriteText statusMetadata;
@@ -162,11 +164,13 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         YokkoGameplaySettings settings,
         YokkoAudioSettings audioSettings,
         string testDirectory,
-        Clipboard clipboard)
+        Clipboard clipboard,
+        KeyInputTimestampSource keyInputTimestamps = null)
     {
         this.settings = settings;
         this.audioSettings = audioSettings;
         this.clipboard = clipboard;
+        this.keyInputTimestamps = keyInputTimestamps;
         calibrationPlayer = new AudioSettingsTestPlayer(
             audioSettings,
             AudioEngineFactory.CreateDefault,
@@ -433,6 +437,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             return;
 
         cancelCapture();
+        keyInputTimestamps?.BeginCapture();
         calibrationResultVisible = false;
         pendingCalibrationSuggestion = null;
         calibrationPreparing = true;
@@ -552,7 +557,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         if (lane < bindingCards.Count)
             bindingCards[lane].SetPressed(true);
 
-        if (tryRecordCalibrationTap())
+        if (tryRecordCalibrationTap(key))
             refreshCalibrationStatus(getCalibrationPlaybackTime());
         else if (!IsCalibrationActive)
             refreshLiveInputStatus(inputKey, lane);
@@ -1931,6 +1936,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
         calibrationSession = null;
         calibrationEngine = null;
+        keyInputTimestamps?.EndCapture();
         calibrationPreparing = false;
         calibrationResultVisible = true;
 
@@ -1970,6 +1976,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         calibrationPreparing = false;
         calibrationSession = null;
         calibrationEngine = null;
+        keyInputTimestamps?.EndCapture();
         pendingCalibrationSuggestion = null;
         calibrationResultVisible = showMessage;
         lastCalibrationPulseBeat = -1;
@@ -2013,7 +2020,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private double getCalibrationPlaybackTime() =>
         calibrationEngine?.PlaybackTimeMilliseconds ?? 0;
 
-    private bool tryRecordCalibrationTap()
+    private bool tryRecordCalibrationTap(Key key = Key.Unknown)
     {
         if (calibrationSession == null
             || calibrationEngine is not ITimestampedAudioClock clock)
@@ -2022,18 +2029,26 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         }
 
         long timestamp = Stopwatch.GetTimestamp();
+        if (key != Key.Unknown
+            && keyInputTimestamps?.TryTake(key, true, out long captured) == true
+            && captured > 0)
+        {
+            timestamp = captured;
+        }
+
         AudioEngineSnapshot snapshot = calibrationEngine.Snapshot;
-        if (!clock.TryGetPlaybackTimeAtTimestamp(
+        if (clock.TryGetPlaybackTimeAtTimestamp(
                 snapshot,
                 timestamp,
                 Stopwatch.Frequency,
                 out double playbackTimeMilliseconds))
         {
-            return false;
+            return calibrationSession.TryRecordTapAtPlaybackTime(
+                playbackTimeMilliseconds);
         }
 
         return calibrationSession.TryRecordTapAtPlaybackTime(
-            playbackTimeMilliseconds);
+            getCalibrationPlaybackTime());
     }
 
     private static Drawable createDecorationIcon(

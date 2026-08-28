@@ -17,7 +17,9 @@ public interface IAudioEngine : IAsyncDisposable
 
     ValueTask StartAsync(AudioEngineStartRequest request, CancellationToken cancellationToken = default);
 
-    ValueTask PauseAsync(CancellationToken cancellationToken = default);
+    ValueTask PauseAsync(
+        CancellationToken cancellationToken = default,
+        bool retainOutput = false);
 
     ValueTask ResumeAsync(CancellationToken cancellationToken = default);
 

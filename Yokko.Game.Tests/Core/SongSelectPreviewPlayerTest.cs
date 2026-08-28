@@ -318,7 +318,8 @@ public sealed class SongSelectPreviewPlayerTest
         }
 
         public ValueTask PauseAsync(
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            bool retainOutput = false)
         {
             Status = Status with { IsRunning = false };
             return ValueTask.CompletedTask;

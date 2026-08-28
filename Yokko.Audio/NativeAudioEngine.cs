@@ -35,6 +35,7 @@ public sealed class NativeAudioEngine :
     private double metronomeVolume;
     private readonly PlaybackRateTimeline rateTimeline = new();
     private bool disposed;
+    private bool outputClosedForPause;
 
     public static bool IsAvailable => NativeAudioLibrary.IsAvailable;
 
@@ -700,7 +701,8 @@ public sealed class NativeAudioEngine :
     }
 
     public async ValueTask PauseAsync(
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool retainOutput = false)
     {
         await lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -708,7 +710,16 @@ public sealed class NativeAudioEngine :
             if (core == null)
                 return;
 
-            core.CloseOutput();
+            if (retainOutput)
+            {
+                outputClosedForPause = false;
+            }
+            else
+            {
+                core.CloseOutput();
+                outputClosedForPause = true;
+            }
+
             core.Pause();
             status = status with { IsRunning = false };
         }
@@ -745,10 +756,15 @@ public sealed class NativeAudioEngine :
             }
 
             core.Start();
-            await openOutputAsync(
-                    activeRequest,
-                    cancellationToken)
-                .ConfigureAwait(false);
+            if (outputClosedForPause)
+            {
+                await openOutputAsync(
+                        activeRequest,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            outputClosedForPause = false;
         }
         finally
         {
@@ -1242,6 +1258,7 @@ public sealed class NativeAudioEngine :
         playbackBaseMilliseconds = 0;
         status = stoppedStatus;
         rateTimeline.Reset(0, 1);
+        outputClosedForPause = false;
     }
 
     private void throwIfDisposed()

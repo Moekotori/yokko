@@ -335,7 +335,9 @@ public sealed class AudioSettingsTestPlayerTest
         }
 
         public bool TriggerMetronome() => true;
-        public ValueTask PauseAsync(CancellationToken cancellationToken = default) =>
+        public ValueTask PauseAsync(
+            CancellationToken cancellationToken = default,
+            bool retainOutput = false) =>
             ValueTask.CompletedTask;
         public ValueTask ResumeAsync(CancellationToken cancellationToken = default) =>
             ValueTask.CompletedTask;

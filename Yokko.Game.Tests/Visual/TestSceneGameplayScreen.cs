@@ -5829,7 +5829,9 @@ StageHint: stage-hint
                 CancellationToken cancellationToken = default) =>
                 ValueTask.FromException(new InvalidOperationException("Audio fixture failed."));
 
-            public ValueTask PauseAsync(CancellationToken cancellationToken = default) =>
+            public ValueTask PauseAsync(
+                CancellationToken cancellationToken = default,
+                bool retainOutput = false) =>
                 ValueTask.CompletedTask;
 
             public ValueTask ResumeAsync(CancellationToken cancellationToken = default) =>
@@ -5891,7 +5893,8 @@ StageHint: stage-hint
             }
 
             public ValueTask PauseAsync(
-                CancellationToken cancellationToken = default)
+                CancellationToken cancellationToken = default,
+                bool retainOutput = false)
             {
                 PauseCount++;
                 status = createStatus(false);

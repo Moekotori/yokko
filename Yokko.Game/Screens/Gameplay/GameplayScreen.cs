@@ -3316,7 +3316,8 @@ public partial class GameplayScreen : Screen
         try
         {
             if (hasAudioClock)
-                await audioEngine.PauseAsync().ConfigureAwait(true);
+                await audioEngine.PauseAsync(retainOutput: true)
+                                 .ConfigureAwait(true);
             pausesUsed++;
             diagnostics.Trace("GAMEPLAY", "paused", $"time={pausedGameplayTime:0.###}ms");
         }
@@ -3433,20 +3434,7 @@ public partial class GameplayScreen : Screen
         {
             if (hasAudioClock)
             {
-                try
-                {
-                    await audioEngine.ResumeAsync().ConfigureAwait(true);
-                }
-                catch (Exception resumeFailure)
-                {
-                    Logger.Error(
-                        resumeFailure,
-                        "Fast audio resume failed; falling back to seek.",
-                        LoggingTarget.Runtime);
-                    await audioEngine.SeekAsync(pausedAudioPosition)
-                                     .ConfigureAwait(true);
-                    lastAppliedPlaybackRate = double.NaN;
-                }
+                await resumeAudioFromPauseAsync().ConfigureAwait(true);
             }
             else
             {
@@ -3477,6 +3465,24 @@ public partial class GameplayScreen : Screen
                 LoggingTarget.Runtime);
             isPaused = true;
             AddInternal(pauseOverlay = createPauseOverlay());
+        }
+    }
+
+    private async Task resumeAudioFromPauseAsync()
+    {
+        try
+        {
+            await audioEngine.ResumeAsync().ConfigureAwait(true);
+        }
+        catch (Exception resumeFailure)
+        {
+            Logger.Error(
+                resumeFailure,
+                "Fast audio resume failed; falling back to seek.",
+                LoggingTarget.Runtime);
+            await audioEngine.SeekAsync(pausedAudioPosition)
+                             .ConfigureAwait(true);
+            lastAppliedPlaybackRate = double.NaN;
         }
     }
 
@@ -4627,7 +4633,8 @@ public partial class GameplayScreen : Screen
                 isPaused = true;
                 stopAllSlidingSamples();
                 if (hasAudioClock && audioStarted)
-                    await audioEngine.PauseAsync().ConfigureAwait(true);
+                    await audioEngine.PauseAsync(retainOutput: true)
+                                     .ConfigureAwait(true);
                 diagnostics.Trace(
                     "REPLAY",
                     "paused",
@@ -4637,9 +4644,7 @@ public partial class GameplayScreen : Screen
             {
                 if (hasAudioClock && audioStarted)
                 {
-                    await audioEngine.SeekAsync(pausedAudioPosition)
-                                     .ConfigureAwait(true);
-                    lastAppliedPlaybackRate = double.NaN;
+                    await resumeAudioFromPauseAsync().ConfigureAwait(true);
                 }
                 else
                 {

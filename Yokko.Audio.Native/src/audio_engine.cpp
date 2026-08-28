@@ -786,6 +786,9 @@ namespace yokko::audio
         const uint32_t output_latency_frames,
         const uint64_t observation_time_100ns) noexcept
     {
+        if (state_.load(std::memory_order_acquire) == YOKKO_AUDIO_STATE_PAUSED)
+            return YOKKO_AUDIO_OK;
+
         const uint64_t origin = output_stream_frame_origin_.load(
             std::memory_order_acquire);
         const uint64_t absolute_position =
