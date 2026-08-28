@@ -1,9 +1,15 @@
 using System;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics;
-using osu.Framework.Graphics.Containers;
-using osu.Framework.Graphics.Shapes;
+using osu.Framework.Graphics.Colour;
+using osu.Framework.Graphics.Primitives;
+using osu.Framework.Graphics.Rendering;
+using osu.Framework.Graphics.Rendering.Vertices;
+using osu.Framework.Graphics.Shaders;
+using osu.Framework.Graphics.Textures;
 using osuTK;
 using osuTK.Graphics;
+using SixLabors.ImageSharp.PixelFormats;
 using Yokko.Audio;
 
 namespace Yokko.Game.Screens.Main;
@@ -15,7 +21,15 @@ namespace Yokko.Game.Screens.Main;
 /// 数据来自 <see cref="AudioWaveformAnalyzer"/> 对真实音频的离线分析，按播放进度逐帧取样。
 /// 立柱经过悬浮卡片下方时自动收低，看起来像从卡片背后穿过。
 /// </summary>
-public partial class HomeWaveformVisualiser : CompositeDrawable
+/// <remarks>
+/// 渲染方式移植自 ppy/osu 的 LogoVisualisation
+/// （osu.Game/Screens/Menu/LogoVisualisation.cs，master@48c4800e3a，MIT）：
+/// 由单个 <see cref="WaveformBarDrawNode"/> 用共享顶点批一次画完全部柱子，
+/// 替代原先 128 个 Masking Container 逐柱独立绘制、每柱各自 flush 一次批次的做法。
+/// 圆角胶囊不再依赖逐柱 Masking，而是用共享的抗锯齿圆形纹理
+/// 拼出「顶帽半圆 + 柱身 + 底帽半圆」三段四边形，整帧只有一次纹理绑定。
+/// </remarks>
+public partial class HomeWaveformVisualiser : Drawable, ITexturedShaderDrawable
 {
     /// <summary>
     /// 离线分析的采样点数。点数决定跳动的时间分辨率（约每 90ms 一个采样）。
@@ -38,7 +52,8 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
     private static readonly Color4 idleColour =
         new(HomeControlColours.Navy.R, HomeControlColours.Navy.G, HomeControlColours.Navy.B, 0.2f);
 
-    private readonly Container[] bars = new Container[bar_count];
+    private readonly float[] barX = new float[bar_count];
+    private readonly float[] barHeights = new float[bar_count];
     private readonly float[] lowWeight = new float[bar_count];
     private readonly float[] midWeight = new float[bar_count];
     private readonly float[] highWeight = new float[bar_count];
@@ -52,6 +67,12 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
     private double progressMilliseconds;
     private WaveformObstacle[] obstacles = [];
     private float layoutDrawWidth = -1;
+    private float barWidth;
+    private bool hasWaveform;
+
+    public IShader TextureShader { get; private set; }
+
+    private Texture barTexture;
 
     public HomeWaveformVisualiser()
     {
@@ -66,21 +87,17 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
             midWeight[i] = gaussian(f, 0.5f, 0.17f);
             highWeight[i] = gaussian(f, 0.86f, 0.2f);
             jitter[i] = 0.8f + 0.45f * frac(MathF.Sin(i * 12.9898f) * 43758.5453f);
-
-            // 柱身为胶囊形（圆角取柱宽一半），纯色平涂保持印刷感。
-            AddInternal(bars[i] = new Container
-            {
-                Anchor = Anchor.BottomLeft,
-                Origin = Anchor.BottomLeft,
-                Masking = true,
-                Size = new Vector2(3, min_bar),
-                Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = idleColour,
-                },
-            });
+            barHeights[i] = min_bar;
         }
+    }
+
+    [BackgroundDependencyLoader]
+    private void load(IRenderer renderer, ShaderManager shaders)
+    {
+        TextureShader = shaders.Load(
+            VertexShaderDescriptor.TEXTURE_2,
+            FragmentShaderDescriptor.TEXTURE);
+        barTexture = createCircleTexture(renderer);
     }
 
     /// <summary>
@@ -142,7 +159,7 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
         if (DrawWidth != layoutDrawWidth)
             updateBarLayout();
 
-        bool hasWaveform = samples != null && durationMilliseconds > 0;
+        hasWaveform = samples != null && durationMilliseconds > 0;
 
         double centrePoint = hasWaveform
             ? Math.Clamp(progressMilliseconds / durationMilliseconds, 0, 1) * (samples.Length - 1)
@@ -159,52 +176,70 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
 
         for (int i = 0; i < bar_count; i++)
         {
-            Container bar = bars[i];
-            Box fill = (Box)bar.Child;
-
             if (!hasWaveform)
             {
-                bar.Height = min_bar;
-                fill.Colour = idleColour;
+                barHeights[i] = min_bar;
                 continue;
             }
 
-            fill.Colour = accentInk(i);
-
-            float heightMax = max_bar;
-            foreach (WaveformObstacle obstacle in obstacles)
-            {
-                if (bar.X >= obstacle.StartX && bar.X <= obstacle.EndX)
-                    heightMax = MathF.Min(heightMax, obstacle.MaxHeight);
-            }
-
+            float heightMax = HeightLimitAt(barX[i], obstacles);
             float energy = (low * lowWeight[i] + mid * midWeight[i] + high * highWeight[i])
                            * loudness
                            * jitter[i];
             float target = min_bar + MathF.Pow(energy, 1.2f) * (heightMax - min_bar);
-            float blend = target > bar.Height ? attack : release;
-            bar.Height += (target - bar.Height) * blend;
+            float blend = target > barHeights[i] ? attack : release;
+            barHeights[i] += (target - barHeights[i]) * blend;
         }
+
+        Invalidate(Invalidation.DrawNode);
     }
+
+    protected override DrawNode CreateDrawNode() => new WaveformBarDrawNode(this);
 
     /// <summary>
     /// 柱条的横向排布只随可视化带宽度变化，缓存后仅在 <see cref="Drawable.DrawWidth"/>
-    /// 改变时重算，避免每帧对 128 根柱子重复写入 X/Width/CornerRadius。
+    /// 改变时重算，避免每帧对 128 根柱子重复计算 X 与柱宽。
     /// </summary>
     private void updateBarLayout()
     {
         layoutDrawWidth = DrawWidth;
         float pitch = layoutDrawWidth / bar_count;
-        // 细柱才有印刷纹样的锐度：柱宽取柱距的 0.4，圆头胶囊由柱宽一半圆角保证。
-        float barWidth = MathF.Max(2.5f, pitch * 0.4f);
+        barWidth = BarWidthForPitch(pitch);
 
         for (int i = 0; i < bar_count; i++)
+            barX[i] = i * pitch + pitch / 2;
+    }
+
+    /// <summary>
+    /// 细柱才有印刷纹样的锐度：柱宽取柱距的 0.4，圆头胶囊由半圆柱帽保证。
+    /// </summary>
+    internal static float BarWidthForPitch(float pitch) => MathF.Max(2.5f, pitch * 0.4f);
+
+    /// <summary>
+    /// 该横向位置允许的最大柱高：命中多个收低区间时取最严格的一个，
+    /// 不在任何区间内则回到全局上限。
+    /// </summary>
+    internal static float HeightLimitAt(float barX, WaveformObstacle[] obstacles)
+    {
+        float limit = max_bar;
+        foreach (WaveformObstacle obstacle in obstacles)
         {
-            Container bar = bars[i];
-            bar.X = i * pitch + pitch / 2;
-            bar.Width = barWidth;
-            bar.CornerRadius = barWidth / 2;
+            if (barX >= obstacle.StartX && barX <= obstacle.EndX)
+                limit = MathF.Min(limit, obstacle.MaxHeight);
         }
+
+        return limit;
+    }
+
+    /// <summary>
+    /// 把一根胶囊柱拆成「半圆柱帽 + 直筒柱身」：柱帽高为柱宽一半；
+    /// 柱高不足一个整圆时柱帽压扁、柱身收为 0，整柱退化成椭圆，
+    /// 与原先 Masking 圆角在极矮柱上的收敛效果一致。
+    /// </summary>
+    internal static (float CapHeight, float BodyHeight) CapsuleSegments(float width, float height)
+    {
+        float capHeight = MathF.Min(width, height) / 2;
+        return (capHeight, MathF.Max(0, height - 2 * capHeight));
     }
 
     /// <summary>
@@ -229,10 +264,162 @@ public partial class HomeWaveformVisualiser : CompositeDrawable
 
     private static float frac(float value) => value - MathF.Floor(value);
 
+    /// <summary>
+    /// 生成柱帽与柱身共用的抗锯齿白色圆形纹理：内切圆留 1px 平滑过渡，
+    /// 上下半各当半圆柱帽用，水平中线一条当柱身用（中线在圆内全宽不透明，
+    /// 左右边缘自带与柱帽一致的抗锯齿），颜色由顶点色染出。
+    /// </summary>
+    private static Texture createCircleTexture(IRenderer renderer)
+    {
+        const int size = 64;
+        const float radius = size / 2f - 1;
+
+        var image = new SixLabors.ImageSharp.Image<Rgba32>(size, size);
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = x + 0.5f - size / 2f;
+                float dy = y + 0.5f - size / 2f;
+                float distance = MathF.Sqrt(dx * dx + dy * dy);
+                float alpha = Math.Clamp(radius - distance + 0.5f, 0f, 1f);
+                image[x, y] = new Rgba32(1f, 1f, 1f, alpha);
+            }
+        }
+
+        Texture texture = renderer.CreateTexture(size, size);
+        texture.SetData(new TextureUpload(image));
+        return texture;
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        base.Dispose(isDisposing);
+        barTexture?.Dispose();
+    }
+
     internal readonly struct WaveformObstacle(float startX, float endX, float maxHeight)
     {
         public readonly float StartX = startX;
         public readonly float EndX = endX;
         public readonly float MaxHeight = maxHeight;
+    }
+
+    /// <summary>
+    /// 把全部 128 根胶囊柱画进同一个顶点批：每柱最多三个四边形
+    /// （顶帽、柱身、底帽）共用同一张圆形纹理，整帧一次绑定、一次提交，
+    /// 消除逐柱 Masking Container 造成的批次中断。
+    /// 结构参考 ppy/osu LogoVisualisation.VisualisationDrawNode（master@48c4800e3a）。
+    /// </summary>
+    private class WaveformBarDrawNode : TexturedShaderDrawNode
+    {
+        protected new HomeWaveformVisualiser Source => (HomeWaveformVisualiser)base.Source;
+
+        private readonly float[] positions = new float[bar_count];
+        private readonly float[] heights = new float[bar_count];
+        private float width;
+        private float bandHeight;
+        private bool active;
+        private Texture texture;
+
+        private IVertexBatch<TexturedVertex2D> vertexBatch;
+
+        public WaveformBarDrawNode(HomeWaveformVisualiser source)
+            : base(source)
+        {
+        }
+
+        public override void ApplyState()
+        {
+            base.ApplyState();
+
+            texture = Source.barTexture;
+            width = Source.barWidth;
+            bandHeight = Source.DrawHeight;
+            active = Source.hasWaveform;
+            Source.barX.AsSpan().CopyTo(positions);
+            Source.barHeights.AsSpan().CopyTo(heights);
+        }
+
+        protected override void Draw(IRenderer renderer)
+        {
+            base.Draw(renderer);
+
+            if (texture?.Available != true || width <= 0)
+                return;
+
+            vertexBatch ??= renderer.CreateQuadBatch<TexturedVertex2D>(bar_count * 3, 2);
+
+            BindTextureShader(renderer);
+
+            float textureSize = texture.Width;
+            // 三段纹理区域（纹素坐标）：上半圆、过圆心的一像素横条、下半圆。
+            var topCapRegion = new RectangleF(0, 0, textureSize, textureSize / 2);
+            var bodyRegion = new RectangleF(0, textureSize / 2 - 0.5f, textureSize, 1);
+            var bottomCapRegion = new RectangleF(0, textureSize / 2, textureSize, textureSize / 2);
+
+            ColourInfo ink = childColour(inkColour);
+            ColourInfo pink = childColour(pinkInk);
+            ColourInfo yellow = childColour(yellowInk);
+            ColourInfo idle = childColour(idleColour);
+
+            for (int i = 0; i < bar_count; i++)
+            {
+                float height = heights[i];
+                (float capHeight, float bodyHeight) = CapsuleSegments(width, height);
+
+                float left = positions[i];
+                float top = bandHeight - height;
+
+                ColourInfo colour = !active
+                    ? idle
+                    : (i % 16) switch
+                    {
+                        4 => pink,
+                        12 => yellow,
+                        _ => ink,
+                    };
+
+                drawSegment(renderer, left, top, capHeight, topCapRegion, colour);
+
+                if (bodyHeight > 0)
+                    drawSegment(renderer, left, top + capHeight, bodyHeight, bodyRegion, colour);
+
+                drawSegment(renderer, left, top + capHeight + bodyHeight, capHeight, bottomCapRegion, colour);
+            }
+
+            UnbindTextureShader(renderer);
+        }
+
+        private ColourInfo childColour(Color4 barColour)
+        {
+            ColourInfo colour = DrawColourInfo.Colour;
+            colour.ApplyChild(barColour);
+            return colour;
+        }
+
+        private void drawSegment(
+            IRenderer renderer,
+            float x,
+            float y,
+            float segmentHeight,
+            RectangleF textureRegion,
+            ColourInfo colour)
+        {
+            var quad = new Quad(
+                Vector2Extensions.Transform(new Vector2(x, y), DrawInfo.Matrix),
+                Vector2Extensions.Transform(new Vector2(x + width, y), DrawInfo.Matrix),
+                Vector2Extensions.Transform(new Vector2(x, y + segmentHeight), DrawInfo.Matrix),
+                Vector2Extensions.Transform(new Vector2(x + width, y + segmentHeight), DrawInfo.Matrix));
+
+            renderer.DrawQuad(texture, quad, colour, textureRegion, vertexBatch.AddAction);
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            base.Dispose(isDisposing);
+            vertexBatch?.Dispose();
+        }
     }
 }
