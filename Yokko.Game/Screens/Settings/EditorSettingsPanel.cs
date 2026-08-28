@@ -22,13 +22,6 @@ namespace Yokko.Game.Screens.Settings;
 internal partial class EditorSettingsPanel
     : CompositeDrawable, ISettingsSearchTarget
 {
-    private static readonly IReadOnlyDictionary<string, float> search_scroll_targets =
-        new Dictionary<string, float>
-        {
-            ["grid"] = 236,
-            ["autosave"] = 354,
-        };
-
     private readonly YokkoEditorSettings settings;
     private readonly SettingsContentScrollContainer contentScroll;
     private readonly List<SettingsSegmentedChoiceButton> keyModeButtons = new();
@@ -60,14 +53,14 @@ internal partial class EditorSettingsPanel
                     YokkoStrings.Get("settings.editor.subtitle"),
                     FontAwesome.Solid.Pen,
                     (int)SettingsPageKind.Editor + 1),
-                SettingsChrome.CreateDivider(228),
+                SettingsChrome.CreateDivider(174),
                 SettingsChrome.CreateSettingRow(
                     180,
                     YokkoStrings.Get("settings.editor.default_key_mode"),
                     createKeyModeControl()),
-                SettingsChrome.CreateDivider(236),
+                SettingsChrome.CreateDivider(242),
                 SettingsChrome.CreateSettingRow(
-                    236,
+                    248,
                     YokkoStrings.Get("settings.editor.snap_divisor"),
                     new SettingsIntegerStepper(
                         settings.SnapDivisor,
@@ -77,9 +70,9 @@ internal partial class EditorSettingsPanel
                         divisor => YokkoStrings.Get(
                             "settings.editor.snap_divisor_value",
                             divisor))),
-                SettingsChrome.CreateDivider(298),
+                SettingsChrome.CreateDivider(310),
                 SettingsChrome.CreateSettingRow(
-                    298,
+                    316,
                     YokkoStrings.Get("settings.editor.visible_rows"),
                     new SettingsIntegerStepper(
                         settings.VisibleRows,
@@ -89,17 +82,17 @@ internal partial class EditorSettingsPanel
                         rows => YokkoStrings.Get(
                             "settings.editor.visible_rows_value",
                             rows))),
-                SettingsChrome.CreateDivider(354),
+                SettingsChrome.CreateDivider(378),
                 SettingsChrome.CreateSettingRow(
-                    354,
+                    384,
                     YokkoStrings.Get("settings.editor.autosave"),
                     new SettingsBooleanToggle(
                         settings.AutosaveEnabled,
                         "settings.editor.autosave_on",
                         "settings.editor.autosave_off")),
-                SettingsChrome.CreateDivider(416),
+                SettingsChrome.CreateDivider(446),
                 SettingsChrome.CreateSettingRow(
-                    416,
+                    452,
                     YokkoStrings.Get("settings.editor.autosave_interval"),
                     autosaveIntervalStepper),
             },
@@ -117,14 +110,11 @@ internal partial class EditorSettingsPanel
         refreshAutosaveLayout();
     }
 
-    public bool TryFocusSearchItem(string itemId)
-    {
-        if (!search_scroll_targets.TryGetValue(itemId, out float y))
-            return false;
-
-        contentScroll.ScrollTo(y, true);
-        return true;
-    }
+    public bool TryFocusSearchItem(string itemId) =>
+        SettingsSearchScroll.TryFocus(
+            SettingsPageKind.Editor,
+            itemId,
+            contentScroll);
 
     private Drawable createKeyModeControl()
     {

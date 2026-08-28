@@ -1184,6 +1184,10 @@ internal static class YokkoStrings
                 "Privacy",
                 "隐私",
                 "プライバシー"),
+            ["settings.general.default_player_name"] = new(
+                "LOCAL PLAYER",
+                "本地玩家",
+                "ローカルプレイヤー"),
             ["settings.general.config_export"] = new(
                 "Export",
                 "导出",
@@ -1727,6 +1731,14 @@ internal static class YokkoStrings
                 "Key profile saved",
                 "键位配置已保存",
                 "キープロファイルを保存しました"),
+            ["settings.gameplay.named_profile_default"] = new(
+                "Profile {0}",
+                "配置 {0}",
+                "プロファイル {0}"),
+            ["settings.gameplay.layout_preset_default_name"] = new(
+                "Layout {0}",
+                "布局 {0}",
+                "レイアウト {0}"),
             ["settings.gameplay.copy_other_mode"] = new(
                 "Copy to other",
                 "复制到另一模式",

@@ -16,12 +16,6 @@ namespace Yokko.Game.Screens.Settings;
 internal partial class ModPreferencesSettingsPanel
     : CompositeDrawable, ISettingsSearchTarget
 {
-    private static readonly IReadOnlyDictionary<string, float> search_scroll_targets =
-        new Dictionary<string, float>
-        {
-            ["remember-mods"] = 236,
-        };
-
     private readonly YokkoStartupSettings startupSettings;
     private readonly YokkoManiaModPreferences modPreferences;
     private readonly SettingsContentScrollContainer contentScroll;
@@ -99,14 +93,11 @@ internal partial class ModPreferencesSettingsPanel
             true);
     }
 
-    public bool TryFocusSearchItem(string itemId)
-    {
-        if (!search_scroll_targets.TryGetValue(itemId, out float y))
-            return false;
-
-        contentScroll.ScrollTo(y, true);
-        return true;
-    }
+    public bool TryFocusSearchItem(string itemId) =>
+        SettingsSearchScroll.TryFocus(
+            SettingsPageKind.Mods,
+            itemId,
+            contentScroll);
 
     internal void ClearModConfiguration() => clearModConfiguration();
 

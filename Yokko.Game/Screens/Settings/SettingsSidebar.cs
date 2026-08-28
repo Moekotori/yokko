@@ -120,7 +120,7 @@ internal partial class SettingsSidebar : CompositeDrawable
             },
             noResults = new SpriteText
             {
-                Position = new Vector2(38, 310),
+                Position = new Vector2(38, 300),
                 Text = YokkoStrings.Get("settings.no_matches"),
                 Font = HomeTypography.Body(17),
                 Colour = SettingsTheme.MutedNavy,
@@ -387,6 +387,7 @@ internal partial class SettingsSidebar : CompositeDrawable
         }
 
         noResults.FadeTo(normalized.Length > 0 && !anyResults ? 1 : 0, 120, Easing.OutQuint);
+        navigationScroll.Alpha = normalized.Length == 0 || anyResults ? 1 : 0;
     }
 }
 

@@ -25,7 +25,8 @@ namespace Yokko.Game.Screens.Settings;
 /// Display-specific presentation and state binding. This panel can be replaced by
 /// another category without changing the settings shell.
 /// </summary>
-internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransientUi
+internal partial class DisplaySettingsPanel
+    : CompositeDrawable, ISettingsTransientUi, ISettingsSearchTarget
 {
     internal enum WindowAspectRatio
     {
@@ -490,6 +491,10 @@ internal partial class DisplaySettingsPanel : CompositeDrawable, ISettingsTransi
             : displayResolution;
 
     internal void SelectUiScale(YokkoUiScale scale) => uiScale.Value = scale;
+
+    public bool TryFocusSearchItem(string itemId) =>
+        SettingsSearchScroll.GetScrollY(SettingsPageKind.Display, itemId)
+            .HasValue;
 
     protected override void Dispose(bool isDisposing)
     {

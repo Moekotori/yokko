@@ -38,7 +38,8 @@ internal enum GameplaySettingsSection
     Feedback,
 }
 
-internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTransientUi
+internal partial class GameplaySettingsPanel
+    : CompositeDrawable, ISettingsTransientUi, ISettingsSearchTarget
 {
     private readonly YokkoGameplaySettings settings;
     private readonly YokkoAudioSettings audioSettings;
@@ -239,6 +240,40 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal void SelectSection(GameplaySettingsSection section) =>
         showSection(section, true);
+
+    public bool TryFocusSearchItem(string itemId)
+    {
+        switch (itemId)
+        {
+            case "keys":
+                SelectSection(GameplaySettingsSection.Input);
+                return true;
+
+            case "scroll-speed":
+            case "input-offset":
+                SelectSection(GameplaySettingsSection.Timing);
+                return true;
+
+            case "judgement":
+                SelectSection(GameplaySettingsSection.Judgement);
+                return true;
+
+            case "layout-preset":
+            case "pause-unfocused":
+                SelectSection(GameplaySettingsSection.Feedback);
+                if (SettingsSearchScroll.GetScrollY(
+                        SettingsPageKind.Gameplay,
+                        itemId) is float y)
+                {
+                    contentHost.ScrollTo(y, true);
+                }
+
+                return true;
+
+            default:
+                return false;
+        }
+    }
 
     internal void ScrollContentBy(double offset) =>
         contentHost.ScrollBy(offset, false);
@@ -757,10 +792,10 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     {
         bindingCards.Clear();
 
-        var panel = createPanel();
+        var panel = createPanel(340);
         keyCaptureHint = new SpriteText
         {
-            Position = new Vector2(20, 258),
+            Position = new Vector2(20, 248),
             Text = YokkoStrings.Get(
                 "settings.gameplay.key_swap_hint"),
             Font = HomeTypography.Body(16),
@@ -955,7 +990,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     {
         yield return new SpriteText
         {
-            Position = new Vector2(20, 248),
+            Position = new Vector2(20, 272),
             Text = YokkoStrings.Get("settings.gameplay.named_key_profiles"),
             Font = HomeTypography.Display(17),
             Colour = HomeControlColours.Navy,
@@ -970,7 +1005,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             120,
             FontAwesome.Solid.Save)
         {
-            Position = new Vector2(688, 236),
+            Position = new Vector2(688, 264),
         };
     }
 
@@ -1001,7 +1036,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             namedProfileButtons.Add(button);
             yield return new Container
             {
-                Position = new Vector2(196 + index * (width + 8), 236),
+                Position = new Vector2(196 + index * (width + 8), 264),
                 Child = button,
             };
         }
@@ -1054,7 +1089,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         {
             updated.Add(new GameplayNamedKeyProfile
             {
-                Name = $"Profile {updated.Count + 1}",
+                Name = YokkoStrings.Get(
+                    "settings.gameplay.named_profile_default",
+                    updated.Count + 1).ToString(),
                 Payload = encoded,
             });
             selectedNamedProfileIndex = updated.Count - 1;
@@ -1626,7 +1663,9 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         IReadOnlyList<GameplayLayoutPreset> presets =
             GameplayLayoutPresetStore.ParsePresets(layoutPresetsJson.Value);
         var updated = presets.ToList();
-        string name = $"Layout {updated.Count + 1}";
+        string name = YokkoStrings.Get(
+            "settings.gameplay.layout_preset_default_name",
+            updated.Count + 1).ToString();
         updated.Add(new GameplayLayoutPreset
         {
             Name = name,

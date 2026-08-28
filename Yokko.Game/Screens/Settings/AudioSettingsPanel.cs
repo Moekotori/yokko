@@ -23,7 +23,8 @@ using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.Settings;
 
-internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransientUi
+internal partial class AudioSettingsPanel
+    : CompositeDrawable, ISettingsTransientUi, ISettingsSearchTarget
 {
     private static readonly int[] bufferSizes = { 64, 128, 256, 512 };
     private const float controlHeight = 50;
@@ -49,6 +50,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
     private bool disposed;
     private bool synchronizingDeviceId;
     private bool testPlaying;
+    private readonly SettingsContentScrollContainer contentScroll;
 
     internal bool ShowsNativeOutputControls { get; }
 
@@ -89,7 +91,17 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
             () => StartAudioTest(AudioSettingsTestKind.Music),
             () => StartAudioTest(AudioSettingsTestKind.HitSound));
 
-        InternalChildren = buildChildren();
+        var content = new Container
+        {
+            RelativeSizeAxes = Axes.X,
+            AutoSizeAxes = Axes.Y,
+            Children = buildChildren(),
+        };
+        InternalChild = contentScroll = new SettingsContentScrollContainer
+        {
+            RelativeSizeAxes = Axes.Both,
+            Child = content,
+        };
 
         selectedDeviceId.BindValueChanged(
             onSelectedDeviceChanged);
@@ -284,6 +296,12 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
     internal void ToggleDeviceMenu() => deviceSelector?.Toggle();
 
     public bool DismissTransientUi() => deviceSelector?.Dismiss() == true;
+
+    public bool TryFocusSearchItem(string itemId) =>
+        SettingsSearchScroll.TryFocus(
+            SettingsPageKind.Audio,
+            itemId,
+            contentScroll);
 
     private Drawable createBackendControl()
     {

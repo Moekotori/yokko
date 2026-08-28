@@ -15,13 +15,6 @@ namespace Yokko.Game.Screens.Settings;
 internal partial class AccessibilitySettingsPanel
     : CompositeDrawable, ISettingsSearchTarget
 {
-    private static readonly IReadOnlyDictionary<string, float> search_scroll_targets =
-        new Dictionary<string, float>
-        {
-            ["reduce-motion"] = 236,
-            ["contrast"] = 298,
-        };
-
     private readonly YokkoAccessibilitySettings settings;
     private readonly SettingsContentScrollContainer contentScroll;
     private readonly List<SettingsSegmentedChoiceButton> textScaleButtons = new();
@@ -53,15 +46,15 @@ internal partial class AccessibilitySettingsPanel
                         "settings.accessibility.reduce_motion_off")),
                 SettingsChrome.CreateDivider(298),
                 SettingsChrome.CreateSettingRow(
-                    298,
+                    304,
                     YokkoStrings.Get("settings.accessibility.high_contrast"),
                     new SettingsBooleanToggle(
                         settings.HighContrast,
                         "settings.accessibility.high_contrast_on",
                         "settings.accessibility.high_contrast_off")),
-                SettingsChrome.CreateDivider(360),
+                SettingsChrome.CreateDivider(366),
                 SettingsChrome.CreateSettingRow(
-                    360,
+                    372,
                     YokkoStrings.Get("settings.accessibility.text_scale"),
                     createTextScaleControl()),
             },
@@ -76,14 +69,11 @@ internal partial class AccessibilitySettingsPanel
         settings.TextScalePercent.BindValueChanged(onTextScaleChanged, true);
     }
 
-    public bool TryFocusSearchItem(string itemId)
-    {
-        if (!search_scroll_targets.TryGetValue(itemId, out float y))
-            return false;
-
-        contentScroll.ScrollTo(y, true);
-        return true;
-    }
+    public bool TryFocusSearchItem(string itemId) =>
+        SettingsSearchScroll.TryFocus(
+            SettingsPageKind.Accessibility,
+            itemId,
+            contentScroll);
 
     private Drawable createTextScaleControl()
     {

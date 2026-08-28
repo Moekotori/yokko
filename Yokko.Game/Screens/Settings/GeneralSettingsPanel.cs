@@ -27,18 +27,6 @@ namespace Yokko.Game.Screens.Settings;
 internal partial class GeneralSettingsPanel
     : CompositeDrawable, ISettingsSearchTarget
 {
-    private static readonly IReadOnlyDictionary<string, float> search_scroll_targets =
-        new Dictionary<string, float>
-        {
-            ["language"] = 276,
-            ["home-music"] = 344,
-            ["player-name"] = 412,
-            ["debug-console"] = 588,
-            ["startup"] = 620,
-            ["config"] = 680,
-            ["privacy"] = 836,
-        };
-
     private readonly Bindable<string> locale;
     private readonly Bindable<string> playerDisplayName;
     private readonly Bindable<string> playerId;
@@ -161,6 +149,13 @@ internal partial class GeneralSettingsPanel
                     Position = new Vector2(SettingsChrome.ContentX, 728),
                 },
                 SettingsChrome.CreateDivider(830),
+                new SpriteText
+                {
+                    Position = new Vector2(SettingsChrome.ContentX, 800),
+                    Text = YokkoStrings.Get("settings.general.section_privacy"),
+                    Font = HomeTypography.Display(25),
+                    Colour = HomeControlColours.Navy,
+                },
                 SettingsChrome.CreateSettingRow(
                     836,
                     YokkoStrings.Get("settings.general.save_local_replays"),
@@ -197,14 +192,11 @@ internal partial class GeneralSettingsPanel
         playerId.BindValueChanged(onPlayerIdChanged, true);
     }
 
-    public bool TryFocusSearchItem(string itemId)
-    {
-        if (!search_scroll_targets.TryGetValue(itemId, out float y))
-            return false;
-
-        contentScroll.ScrollTo(y, true);
-        return true;
-    }
+    public bool TryFocusSearchItem(string itemId) =>
+        SettingsSearchScroll.TryFocus(
+            SettingsPageKind.General,
+            itemId,
+            contentScroll);
 
     internal string CurrentPlayerId => playerId.Value;
 
@@ -355,7 +347,9 @@ internal partial class SettingsPlayerNameField : BasicTextBox
         if (trimmed.Length > 32)
             trimmed = trimmed[..32];
 
-        return trimmed.Length == 0 ? "LOCAL PLAYER" : trimmed.ToUpperInvariant();
+        return trimmed.Length == 0
+            ? YokkoStrings.Get("settings.general.default_player_name").ToString()
+            : trimmed.ToUpperInvariant();
     }
 
     protected override void Dispose(bool isDisposing)
