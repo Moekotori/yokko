@@ -65,7 +65,7 @@ internal partial class SettingsSegmentedChoiceButton : ClickableContainer
                         Icon = itemIcon,
                         Colour = HomeControlColours.Navy,
                     },
-                    text = new SpriteText
+                    text = new SettingsReadableText
                     {
                         Anchor = Anchor.CentreLeft,
                         Origin = Anchor.CentreLeft,
@@ -230,7 +230,7 @@ internal partial class SettingsFrameLimitChoiceButton : ClickableContainer
                 RelativeSizeAxes = Axes.Both,
                 Children = new Drawable[]
                 {
-                    modeText = new SpriteText
+                    modeText = new SettingsReadableText
                     {
                         Anchor = Anchor.TopCentre,
                         Origin = Anchor.TopCentre,
@@ -239,7 +239,7 @@ internal partial class SettingsFrameLimitChoiceButton : ClickableContainer
                             .With(fixedWidth: true),
                         Colour = HomeControlColours.Navy,
                     },
-                    rateText = new SpriteText
+                    rateText = new SettingsReadableText
                     {
                         Anchor = Anchor.BottomCentre,
                         Origin = Anchor.BottomCentre,
@@ -383,7 +383,7 @@ internal partial class SettingsAspectRatioChoiceButton : ClickableContainer
                 RelativeSizeAxes = Axes.Y,
                 Colour = SettingsTheme.Divider,
             },
-            label = new SpriteText
+            label = new SettingsReadableText
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
@@ -498,7 +498,7 @@ internal partial class SettingsResolutionDropdown : CompositeDrawable
                     RelativeSizeAxes = Axes.Both,
                     Colour = Color4.White,
                 },
-                valueText = new SpriteText
+                valueText = new SettingsReadableText
                 {
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
@@ -763,7 +763,7 @@ internal partial class SettingsResolutionOption : ClickableContainer
                 RelativeSizeAxes = Axes.Both,
                 Colour = Color4.White,
             },
-            label = new SpriteText
+            label = new SettingsReadableText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,

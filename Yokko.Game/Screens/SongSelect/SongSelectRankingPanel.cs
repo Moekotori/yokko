@@ -9,6 +9,7 @@ using osu.Framework.Graphics.Textures;
 using osuTK;
 using osuTK.Graphics;
 using Yokko.Core.Scoring;
+using Yokko.Game.Localisation;
 using Yokko.Game.Screens.Main;
 
 namespace Yokko.Game.Screens.SongSelect;
@@ -74,7 +75,7 @@ internal partial class SongSelectRankingPanel : ClickableContainer
 
         Container paperSurface = SongSelectSurface.CreateCard(
             out _,
-            SongSelectSurface.Ivory(0.975f),
+            SongSelectSurface.Ivory(SongSelectSurface.RankingOpacity),
             SongSelectSurface.Border(0.26f),
             14,
             1);
@@ -387,23 +388,34 @@ internal partial class SongSelectRankingPanel : ClickableContainer
         {
             Anchor = Anchor.CentreLeft,
             Origin = Anchor.CentreLeft,
-            X = 31,
+            X = 43,
             Text = label,
-            Font = HomeTypography.Display(13),
-            Colour = SongSelectTheme.Navy,
+            Font = HomeTypography.Display(25),
+            Colour = SongSelectTheme.Ivory,
         };
         return new ClickableContainer
         {
             Position = new Vector2(x, 0),
-            Size = new Vector2(142, 40),
+            Size = new Vector2(220, 42),
             Children =
             [
+                new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Masking = true,
+                    CornerRadius = 10,
+                    Child = new Box
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Colour = SongSelectTheme.Navy,
+                    },
+                },
                 new SpriteIcon
                 {
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
                     X = 9,
-                    Size = new Vector2(13),
+                    Size = new Vector2(20),
                     Icon = icon,
                     Colour = SongSelectTheme.Pink,
                 },
@@ -481,41 +493,17 @@ internal partial class SongSelectRankingEmptyState : CompositeDrawable
             Anchor = Anchor.Centre,
             Origin = Anchor.Centre,
             Y = -2,
-            Size = new Vector2(610, 78),
-            Masking = true,
-            CornerRadius = 11,
-            BorderThickness = 1,
-            BorderColour = new Color4(
-                SongSelectTheme.Cyan.R,
-                SongSelectTheme.Cyan.G,
-                SongSelectTheme.Cyan.B,
-                0.30f),
+            Size = new Vector2(480, 78),
             Children =
             [
-                new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = new Color4(
-                        SongSelectTheme.PaleCyan.R,
-                        SongSelectTheme.PaleCyan.G,
-                        SongSelectTheme.PaleCyan.B,
-                        0.24f),
-                },
-                new Box
-                {
-                    RelativeSizeAxes = Axes.X,
-                    Height = 3,
-                    Colour = SongSelectTheme.Cyan,
-                    Alpha = 0.74f,
-                },
                 new Container
                 {
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
                     X = 18,
-                    Size = new Vector2(46),
+                    Size = new Vector2(64),
                     Masking = true,
-                    CornerRadius = 23,
+                    CornerRadius = 32,
                     BorderThickness = 1.5f,
                     BorderColour = new Color4(
                         SongSelectTheme.Cyan.R,
@@ -527,16 +515,16 @@ internal partial class SongSelectRankingEmptyState : CompositeDrawable
                         new Box
                         {
                             RelativeSizeAxes = Axes.Both,
-                            Colour = SongSelectSurface.Ivory(0.82f),
+                            Colour = SongSelectSurface.Ivory(0.30f),
                         },
                         new SpriteIcon
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
-                            Size = new Vector2(19),
+                            Size = new Vector2(27),
                             Icon = personalHistory
                                 ? FontAwesome.Solid.Archive
-                                : FontAwesome.Solid.Users,
+                                : FontAwesome.Solid.Trophy,
                             Colour = personalHistory
                                 ? SongSelectTheme.Pink
                                 : SongSelectTheme.Cyan,
@@ -545,19 +533,15 @@ internal partial class SongSelectRankingEmptyState : CompositeDrawable
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(82, 18),
-                    Text = personalHistory
-                        ? "NO LOCAL PLAYS YET"
-                        : "NO RANKING DATA",
+                    Position = new Vector2(102, 18),
+                    Text = YokkoStrings.Get("song_select.ranking.empty"),
                     Font = HomeTypography.Display(19),
                     Colour = SongSelectTheme.Navy,
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(82, 43),
-                    Text = personalHistory
-                        ? "YOUR RESULTS AND REPLAYS WILL LIVE HERE"
-                        : "COMPLETE THIS CHART TO CREATE THE FIRST RESULT",
+                    Position = new Vector2(102, 43),
+                    Text = YokkoStrings.Get("song_select.ranking.empty_hint"),
                     Font = HomeTypography.Body(16),
                     Colour = new Color4(
                         SongSelectTheme.Navy.R,

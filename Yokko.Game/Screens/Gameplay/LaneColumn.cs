@@ -1,3 +1,4 @@
+using osu.Framework.Allocation;
 using System;
 using System.Collections.Generic;
 using osu.Framework.Graphics;
@@ -15,6 +16,8 @@ namespace Yokko.Game.Screens.Gameplay;
 
 public partial class LaneColumn : CompositeDrawable
 {
+    [Resolved(CanBeNull = true)] private YokkoAccessibilitySettings accessibility { get; set; }
+
     // osu! pools legacy hit explosions so dense jacks can overlap for 200ms.
     // Reference: ppy/osu PoolableHitExplosion.cs @ 9f227ed.
     private const int hit_explosion_pool_size = 10;
@@ -491,6 +494,12 @@ public partial class LaneColumn : CompositeDrawable
             laneLight.Y = baseLaneLightY + offsetY;
     }
 
+    protected override void Update()
+    {
+        base.Update();
+        hitEffectsLayer.Alpha = hitEffectsVisible && accessibility?.ReduceFlashes.Value != true ? 1 : 0;
+    }
+
     public void SetPressed(bool pressed)
     {
         lanePressed = pressed;
@@ -526,7 +535,7 @@ public partial class LaneColumn : CompositeDrawable
 
         laneLight.FinishTransforms();
 
-        if (!hitEffectsVisible)
+        if (accessibility?.ReduceFlashes.Value == true || !hitEffectsVisible)
         {
             laneLight.Alpha = 0;
             return;
@@ -546,7 +555,7 @@ public partial class LaneColumn : CompositeDrawable
 
     public void ShowHitExplosion()
     {
-        if (!hitEffectsVisible || hitExplosions.Length == 0)
+        if (accessibility?.ReduceFlashes.Value == true || !hitEffectsVisible || hitExplosions.Length == 0)
             return;
 
         TextureAnimation hitExplosion =
@@ -560,7 +569,7 @@ public partial class LaneColumn : CompositeDrawable
 
     public void ShowMineExplosion()
     {
-        if (!hitEffectsVisible)
+        if (accessibility?.ReduceFlashes.Value == true || !hitEffectsVisible)
             return;
 
         mineExplosion.FinishTransforms();
@@ -602,7 +611,7 @@ public partial class LaneColumn : CompositeDrawable
         holdLightActive = active;
         holdLight.FinishTransforms();
 
-        if (!hitEffectsVisible)
+        if (accessibility?.ReduceFlashes.Value == true || !hitEffectsVisible)
         {
             holdLight.Alpha = 0;
             return;

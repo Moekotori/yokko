@@ -126,6 +126,34 @@ public partial class TestSceneSongSelectEntryPerformance : YokkoTestScene
     }
 
     [Test]
+    public void TestFullSizeBackgroundsStaySeparateFromThumbnails()
+    {
+        bool fullSize = false;
+        bool bounded = false;
+        bool thumbnailsUnchanged = false;
+        AddStep("create background fixtures", createLargeArtworks);
+        AddStep("load thumbnails and full-size backgrounds", () =>
+        {
+            using var cache = new SongSelectArtworkTextureCache();
+            fullSize = true;
+            foreach (string path in artworkPaths)
+            {
+                using var thumbnail = cache.Get(path, renderer);
+                using var background = cache.GetBackground(path, renderer);
+                fullSize &= background.Width == 1920 && background.Height == 1080;
+                thumbnailsUnchanged = thumbnail.Width <= 512 && thumbnail.Height <= 512;
+                if (!thumbnailsUnchanged)
+                    break;
+            }
+            bounded = cache.CachedBackgroundCount == SongSelectArtworkTextureCache.BackgroundCapacity;
+            thumbnailsUnchanged &= cache.CachedArtworkCount == artworkPaths.Count;
+        });
+        AddAssert("background retains 1080p detail", () => fullSize);
+        AddAssert("only two full-size backgrounds stay pinned", () => bounded);
+        AddAssert("list thumbnails keep their original budget", () => thumbnailsUnchanged);
+    }
+
+    [Test]
     public void TestArtworkCacheRemainsBounded()
     {
         AddStep("create more thumbnails than cache capacity", () =>

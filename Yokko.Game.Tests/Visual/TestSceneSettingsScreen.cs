@@ -35,6 +35,85 @@ namespace Yokko.Game.Tests.Visual
             Add(screenStack = new ScreenStack(settingsScreen = new SettingsScreen()) { RelativeSizeAxes = Axes.Both });
         }
 
+        [Resolved] private Yokko.Game.Audio.YokkoAudioSettings calibrationAudio { get; set; }
+
+        [Test]
+        public void TestTimingAdjustmentFitsWithoutScrolling()
+        {
+            GameplaySettingsPanel panel = null;
+            AddStep("open timing controls", () =>
+            {
+                settingsScreen.OpenPage(SettingsPageKind.Gameplay);
+                panel = (GameplaySettingsPanel)settingsScreen.ActivePanel;
+                panel.SelectSection(GameplaySettingsSection.Timing);
+            });
+            AddAssert("manual timing fits in its viewport", () => panel.ContentScrollableExtent <= 0.5
+                && panel.ChildrenOfType<SettingsOffsetStepper>().Count() == 1);
+        }
+
+        [Test]
+        public void TestSimpleCalibrationReviewApplyAndUndo()
+        {
+            AudioCalibrationOverlay overlay = null;
+            double originalOffset = 0;
+            AddStep("open simple calibration", () =>
+            {
+                originalOffset = calibrationAudio.UserOffsetMilliseconds.Value;
+                settingsScreen.OpenCalibration();
+                overlay = settingsScreen.ChildrenOfType<AudioCalibrationOverlay>().Single();
+            });
+            AddAssert("only listen and start are shown", () => overlay.VisibleActionCount == 2 && !overlay.ShowsAdvancedDetails);
+            AddStep("present a stable completed round", () =>
+            {
+                var session = new Yokko.Core.Timing.InputCalibrationSession();
+                for (int beat = 0; beat < 36; beat++) session.TryRecordTap(3000 + beat * 500 + 24);
+                overlay.ShowCompletedMeasurement(session);
+            });
+            AddAssert("recommendation stays opt-in", () => overlay.CanApplyRecommendation
+                && calibrationAudio.UserOffsetMilliseconds.Value == originalOffset && !overlay.ShowsAdvancedDetails);
+            AddStep("apply result with primary action", () => overlay.PerformPrimaryAction());
+            AddAssert("absolute recommended offset applied", () => calibrationAudio.UserOffsetMilliseconds.Value == -24);
+            AddStep("undo applied result", () => overlay.UndoAppliedOffset());
+            AddAssert("original offset restored", () => calibrationAudio.UserOffsetMilliseconds.Value == originalOffset);
+            AddStep("expand advanced details", () => overlay.ToggleDetails());
+            AddAssert("comparison is optional", () => overlay.ShowsAdvancedDetails);
+            AddStep("present an unreliable round", () =>
+            {
+                var session = new Yokko.Core.Timing.InputCalibrationSession();
+                for (int beat = 0; beat < 36; beat++) session.TryRecordTap(3000 + beat * 500 + (beat % 2 == 0 ? -60 : 60));
+                overlay.ShowCompletedMeasurement(session);
+            });
+            AddAssert("unreliable round cannot be applied", () => !overlay.CanApplyRecommendation
+                && calibrationAudio.UserOffsetMilliseconds.Value == originalOffset);
+            AddStep("close calibration", () => settingsScreen.DismissTransientUi());
+        }
+
+        [Test]
+        public void TestEveryCategoryHasGuidanceAndQuickTimingSearch()
+        {
+            foreach (SettingsPageKind page in System.Enum.GetValues<SettingsPageKind>())
+            {
+                SettingsPageKind captured = page;
+                AddStep($"help for {page}", () => { settingsScreen.OpenPage(captured); settingsScreen.OpenHelp(); });
+                AddAssert("guide opens", () => settingsScreen.ChildrenOfType<SettingsHelpOverlay>().Any());
+                AddAssert("guide closes in place", () => settingsScreen.DismissTransientUi());
+            }
+            AddStep("search timing by symptom", () => settingsScreen.OpenSearchAction("声音不同步"));
+            AddAssert("search opens calibration directly", () => settingsScreen.ChildrenOfType<AudioCalibrationOverlay>().Any());
+            AddStep("close timing guide", () => settingsScreen.DismissTransientUi());
+        }
+
+        [Test]
+        public void TestPresetDialogAndAccessibilityControls()
+        {
+            AddStep("open preset dialog", () => settingsScreen.OpenPresets());
+            AddAssert("preset dialog rendered", () => settingsScreen.ChildrenOfType<GameplayPresetsOverlay>().Any());
+            AddAssert("Esc closes preset dialog", () => settingsScreen.DismissTransientUi());
+            AddStep("open accessibility", () => settingsScreen.OpenPage(SettingsPageKind.Accessibility));
+            AddAssert("four real preferences", () => settingsScreen.ActivePanel is AccessibilitySettingsPanel
+                && settingsScreen.ActivePanel.ChildrenOfType<SettingsBooleanToggle>().Count() == 4);
+        }
+
         [Test]
         public void TestSettingsScreen()
         {
@@ -998,14 +1077,8 @@ namespace Yokko.Game.Tests.Visual
                 && gameplay.GetBinding(KeyMode.SevenKey, 2) == Key.X
                 && gameplay.GetBinding(KeyMode.SevenKey, 4) == Key.Period
                 && gameplay.GetBinding(KeyMode.SevenKey, 5) == Key.Slash);
-            AddStep("start calibration state", () =>
-                gameplay.StartCalibrationForTest(0));
-            AddAssert("calibration is active", () =>
-                gameplay.IsCalibrationActive);
-            AddAssert("Esc layer cancels calibration", () =>
-                gameplay.DismissTransientUi());
-            AddAssert("calibration is cancelled", () =>
-                !gameplay.IsCalibrationActive);
+            AddStep("open shared calibration", () => gameplay.StartCalibration());
+            AddAssert("Esc closes shared calibration", () => settingsScreen.DismissTransientUi());
             AddStep("restore original profiles", () =>
             {
                 gameplay.SelectKeyMode(KeyMode.FourKey);

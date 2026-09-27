@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
@@ -10,6 +11,7 @@ using osu.Framework.Graphics.Textures;
 using osuTK;
 using Yokko.Core.Analysis;
 using Yokko.Core.Difficulty;
+using Yokko.Game.Presentation;
 
 namespace Yokko.Game.Screens.SongSelect;
 
@@ -24,6 +26,10 @@ namespace Yokko.Game.Screens.SongSelect;
 /// </summary>
 internal partial class SongSelectVirtualisedList : CompositeDrawable
 {
+    [Resolved(CanBeNull = true)]
+    private YokkoAccessibilitySettings accessibility { get; set; }
+
+    private bool reduceMotion => accessibility?.ReduceMotion.Value == true;
     private const float item_spacing = 7;
     private const int initial_row_pool_size = 16;
     private const int maximum_row_pool_size = 40;
@@ -43,6 +49,7 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
     private readonly Texture selectedSticker;
     private readonly BasicScrollContainer scroll;
     private readonly Container itemLayer;
+    private readonly SongSelectSelectionFrame selectionFrame = new();
     private readonly Box topScrollFade;
     private readonly Box bottomScrollFade;
     private readonly Container scrollIndicator;
@@ -182,6 +189,7 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
                 Child = itemLayer = new Container
                 {
                     RelativeSizeAxes = Axes.X,
+                    Child = selectionFrame,
                 },
             },
             topScrollFade = new Box
@@ -245,17 +253,22 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
         bool animateLayout = false,
         string transitionPackageId = null)
     {
+        animateLayout &= !reduceMotion;
         double previousScroll = scroll.Current;
         previousEntryTops.Clear();
         previousPackageTops.Clear();
         if (animateLayout)
         {
-            foreach (SongSelectVirtualItem oldItem in items)
+            for (int index = 0; index < items.Count; index++)
             {
+                SongSelectVirtualItem oldItem = items[index];
+                float visibleTop = active.TryGetValue(index, out PoolableDrawable drawable)
+                    ? drawable.Y
+                    : oldItem.Top;
                 if (oldItem.Entry != null)
-                    previousEntryTops[oldItem.Entry] = oldItem.Top;
+                    previousEntryTops[oldItem.Entry] = visibleTop;
                 else if (!string.IsNullOrWhiteSpace(oldItem.PackageId))
-                    previousPackageTops[oldItem.PackageId] = oldItem.Top;
+                    previousPackageTops[oldItem.PackageId] = visibleTop;
             }
         }
 
@@ -367,7 +380,7 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
                 itemLayer.Height - scroll.DrawHeight);
             scroll.ScrollTo(
                 Math.Clamp(items[index].Top, 0, maximumScroll),
-                animated);
+                animated && !reduceMotion);
         }
     }
 
@@ -394,6 +407,21 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
                     ratingMode());
             }
         }
+        updateSelectionFrame();
+    }
+
+    private void updateSelectionFrame()
+    {
+        if (selectedEntry == null || !entryIndices.TryGetValue(selectedEntry, out int index))
+        {
+            selectionFrame.ClearSelection();
+            return;
+        }
+        SongSelectVirtualItem item = items[index];
+        float x = selectedEntry.IsPackage ? SongSelectSongRow.SelectedInset : 4;
+        selectionFrame.Follow(new Vector2(x, item.Top),
+            new Vector2(SongSelectSongRow.RowWidth - x, item.VisualHeight),
+            reduceMotion || Math.Abs(selectionFrame.Y - item.Top) > scroll.DrawHeight);
     }
 
     private void updateRowSelection(
@@ -401,6 +429,7 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
         SongSelectSongRow row,
         bool animated)
     {
+        animated &= !reduceMotion;
         bool isSelected = ReferenceEquals(row.Entry, selectedEntry);
         float neighbourIndent = 0;
         if (!isSelected
@@ -468,6 +497,7 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
         lastViewportHeight = scroll.DrawHeight;
         rangeInvalidated = false;
         actualiseVisibleRange(scroll.DrawHeight);
+        updateSelectionFrame();
         updateScrollAffordances();
     }
 
@@ -698,13 +728,15 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
     {
         double top = item.Top;
         double bottom = top + item.VisualHeight;
-        double target = scroll.Current;
-        if (top < scroll.Current)
-            target = top;
-        else if (bottom > scroll.Current + scroll.DrawHeight)
-            target = bottom - scroll.DrawHeight;
+        double target = scroll.Target;
+        double inset = Math.Min(item.VisualHeight, scroll.DrawHeight * 0.1);
+        if (top < target + inset)
+            target = top - inset;
+        else if (bottom > target + scroll.DrawHeight - inset)
+            target = bottom - scroll.DrawHeight + inset;
+        target = Math.Clamp(target, 0, Math.Max(0, itemLayer.Height - scroll.DrawHeight));
 
-        if (Math.Abs(target - scroll.Current) < 0.01)
+        if (Math.Abs(target - scroll.Target) < 0.01)
             return;
 
         // Animating a random/Home/End jump through thousands of logical rows
@@ -714,7 +746,7 @@ internal partial class SongSelectVirtualisedList : CompositeDrawable
         double animatedDistance = Math.Max(
             item.VisualHeight * 8,
             scroll.DrawHeight * maximum_animated_viewports);
-        bool animateNavigation = animated
+        bool animateNavigation = animated && !reduceMotion
                                  && Math.Abs(target - scroll.Current)
                                  <= animatedDistance;
         scroll.ScrollTo(

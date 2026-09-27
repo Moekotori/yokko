@@ -45,8 +45,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private readonly List<InputKey> sequentialKeys = new();
     private readonly HashSet<InputKey> pressedKeys = new();
     private readonly Clipboard clipboard;
-    private readonly AudioSettingsTestPlayer calibrationPlayer;
-    private readonly CancellationTokenSource lifetimeCancellation = new();
+    private readonly Action openCalibration;
     private SpriteText statusTitle;
     private SpriteText statusMetadata;
     private Circle statusIconBackground;
@@ -58,14 +57,6 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     private GameplayEtternaJusticeControls etternaJusticeControls;
     private Container judgementNextGameNotice;
     private SpriteText keyCaptureHint;
-    private CancellationTokenSource calibrationRunCancellation;
-    private GameplayCalibrationSession calibrationSession;
-    private double? pendingCalibrationSuggestion;
-    private double nextCalibrationStatusUpdate;
-    private int lastCalibrationPulseBeat = -1;
-    private bool calibrationPreparing;
-    private bool calibrationResultVisible;
-    private bool disposed;
     private bool sequentialCapture;
     private bool bmsProfileSelected;
     private bool bmsDoublePlayProfileSelected;
@@ -143,12 +134,6 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     internal AudioPitchMode ManualPlaybackRatePitchMode =>
         audioSettings.ManualPlaybackRatePitchMode.Value;
 
-    internal bool IsCalibrationActive =>
-        calibrationPreparing || calibrationSession != null;
-
-    internal int CalibrationSampleCount =>
-        calibrationSession?.SampleCount ?? 0;
-
     internal int PressedKeyCount => pressedKeys.Count;
 
     internal double ContentScrollableExtent =>
@@ -160,15 +145,13 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         YokkoGameplaySettings settings,
         YokkoAudioSettings audioSettings,
         string testDirectory,
-        Clipboard clipboard)
+        Clipboard clipboard,
+        Action openCalibration = null)
     {
         this.settings = settings;
         this.audioSettings = audioSettings;
         this.clipboard = clipboard;
-        calibrationPlayer = new AudioSettingsTestPlayer(
-            audioSettings,
-            AudioEngineFactory.CreateDefault,
-            testDirectory);
+        this.openCalibration = openCalibration;
         RelativeSizeAxes = Axes.Both;
 
         InternalChildren = new Drawable[]
@@ -188,6 +171,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             new HomeDotCross
             {
                 Position = new Vector2(1088, 594),
+                Depth = 1,
                 Scale = new Vector2(1.1f),
             },
             createDecorationIcon(
@@ -427,37 +411,8 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     internal void StartCalibration()
     {
-        if (IsCalibrationActive)
-            return;
-
         cancelCapture();
-        calibrationResultVisible = false;
-        pendingCalibrationSuggestion = null;
-        calibrationPreparing = true;
-        calibrationRunCancellation =
-            CancellationTokenSource.CreateLinkedTokenSource(
-                lifetimeCancellation.Token);
-        refreshCalibrationStatus();
-        _ = runCalibrationAsync(calibrationRunCancellation.Token);
-    }
-
-    internal void StartCalibrationForTest(double startTime)
-    {
-        cancelCalibration(false);
-        calibrationSession = new GameplayCalibrationSession(startTime);
-        calibrationPreparing = false;
-        refreshCalibrationStatus(startTime);
-    }
-
-    internal double FinishCalibrationForTest(double currentTime)
-    {
-        if (calibrationSession == null)
-            return 0;
-
-        double suggestion =
-            calibrationSession.SuggestedOffsetMilliseconds;
-        finishCalibration(currentTime);
-        return suggestion;
+        openCalibration?.Invoke();
     }
 
     internal void SetScrollSpeed(double speed) =>
@@ -529,12 +484,6 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             return true;
         }
 
-        if (key == Key.Escape && IsCalibrationActive)
-        {
-            cancelCalibration(true);
-            return true;
-        }
-
         InputKey inputKey = KeyCombination.FromKey(key);
         if (!pressedKeys.Add(inputKey))
             return findLane(inputKey) >= 0;
@@ -549,10 +498,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         if (lane < bindingCards.Count)
             bindingCards[lane].SetPressed(true);
 
-        if (calibrationSession?.TryRecordTap(Time.Current) == true)
-            refreshCalibrationStatus(Time.Current);
-        else if (!IsCalibrationActive)
-            refreshLiveInputStatus(inputKey, lane);
+        refreshLiveInputStatus(inputKey, lane);
 
         return true;
     }
@@ -582,10 +528,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
         if (lane < bindingCards.Count)
             bindingCards[lane].SetPressed(true);
-        if (calibrationSession?.TryRecordTap(Time.Current) == true)
-            refreshCalibrationStatus(Time.Current);
-        else if (!IsCalibrationActive)
-            refreshLiveInputStatus(key, lane);
+        refreshLiveInputStatus(key, lane);
 
         return true;
     }
@@ -597,7 +540,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         if (lane >= 0 && lane < bindingCards.Count)
             bindingCards[lane].SetPressed(false);
 
-        if (!IsCalibrationActive && pressedKeys.Count == 0)
+        if (pressedKeys.Count == 0)
             refreshStatusMetadata();
     }
 
@@ -615,12 +558,6 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             showInputSection(false);
             showInputMessage(YokkoStrings.Get(
                 "settings.gameplay.binding_reset_cancelled"));
-            return true;
-        }
-
-        if (IsCalibrationActive)
-        {
-            cancelCalibration(true);
             return true;
         }
 
@@ -693,11 +630,11 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         bool animate)
     {
         if (section != GameplaySettingsSection.Input)
-            cancelCalibration(false);
 
         cancelCapture();
         clearPressedKeys();
         CurrentSection = section;
+        contentHost.Height = section == GameplaySettingsSection.Timing ? 374 : 328;
 
         foreach (GameplaySectionTab tab in sectionTabs)
             tab.SetSelected((GameplaySettingsSection)tab.Value == section);
@@ -731,7 +668,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         bindingCards.Clear();
 
         var panel = createPanel();
-        keyCaptureHint = new SpriteText
+        keyCaptureHint = new SettingsReadableText
         {
             Position = new Vector2(20, 258),
             Text = YokkoStrings.Get(
@@ -742,7 +679,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         var children = new List<Drawable>();
         children.AddRange(new Drawable[]
         {
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(20, 18),
                 Text = YokkoStrings.Get("settings.gameplay.key_profile"),
@@ -830,7 +767,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         }
         else
         {
-            children.Add(new SpriteText
+            children.Add(new SettingsReadableText
             {
                 Position = new Vector2(20, 70),
                 Text = YokkoStrings.Get("settings.gameplay.all_modes_hint"),
@@ -849,7 +786,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     private IEnumerable<Drawable> createBmsModeControls()
     {
-        yield return new SpriteText
+        yield return new SettingsReadableText
         {
             Position = new Vector2(20, 70),
             Text = YokkoStrings.Get("settings.gameplay.bms_mode"),
@@ -872,7 +809,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             Position = new Vector2(228, 58),
             IsSelected = bmsDoublePlayProfileSelected,
         };
-        yield return new SpriteText
+        yield return new SettingsReadableText
         {
             Position = new Vector2(354, 70),
             Text = YokkoStrings.Get("settings.gameplay.bms_layout_note"),
@@ -883,7 +820,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     private IEnumerable<Drawable> createPresetControls()
     {
-        yield return new SpriteText
+        yield return new SettingsReadableText
         {
             Position = new Vector2(20, 70),
             Text = YokkoStrings.Get("settings.gameplay.presets"),
@@ -1086,7 +1023,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     private Drawable createTimingSection()
     {
-        var panel = createPanel();
+        var panel = createPanel(374);
         setPanelChildren(panel, new Drawable[]
         {
             createControlLabel(
@@ -1108,7 +1045,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             {
                 Position = new Vector2(430, 14),
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(20, 91),
                 Text = YokkoStrings.Get(
@@ -1151,15 +1088,10 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                     "settings.gameplay.input_offset_note"),
                 20,
                 263),
-            new GameplayValueStepper(
-                audioSettings.UserOffsetMilliseconds,
-                1,
-                -200,
-                200,
-                value => $"{value:+0;-0;0} ms")
-            {
-                Position = new Vector2(430, 257),
-            },
+            new GameplayCompactButton(YokkoStrings.Get("calibration.simple.start"), StartCalibration, 180)
+            { Position = new Vector2(20, 316) },
+            new SettingsOffsetStepper(audioSettings.UserOffsetMilliseconds)
+            { Position = new Vector2(220, 312) },
         });
 
         return panel;
@@ -1170,7 +1102,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         var panel = createPanel();
         setPanelChildren(panel, new Drawable[]
         {
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(20, 18),
                 Text = YokkoStrings.Get(
@@ -1178,7 +1110,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Font = HomeTypography.Display(21),
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(20, 47),
                 Text = YokkoStrings.Get(
@@ -1221,7 +1153,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         var panel = createPanel();
         setPanelChildren(panel, new Drawable[]
         {
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(20, 18),
                 Text = YokkoStrings.Get(
@@ -1229,7 +1161,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Font = HomeTypography.Display(21),
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(20, 47),
                 Text = YokkoStrings.Get(
@@ -1279,7 +1211,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                         Icon = FontAwesome.Solid.Clock,
                         Colour = HomeControlColours.Navy,
                     },
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Anchor = Anchor.CentreLeft,
                         Origin = Anchor.CentreLeft,
@@ -1324,7 +1256,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         var panel = createPanel();
         setPanelChildren(panel, new Drawable[]
         {
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(20, 18),
                 Text = YokkoStrings.Get(
@@ -1332,7 +1264,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Font = HomeTypography.Display(21),
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(20, 47),
                 Text = YokkoStrings.Get(
@@ -1469,16 +1401,20 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         Spacing = new Vector2(0, 5),
         Children = new Drawable[]
         {
-            new SpriteText
+            new SettingsReadableText
             {
                 Text = title,
+                Width = 390,
+                Truncate = true,
                 Font = HomeTypography.Display(20),
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Text = note,
-                Font = HomeTypography.Body(16),
+                Width = 390,
+                Truncate = true,
+                Font = HomeTypography.Body(14),
                 Colour = SettingsTheme.MutedNavy,
             },
         },
@@ -1525,12 +1461,12 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 Spacing = new Vector2(0, 3),
                 Children = new Drawable[]
                 {
-                    statusTitle = new SpriteText
+                    statusTitle = new SettingsReadableText
                     {
                         Font = HomeTypography.Display(24),
                         Colour = HomeControlColours.Navy,
                     },
-                    statusMetadata = new SpriteText
+                    statusMetadata = new SettingsReadableText
                     {
                         Font = HomeTypography.Body(17),
                         Colour = HomeControlColours.Navy,
@@ -1539,7 +1475,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
             },
             calibrationButton = new GameplayCompactButton(
                 YokkoStrings.Get("settings.gameplay.calibration_start"),
-                handleCalibrationButton,
+                StartCalibration,
                 170,
                 FontAwesome.Solid.Stopwatch)
             {
@@ -1550,9 +1486,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
 
     private void refreshStatusMetadata()
     {
-        if (IsCalibrationActive
-            || calibrationResultVisible
-            || pressedKeys.Count > 0)
+        if (pressedKeys.Count > 0)
         {
             return;
         }
@@ -1784,216 +1718,6 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
                 null),
         });
 
-    private void handleCalibrationButton()
-    {
-        if (IsCalibrationActive)
-            return;
-
-        if (pendingCalibrationSuggestion.HasValue)
-        {
-            double suggestion = pendingCalibrationSuggestion.Value;
-            audioSettings.UserOffsetMilliseconds.Value = suggestion;
-            pendingCalibrationSuggestion = null;
-            statusTitle.Text = YokkoStrings.Get(
-                "settings.gameplay.calibration_applied");
-            statusMetadata.Text = YokkoStrings.Get(
-                "settings.gameplay.calibration_applied_note",
-                suggestion);
-            calibrationButton.SetText(YokkoStrings.Get(
-                "settings.gameplay.calibration_again"));
-            return;
-        }
-
-        StartCalibration();
-    }
-
-    private async Task runCalibrationAsync(CancellationToken token)
-    {
-        try
-        {
-            await calibrationPlayer.PlayCalibrationAsync(
-                () => Scheduler.Add(() =>
-                {
-                    if (disposed || token.IsCancellationRequested)
-                        return;
-
-                    calibrationPreparing = false;
-                    calibrationSession =
-                        new GameplayCalibrationSession(Time.Current);
-                    nextCalibrationStatusUpdate = 0;
-                    lastCalibrationPulseBeat = -1;
-                    refreshCalibrationStatus(Time.Current);
-                }),
-                token);
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-        }
-        catch (Exception ex)
-        {
-            Logger.Error(
-                ex,
-                "The gameplay timing calibration could not be played.",
-                LoggingTarget.Runtime);
-            Scheduler.Add(() =>
-            {
-                if (disposed)
-                    return;
-
-                calibrationPreparing = false;
-                calibrationSession = null;
-                calibrationResultVisible = true;
-                statusTitle.Text = YokkoStrings.Get(
-                    "settings.gameplay.calibration_failed");
-                statusMetadata.Text = YokkoStrings.Get(
-                    "settings.gameplay.calibration_failed_note");
-                calibrationButton.SetText(YokkoStrings.Get(
-                    "settings.gameplay.calibration_again"));
-            });
-        }
-        finally
-        {
-            Scheduler.Add(() =>
-            {
-                if (disposed || token.IsCancellationRequested)
-                    return;
-
-                calibrationPreparing = false;
-                if (calibrationSession != null)
-                    finishCalibration(Time.Current);
-            });
-        }
-    }
-
-    private void refreshCalibrationStatus(double currentTime = 0)
-    {
-        if (calibrationPreparing)
-        {
-            statusTitle.Text = YokkoStrings.Get(
-                "settings.gameplay.calibration_preparing");
-            statusMetadata.Text = YokkoStrings.Get(
-                "settings.gameplay.calibration_preparing_note");
-            calibrationButton.SetText(YokkoStrings.Get(
-                "settings.gameplay.calibration_wait"));
-            return;
-        }
-
-        if (calibrationSession == null)
-            return;
-
-        double elapsed = currentTime - calibrationSession.StartTime;
-        int beat = elapsed < GameplayCalibrationSession.LeadInMilliseconds
-            ? -1
-            : (int)Math.Floor(
-                (elapsed - GameplayCalibrationSession.LeadInMilliseconds)
-                / GameplayCalibrationSession.BeatIntervalMilliseconds);
-        if (beat != lastCalibrationPulseBeat)
-        {
-            lastCalibrationPulseBeat = beat;
-            statusIconBackground
-                .FlashColour(Color4.White, 180, Easing.OutQuint);
-        }
-
-        double remaining =
-            calibrationSession.RemainingMilliseconds(currentTime);
-        statusTitle.Text = YokkoStrings.Get(
-            "settings.gameplay.calibration_running");
-        statusMetadata.Text = calibrationSession.SampleCount == 0
-            ? YokkoStrings.Get(
-                "settings.gameplay.calibration_running_note")
-            : YokkoStrings.Get(
-                "settings.gameplay.calibration_sample",
-                calibrationSession.SampleCount,
-                calibrationSession.LatestTapOffsetMilliseconds);
-        calibrationButton.SetText(YokkoStrings.Get(
-            "settings.gameplay.calibration_countdown",
-            Math.Max(0, (int)Math.Ceiling(remaining / 1000))));
-    }
-
-    private void finishCalibration(double currentTime)
-    {
-        GameplayCalibrationSession completed = calibrationSession;
-        if (completed == null)
-            return;
-
-        calibrationSession = null;
-        calibrationPreparing = false;
-        calibrationResultVisible = true;
-
-        if (completed.HasRecommendation)
-        {
-            pendingCalibrationSuggestion =
-                completed.SuggestedOffsetMilliseconds;
-            statusTitle.Text = YokkoStrings.Get(
-                "settings.gameplay.calibration_complete");
-            statusMetadata.Text = YokkoStrings.Get(
-                "settings.gameplay.calibration_result",
-                pendingCalibrationSuggestion.Value,
-                completed.SampleCount);
-            calibrationButton.SetText(YokkoStrings.Get(
-                "settings.gameplay.calibration_apply",
-                pendingCalibrationSuggestion.Value));
-        }
-        else
-        {
-            pendingCalibrationSuggestion = null;
-            statusTitle.Text = YokkoStrings.Get(
-                "settings.gameplay.calibration_incomplete");
-            statusMetadata.Text = YokkoStrings.Get(
-                "settings.gameplay.calibration_incomplete_note",
-                completed.SampleCount,
-                GameplayCalibrationSession.MinimumUsefulSamples);
-            calibrationButton.SetText(YokkoStrings.Get(
-                "settings.gameplay.calibration_again"));
-        }
-    }
-
-    private void cancelCalibration(bool showMessage)
-    {
-        calibrationRunCancellation?.Cancel();
-        calibrationRunCancellation?.Dispose();
-        calibrationRunCancellation = null;
-        calibrationPreparing = false;
-        calibrationSession = null;
-        pendingCalibrationSuggestion = null;
-        calibrationResultVisible = showMessage;
-        lastCalibrationPulseBeat = -1;
-
-        if (showMessage)
-        {
-            statusTitle.Text = YokkoStrings.Get(
-                "settings.gameplay.calibration_cancelled");
-            statusMetadata.Text = YokkoStrings.Get(
-                "settings.gameplay.calibration_cancelled_note");
-            calibrationButton.SetText(YokkoStrings.Get(
-                "settings.gameplay.calibration_again"));
-        }
-        else
-        {
-            refreshStatusMetadata();
-        }
-    }
-
-    protected override void Update()
-    {
-        base.Update();
-
-        if (calibrationSession == null)
-            return;
-
-        if (calibrationSession.IsComplete(Time.Current))
-        {
-            finishCalibration(Time.Current);
-            return;
-        }
-
-        if (Time.Current >= nextCalibrationStatusUpdate)
-        {
-            refreshCalibrationStatus(Time.Current);
-            nextCalibrationStatusUpdate = Time.Current + 100;
-        }
-    }
-
     private static Drawable createDecorationIcon(
         IconUsage icon,
         float x,
@@ -2002,6 +1726,7 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
         Color4 colour) => new SpriteIcon
     {
         Position = new Vector2(x, y),
+        Depth = 1,
         Size = new Vector2(size),
         Icon = icon,
         Colour = colour,
@@ -2011,12 +1736,6 @@ internal partial class GameplaySettingsPanel : CompositeDrawable, ISettingsTrans
     {
         if (isDisposing)
         {
-            disposed = true;
-            lifetimeCancellation.Cancel();
-            calibrationRunCancellation?.Cancel();
-            calibrationRunCancellation?.Dispose();
-            lifetimeCancellation.Dispose();
-            _ = calibrationPlayer.DisposeAsync();
             settings.BindingsChanged -= onBindingsChanged;
         }
 
@@ -2142,7 +1861,7 @@ internal partial class GameplaySectionTab : ClickableContainer
                 Icon = itemIcon,
                 Colour = HomeControlColours.Navy,
             },
-            text = new SpriteText
+            text = new SettingsReadableText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
@@ -2242,7 +1961,7 @@ internal partial class GameplayBindingCard : ClickableContainer
                 RelativeSizeAxes = Axes.Both,
                 Colour = SettingsTheme.PaleCyan,
             },
-            laneText = new SpriteText
+            laneText = new SettingsReadableText
             {
                 Anchor = Anchor.TopCentre,
                 Origin = Anchor.TopCentre,
@@ -2254,7 +1973,7 @@ internal partial class GameplayBindingCard : ClickableContainer
                     compact ? 11 : width < 120 ? 13 : 16),
                 Colour = idleLaneColour,
             },
-            keyText = new SpriteText
+            keyText = new SettingsReadableText
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
@@ -2262,7 +1981,7 @@ internal partial class GameplayBindingCard : ClickableContainer
                 Font = HomeTypography.Display(idleKeyFontSize),
                 Colour = HomeControlColours.Navy,
             },
-            actionText = new SpriteText
+            actionText = new SettingsReadableText
             {
                 Anchor = Anchor.BottomCentre,
                 Origin = Anchor.BottomCentre,
@@ -2492,7 +2211,7 @@ internal partial class GameplayProfileBadge : CompositeDrawable
                 RelativeSizeAxes = Axes.Both,
                 Colour = SettingsTheme.PaleCyan,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
@@ -2568,7 +2287,7 @@ internal partial class GameplayCompactButton : ClickableContainer
             });
         }
 
-        children.Add(text = new SpriteText
+        children.Add(text = new SettingsReadableText
         {
             Anchor = Anchor.Centre,
             Origin = Anchor.Centre,
@@ -2758,7 +2477,7 @@ internal partial class GameplayScrollSpeedSlider : CompositeDrawable
                     Colour = Color4.White,
                 },
             },
-            valueText = new SpriteText
+            valueText = new SettingsReadableText
             {
                 Position = new Vector2(track_x, 8),
                 Font = HomeTypography.Display(18),
@@ -2987,7 +2706,7 @@ internal partial class GameplayValueStepper : CompositeDrawable
             FontAwesome.Solid.Minus,
             Anchor.CentreLeft,
             -step);
-        valueText = new SpriteText
+        valueText = new SettingsReadableText
         {
             Anchor = Anchor.Centre,
             Origin = Anchor.Centre,
@@ -3172,7 +2891,7 @@ internal partial class GameplayStepperModeButton : ClickableContainer
                 RelativeSizeAxes = Axes.Both,
                 Colour = SettingsTheme.PaleCyan,
             },
-            text = new SpriteText
+            text = new SettingsReadableText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
@@ -3308,7 +3027,7 @@ internal partial class GameplayEtternaJusticeControls : CompositeDrawable
 
         InternalChildren = new Drawable[]
         {
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(0, 5),
                 Text = YokkoStrings.Get(
@@ -3316,7 +3035,7 @@ internal partial class GameplayEtternaJusticeControls : CompositeDrawable
                 Font = HomeTypography.Display(19),
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(0, 34),
                 Text = YokkoStrings.Get(
@@ -3333,7 +3052,7 @@ internal partial class GameplayEtternaJusticeControls : CompositeDrawable
             {
                 Position = new Vector2(410, 0),
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(0, 79),
                 Text = YokkoStrings.Get(
@@ -3667,7 +3386,7 @@ internal partial class GameplayInlineToggle : ClickableContainer
 
         InternalChildren = new Drawable[]
         {
-            titleText = new SpriteText
+            titleText = new SettingsReadableText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
@@ -3675,7 +3394,7 @@ internal partial class GameplayInlineToggle : ClickableContainer
                 Font = HomeTypography.Display(17),
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
@@ -3709,7 +3428,7 @@ internal partial class GameplayInlineToggle : ClickableContainer
                     },
                 },
             },
-            stateText = new SpriteText
+            stateText = new SettingsReadableText
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
@@ -3813,14 +3532,14 @@ internal partial class GameplayToggleCard : ClickableContainer
                 Icon = itemIcon,
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(60, 13),
                 Text = title,
                 Font = HomeTypography.Display(18),
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(60, 42),
                 Text = note,
@@ -3853,7 +3572,7 @@ internal partial class GameplayToggleCard : ClickableContainer
                     },
                 },
             },
-            stateText = new SpriteText
+            stateText = new SettingsReadableText
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
@@ -3955,7 +3674,7 @@ internal partial class GameplayCountdownSettingRow : ClickableContainer
 
         InternalChildren = new Drawable[]
         {
-            titleText = new SpriteText
+            titleText = new SettingsReadableText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
@@ -3963,7 +3682,7 @@ internal partial class GameplayCountdownSettingRow : ClickableContainer
                 Font = HomeTypography.Display(17),
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
@@ -3986,7 +3705,7 @@ internal partial class GameplayCountdownSettingRow : ClickableContainer
                         () => adjust(
                             -YokkoGameplaySettings
                                 .ResumeCountdownStepMilliseconds)),
-                    valueText = new SpriteText
+                    valueText = new SettingsReadableText
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
@@ -4026,7 +3745,7 @@ internal partial class GameplayCountdownSettingRow : ClickableContainer
                     },
                 },
             },
-            stateText = new SpriteText
+            stateText = new SettingsReadableText
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,

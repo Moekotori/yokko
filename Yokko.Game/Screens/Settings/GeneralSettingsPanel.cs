@@ -37,7 +37,8 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
     public GeneralSettingsPanel(
         Bindable<string> locale,
         YokkoGameplaySettings gameplaySettings,
-        BindableBool showDebugConsole)
+        BindableBool showDebugConsole,
+        Action openPresets = null)
     {
         this.locale = locale;
         this.gameplaySettings = gameplaySettings;
@@ -76,7 +77,7 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
                     Anchor = Anchor.CentreRight,
                     Origin = Anchor.CentreRight,
                 }),
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(378, 522),
                 Width = 840,
@@ -84,7 +85,7 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
                 Font = HomeTypography.Body(15),
                 Colour = SettingsTheme.MutedNavy,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(378, 547),
                 Width = 840,
@@ -107,6 +108,8 @@ internal partial class GeneralSettingsPanel : CompositeDrawable
             createDecorationIcon(FontAwesome.Solid.Plus, 1200, 637, 12, HomeControlColours.Yellow),
         };
 
+        AddInternal(new GameplayCompactButton(YokkoStrings.Get("presets.title"),
+            () => openPresets?.Invoke(), 270) { Position = new Vector2(378, 653) });
         locale.BindValueChanged(onLocaleChanged, true);
     }
 

@@ -97,7 +97,7 @@ namespace Yokko.Game
             currentDisplayMode = host.Window?.CurrentDisplayMode;
             Content.Children = new Drawable[]
             {
-                screenStack = new ScreenStack
+                screenStack = new ScreenStack(suspendImmediately: false)
                 {
                     RelativeSizeAxes = Axes.Both,
                 },

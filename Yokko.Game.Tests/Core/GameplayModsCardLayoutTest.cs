@@ -10,9 +10,9 @@ namespace Yokko.Game.Tests.Core;
 public class GameplayModsArcLayoutTest
 {
     [Test]
-    public void SixFamiliesFollowRightHandArc()
+    public void SevenFamiliesFollowRightHandArc()
     {
-        Vector2[] positions = Enumerable.Range(0, 6)
+        Vector2[] positions = Enumerable.Range(0, 7)
             .Select(GameplayModsOrbitWorkspace.CalculateModArcPosition)
             .ToArray();
 
@@ -25,7 +25,7 @@ public class GameplayModsArcLayoutTest
             Assert.That(positions.All(position => position.X >= 150), Is.True);
             Assert.That(positions.All(position => position.Y <= 524), Is.True);
             Assert.Throws<ArgumentOutOfRangeException>(() =>
-                GameplayModsOrbitWorkspace.CalculateModArcPosition(6));
+                GameplayModsOrbitWorkspace.CalculateModArcPosition(7));
         });
     }
 }

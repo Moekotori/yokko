@@ -36,7 +36,7 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
                 page.Icon,
                 (int)page.Kind + 1),
             createComingSoonCard(page),
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(378, 323),
                 Text = YokkoStrings.Get("settings.planned_sections"),
@@ -95,13 +95,13 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
                 Spacing = new Vector2(0, 7),
                 Children = new Drawable[]
                 {
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Text = YokkoStrings.Get("settings.coming_soon"),
                         Font = HomeTypography.Display(25),
                         Colour = HomeControlColours.Navy,
                     },
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Text = page.Description,
                         Font = HomeTypography.Body(18),
@@ -124,7 +124,7 @@ internal partial class SettingsPlaceholderPanel : CompositeDrawable, ISettingsTr
                         RelativeSizeAxes = Axes.Both,
                         Colour = Color4.White,
                     },
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
@@ -222,14 +222,14 @@ internal partial class SettingsPlaceholderSection : ClickableContainer
                 RelativeSizeAxes = Axes.Both,
                 Colour = Color4.White,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(20, 17),
                 Text = title,
                 Font = HomeTypography.Display(19),
                 Colour = HomeControlColours.Navy,
             },
-            stateText = new SpriteText
+            stateText = new SettingsReadableText
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
@@ -255,7 +255,7 @@ internal partial class SettingsPlaceholderSection : ClickableContainer
                 Colour = SettingsTheme.Divider,
                 Alpha = 0,
             },
-            detail = new SpriteText
+            detail = new SettingsReadableText
             {
                 Position = new Vector2(20, 72),
                 Text = YokkoStrings.Get("settings.future_section"),

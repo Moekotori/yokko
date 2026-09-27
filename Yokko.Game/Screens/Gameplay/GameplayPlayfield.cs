@@ -21,6 +21,8 @@ namespace Yokko.Game.Screens.Gameplay;
 
 public partial class GameplayPlayfield : CompositeDrawable
 {
+    [Resolved(CanBeNull = true)] private YokkoAccessibilitySettings accessibility { get; set; }
+
     private double approachTimeMilliseconds;
     private readonly LaneColumn[] laneColumns;
     private readonly DrawableNote[] noteDrawables;
@@ -1461,6 +1463,7 @@ public partial class GameplayPlayfield : CompositeDrawable
 
     private void updateComboBurst(int combo)
     {
+        if (accessibility?.HideComboBursts.Value == true || accessibility?.ReduceFlashes.Value == true) return;
         if (comboBurstLayer == null)
             return;
 

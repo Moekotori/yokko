@@ -53,7 +53,7 @@ internal partial class SongSelectDifficultyFilterBar : ClickableContainer
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = SongSelectSurface.Ivory(0.98f),
+                Colour = SongSelectSurface.Ivory(SongSelectSurface.ControlOpacity),
             },
             new SpriteIcon
             {

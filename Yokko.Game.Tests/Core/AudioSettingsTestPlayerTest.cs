@@ -13,6 +13,31 @@ namespace Yokko.Game.Tests.Core;
 public sealed class AudioSettingsTestPlayerTest
 {
     [Test]
+    public async Task CalibrationUsesUnOffsetTimestampClockAndRejectsUnderruns()
+    {
+        string directory = Path.Combine(TestContext.CurrentContext.WorkDirectory, "calibration-clock", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var audio = new YokkoAudioSettings();
+            audio.UserOffsetMilliseconds.Value = -90;
+            var engine = new RecordingAudioEngine();
+            await using var player = new AudioSettingsTestPlayer(audio, () => engine, directory, (_, _) => Task.CompletedTask);
+            await player.PlayCalibrationAsync(() =>
+            {
+                Assert.That(engine.LastRequest.UserOffsetMilliseconds, Is.Zero);
+                Assert.That(player.TryGetCalibrationTime(1234, out double time, out _), Is.True);
+                Assert.That(time, Is.EqualTo(1234));
+                engine.Status = engine.Status with { HasUnderrun = true };
+                Assert.That(player.TryGetCalibrationTime(1234, out _, out _), Is.False);
+            });
+            Assert.That(player.TryGetCalibrationTime(1234, out _, out _), Is.False,
+                "Disposed playback must never expose a stale clock.");
+            Assert.That(audio.UserOffsetMilliseconds.Value, Is.EqualTo(-90));
+        }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+    }
+
+    [Test]
     public async Task TestSignalsUseTheirRealMixBuses()
     {
         string directory = Path.Combine(
@@ -256,6 +281,22 @@ public sealed class AudioSettingsTestPlayerTest
 
             await player.PlayAsync(AudioSettingsTestKind.Music, true);
             await player.PlayAsync(AudioSettingsTestKind.HitSound, true);
+            AudioSettingsTestPlayer clockPlayer = null;
+            await using (clockPlayer = new AudioSettingsTestPlayer(settings,
+                static () => new NativeAudioEngine(), directory, async (duration, token) =>
+                {
+                    await Task.Delay(150, token);
+                    Assert.That(clockPlayer.TryGetCalibrationTime(System.Diagnostics.Stopwatch.GetTimestamp(),
+                        out double first, out var output), Is.True, "Native calibration must expose a presentation clock.");
+                    await Task.Delay(100, token);
+                    Assert.That(clockPlayer.TryGetCalibrationTime(System.Diagnostics.Stopwatch.GetTimestamp(),
+                        out double second, out _), Is.True);
+                    Assert.That(second - first, Is.InRange(50, 250));
+                    TestContext.WriteLine($"Calibration clock: {output.ActiveBackend}, {output.SampleRate} Hz, {output.BufferSize} frames; advanced {second - first:0.0} ms.");
+                }))
+            {
+                await clockPlayer.PlayCalibrationAsync(null);
+            }
         }
         finally
         {
@@ -267,8 +308,16 @@ public sealed class AudioSettingsTestPlayerTest
     private sealed class RecordingAudioEngine :
         IAudioEngine,
         IAudioMixControl,
-        IAudioSamplePlayback
+        IAudioSamplePlayback,
+        ITimestampedAudioClock
     {
+        public AudioEngineStartRequest LastRequest { get; private set; }
+        public bool TryGetPlaybackTimeAtTimestamp(AudioEngineSnapshot snapshot, long timestamp,
+            long timestampFrequency, out double playbackTimeMilliseconds)
+        {
+            playbackTimeMilliseconds = timestamp;
+            return true;
+        }
         internal List<string> StartedPaths { get; } = new();
         internal List<string> PreparedPaths { get; } = new();
         internal string TriggeredPath { get; private set; }
@@ -276,7 +325,7 @@ public sealed class AudioSettingsTestPlayerTest
         public double MusicVolume { get; private set; } = 1;
         public double HitSoundVolume { get; private set; } = 1;
         public double MetronomeVolume { get; private set; }
-        public AudioEngineStatus Status { get; } = new(
+        public AudioEngineStatus Status { get; set; } = new(
             AudioBackendKind.SharedWasapi,
             null,
             48000,
@@ -306,6 +355,7 @@ public sealed class AudioSettingsTestPlayerTest
             AudioEngineStartRequest request,
             CancellationToken cancellationToken = default)
         {
+            LastRequest = request;
             StartedPaths.Add(request.AudioPath);
             return ValueTask.CompletedTask;
         }

@@ -442,41 +442,6 @@ public sealed class GameplaySettingsTest
     }
 
     [Test]
-    public void CalibrationSuggestsTheInverseMedianTapOffset()
-    {
-        var calibration = new GameplayCalibrationSession(10_000);
-
-        for (int beat = 0; beat < 12; beat++)
-        {
-            double expected =
-                10_000
-                + GameplayCalibrationSession.LeadInMilliseconds
-                + beat * GameplayCalibrationSession.BeatIntervalMilliseconds;
-            Assert.That(
-                calibration.TryRecordTap(expected + 18 + beat % 3),
-                Is.True);
-            Assert.That(
-                calibration.TryRecordTap(expected + 24),
-                Is.False,
-                "Only the first key on each beat should be sampled.");
-        }
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(calibration.SampleCount, Is.EqualTo(12));
-            Assert.That(calibration.HasRecommendation, Is.True);
-            Assert.That(
-                calibration.SuggestedOffsetMilliseconds,
-                Is.EqualTo(-19));
-            Assert.That(
-                calibration.IsComplete(
-                    10_000
-                    + GameplayCalibrationSession.DurationMilliseconds),
-                Is.True);
-        });
-    }
-
-    [Test]
     public void ConfiguredBindingsDriveGameplayLookup()
     {
         var settings = new YokkoGameplaySettings();

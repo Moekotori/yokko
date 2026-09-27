@@ -299,7 +299,7 @@ internal partial class DesktopSettingsSlider : CompositeDrawable
 
         InternalChildren = new Drawable[]
         {
-            valueText = new SpriteText
+            valueText = new SettingsReadableText
             {
                 Position = new Vector2(track_x, 5),
                 Font = HomeTypography.Display(18),
@@ -537,7 +537,7 @@ internal partial class DesktopShortcutHint : CompositeDrawable
                 Icon = icon,
                 Colour = HomeControlColours.Pink,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,

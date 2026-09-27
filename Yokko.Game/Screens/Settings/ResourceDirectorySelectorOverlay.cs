@@ -56,7 +56,7 @@ internal partial class ResourceDirectorySelectorOverlay : CompositeDrawable
                         RelativeSizeAxes = Axes.Both,
                         Colour = HomeControlColours.Ivory,
                     },
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Position = new Vector2(28, 22),
                         Text = YokkoStrings.Get(

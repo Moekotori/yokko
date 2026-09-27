@@ -73,7 +73,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                 FontAwesome.Solid.FolderOpen,
                 8),
             createImporterStatus(),
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(378, 251),
                 Text = YokkoStrings.Get("settings.import.section_formats"),
@@ -81,7 +81,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                 Colour = HomeControlColours.Navy,
             },
             createFormatCards(),
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(378, 380),
                 Text = YokkoStrings.Get("settings.import.section_behaviour"),
@@ -153,13 +153,13 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                 Spacing = new Vector2(0, 2),
                 Children = new Drawable[]
                 {
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Text = YokkoStrings.Get("settings.import.status_title"),
                         Font = HomeTypography.Display(21),
                         Colour = HomeControlColours.Navy,
                     },
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Text = YokkoStrings.Get(
                             "settings.import.status_metadata",
@@ -189,7 +189,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                 RelativeSizeAxes = Axes.Both,
                 Colour = Color4.White,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,
@@ -299,13 +299,13 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                 Size = new Vector2(635, 44),
                 Children = new Drawable[]
                 {
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Text = YokkoStrings.Get("settings.import.section_locations"),
                         Font = HomeTypography.Display(17),
                         Colour = HomeControlColours.Navy,
                     },
-                    locationPathText = new SpriteText
+                    locationPathText = new SettingsReadableText
                     {
                         Y = 22,
                         Width = 635,
@@ -315,7 +315,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                     },
                 },
             },
-            migrationStatusText = new SpriteText
+            migrationStatusText = new SettingsReadableText
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
@@ -362,14 +362,14 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                 Size = new Vector2(280, 44),
                 Children = new Drawable[]
                 {
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Text = YokkoStrings.Get(
                             "settings.import.external_osu_title"),
                         Font = HomeTypography.Display(17),
                         Colour = HomeControlColours.Navy,
                     },
-                    externalOsuPathText = new SpriteText
+                    externalOsuPathText = new SettingsReadableText
                     {
                         Y = 22,
                         Width = 280,
@@ -379,7 +379,7 @@ internal partial class ImportSettingsPanel : CompositeDrawable, ISettingsTransie
                     },
                 },
             },
-            externalOsuStatusText = new SpriteText
+            externalOsuStatusText = new SettingsReadableText
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
@@ -619,14 +619,14 @@ internal partial class ImportFormatCard : CompositeDrawable
                 RelativeSizeAxes = Axes.Both,
                 Colour = Color4.White,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(12, 10),
                 Text = name,
                 Font = HomeTypography.Display(16),
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(12, 37),
                 Text = extensions,
@@ -691,7 +691,7 @@ internal partial class ImportPreferenceCard : ClickableContainer
                 Icon = icon,
                 Colour = HomeControlColours.Pink,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(43, 12),
                 Width = width - 58,
@@ -700,7 +700,7 @@ internal partial class ImportPreferenceCard : ClickableContainer
                 Font = HomeTypography.Display(17),
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(15, 43),
                 Width = width - 30,
@@ -713,7 +713,7 @@ internal partial class ImportPreferenceCard : ClickableContainer
             {
                 Position = new Vector2(15, 74),
             },
-            state = new SpriteText
+            state = new SettingsReadableText
             {
                 Position = new Vector2(74, 76),
                 Width = width - 89,

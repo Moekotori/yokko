@@ -27,7 +27,7 @@ using Yokko.Import;
 
 namespace Yokko.Game.Screens.ChartLibrary;
 
-public partial class ChartLibraryScreen : Screen
+public partial class ChartLibraryScreen : YokkoScreen
 {
     private const float designedWidth = 1280;
     private const float designedHeight = 720;
@@ -176,8 +176,6 @@ public partial class ChartLibraryScreen : Screen
         base.OnEntering(e);
         screenActive = true;
         applyPendingLibraryChange();
-        stage.MoveToY(10).MoveToY(0, 420, Easing.OutQuint);
-        this.FadeInFromZero(260, Easing.OutQuint);
     }
 
     public override void OnResuming(ScreenTransitionEvent e)
@@ -196,7 +194,6 @@ public partial class ChartLibraryScreen : Screen
     public override bool OnExiting(ScreenExitEvent e)
     {
         screenActive = false;
-        this.FadeOut(180, Easing.OutQuint);
         return base.OnExiting(e);
     }
 

@@ -345,14 +345,14 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
 
         if (shortcutPage == ManiaShortcutPage.System)
         {
-            children.Add(new SpriteText
+            children.Add(new SettingsReadableText
             {
                 Position = new Vector2(20, 88),
                 Text = YokkoStrings.Get("settings.desktop.boss_key"),
                 Font = HomeTypography.Display(18),
                 Colour = HomeControlColours.Navy,
             });
-            children.Add(new SpriteText
+            children.Add(new SettingsReadableText
             {
                 Position = new Vector2(20, 122),
                 Text = YokkoStrings.Get("settings.shortcuts.system_fixed_hint"),
@@ -374,7 +374,7 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
             {
                 ManiaShortcutAction action = actions[index];
                 float y = 62 + index * 44;
-                children.Add(new SpriteText
+                children.Add(new SettingsReadableText
                 {
                     Position = new Vector2(20, y + 11),
                     Text = shortcutLabel(action),
@@ -384,7 +384,7 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
                 bool isDefault = settings.IsShortcutBindingDefault(action);
                 if (!isDefault)
                 {
-                    children.Add(new SpriteText
+                    children.Add(new SettingsReadableText
                     {
                         Position = new Vector2(358, y + 11),
                         Text = YokkoStrings.Get("settings.shortcuts.modified"),
@@ -408,7 +408,7 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
                 });
             }
 
-            children.Add(new SpriteText
+            children.Add(new SettingsReadableText
             {
                 Position = new Vector2(20, 312),
                 Text = YokkoStrings.Get("settings.gameplay.shortcut_hint"),
@@ -601,12 +601,12 @@ internal partial class ShortcutSettingsPanel : CompositeDrawable, ISettingsTrans
                 Spacing = new Vector2(0, 3),
                 Children = new Drawable[]
                 {
-                    title = new SpriteText
+                    title = new SettingsReadableText
                     {
                         Font = HomeTypography.Display(22),
                         Colour = HomeControlColours.Navy,
                     },
-                    metadata = new SpriteText
+                    metadata = new SettingsReadableText
                     {
                         Font = HomeTypography.Body(15),
                         Colour = HomeControlColours.Navy,

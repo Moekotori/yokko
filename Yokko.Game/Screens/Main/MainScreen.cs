@@ -1,3 +1,4 @@
+using Yokko.Game.Presentation;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,8 +30,10 @@ using Yokko.Game.Screens.SongSelect;
 
 namespace Yokko.Game.Screens.Main;
 
-public partial class MainScreen : Screen
+public partial class MainScreen : YokkoScreen
 {
+    [Resolved(CanBeNull = true)] private YokkoAccessibilitySettings accessibility { get; set; }
+
     // Legacy authored coordinate floor. The responsive stage expands to the
     // shared 1920x1080 viewport; these values are not a full-screen reference.
     private const float designedWidth = 1280;
@@ -413,27 +416,28 @@ public partial class MainScreen : Screen
         cancelExitHold();
         musicPlayer.Activate();
 
-        content.FadeInFromZero(240);
-        rightStage.Delay(80).FadeIn(520).MoveToX(0, 640, Easing.OutQuint);
-        decorationLayer.Delay(240).FadeIn(600);
-        brandLockup.Delay(60).FadeIn(420).MoveToX(56, 540, Easing.OutQuint);
-        commandArea.Delay(150).FadeIn(420).MoveToY(208, 540, Easing.OutQuint);
-        playerProgressCard.Delay(250).FadeIn(420);
-        statusBar.Delay(320).FadeIn(420);
-        utilityArea.Delay(340).FadeIn(360).MoveToY(24, 460, Easing.OutQuint);
-        ticker.Delay(430).FadeIn(520);
-        waveform.Delay(500).FadeIn(560);
-        keyTestPad.Delay(560).FadeIn(420);
+        content.Alpha = 1;
+        double duration = ReduceMotionEnabled ? YokkoMotion.ReducedDuration : YokkoMotion.EnterDuration;
+        YokkoMotion.Reveal(rightStage, new Vector2(0, rightStage.Y), new Vector2(24, 0), ReduceMotionEnabled);
+        YokkoMotion.Reveal(brandLockup, new Vector2(56, brandLockup.Y), new Vector2(-16, 0), ReduceMotionEnabled);
+        YokkoMotion.Reveal(commandArea, new Vector2(commandArea.X, 208), new Vector2(0, 12), ReduceMotionEnabled, YokkoMotion.Stagger);
+        YokkoMotion.Reveal(utilityArea, new Vector2(utilityArea.X, 24), new Vector2(0, -10), ReduceMotionEnabled, YokkoMotion.Stagger * 2);
+        decorationLayer.FadeIn(duration);
+        playerProgressCard.FadeIn(duration);
+        statusBar.FadeIn(duration);
+        ticker.FadeIn(duration);
+        waveform.FadeIn(duration);
+        keyTestPad.FadeIn(duration);
     }
 
     public override void OnResuming(ScreenTransitionEvent e)
     {
         base.OnResuming(e);
+        refreshAmbientMotion();
         mainActive = true;
         applyPendingLibraryChange();
         songSelectReturnStartedAt = Time.Current;
         musicPlayer.Activate();
-        this.FadeIn(200, Easing.OutQuint);
 
         // Do not construct and materialise the next browser while the return
         // animation is drawing. In the real app that work takes around
@@ -454,7 +458,6 @@ public partial class MainScreen : Screen
         mainActive = false;
         cancelExitHold();
         musicPlayer.Deactivate(pause: !KeepsMusicPlaying(e.Next));
-        this.FadeTo(0.4f, 200, Easing.OutQuint);
     }
 
     public override bool OnExiting(ScreenExitEvent e)
@@ -462,7 +465,6 @@ public partial class MainScreen : Screen
         mainActive = false;
         cancelExitHold();
         musicPlayer.Deactivate();
-        this.FadeOut(200, Easing.OutQuint);
         return base.OnExiting(e);
     }
 
@@ -471,12 +473,8 @@ public partial class MainScreen : Screen
         if (songSelectOpenRequested)
             return;
 
-        // Settings navigation starts fading MainScreen as soon as the click is
-        // accepted, while the destination finishes loading. Song select may
-        // spend a few frames waiting for its preloaded textures to reach the
-        // GPU, so provide the same immediate response instead of leaving a
-        // fully static page that feels like a dropped click.
-        this.FadeTo(0.4f, 200, Easing.OutQuint);
+        // Keep the home surface opaque while first-frame resources are prepared.
+        // The shared page transition starts once song select can actually draw.
 
         if (preloadedSongSelect != null
             && preloadedSongSelect.LibraryStructureRevision
@@ -729,6 +727,12 @@ public partial class MainScreen : Screen
             advanceBubbleLine();
         }
 
+        if (accessibility?.ReduceMotion.Value == true)
+        {
+            parallaxCurrent = Vector2.Zero;
+            rightParallax.Position = decorationLayer.Position = leftStage.Position = Vector2.Zero;
+            return;
+        }
         Vector2 local = ToLocalSpace(inputManager.CurrentState.Mouse.Position);
         Vector2 target = new Vector2(
             Math.Clamp(local.X / DrawWidth - 0.5f, -0.65f, 0.65f),
@@ -871,8 +875,29 @@ public partial class MainScreen : Screen
     internal static bool KeepsMusicPlaying(IScreen next) =>
         next is SettingsScreen or SongSelectScreen or ChartLibraryScreen;
 
+    private void refreshAmbientMotion()
+    {
+        mascot.ClearTransforms();
+        mascot.Position = mascotCentre;
+        mascot.Rotation = 0;
+        watermark.ClearTransforms();
+        watermark.Alpha = 0.15f;
+        readyDot.ClearTransforms();
+        readyDot.Alpha = 1;
+        foreach (var line in stageLines) line.ClearTransforms();
+        foreach (var icon in decorationIcons)
+        {
+            icon.ClearTransforms();
+            icon.Scale = Vector2.One;
+            icon.Rotation = 0;
+        }
+        foreach (var floater in floaters) floater.ClearTransforms();
+        startAmbientMotion();
+    }
+
     private void startAmbientMotion()
     {
+        if (accessibility?.ReduceMotion.Value == true) { heroHighlight.Scale = Vector2.One; return; }
         mascot.MoveToY(mascotCentre.Y + 7, 1900, Easing.InOutSine)
               .Then().MoveToY(mascotCentre.Y - 7, 1900, Easing.InOutSine)
               .Loop();
@@ -1579,7 +1604,7 @@ public partial class MainScreen : Screen
                     new HomeSecondaryAction(YokkoStrings.Get("main.editor"), FontAwesome.Solid.WindowMaximize,
                         () => this.Push(new EditorScreen()), FontAwesome.Solid.Pen),
                     new HomeSecondaryAction(YokkoStrings.Get("main.settings"), FontAwesome.Solid.Cog,
-                        () => this.Push(new SettingsScreen())),
+                        () => this.Push(new SettingsScreen(musicPlayer))),
                 },
             },
             multiplayerAction = new HomeMultiplayerAction(
@@ -1688,7 +1713,7 @@ public partial class MainScreen : Screen
                     new HomeUtilityButton(string.Empty, FontAwesome.Solid.PowerOff,
                         exitGame, 72, tooltipText: YokkoStrings.Get("main.utility_exit")),
                     new HomeUtilityButton(string.Empty, FontAwesome.Solid.Cog,
-                        () => this.Push(new SettingsScreen()), 72, tooltipText: YokkoStrings.Get("main.settings")),
+                        () => this.Push(new SettingsScreen(musicPlayer)), 72, tooltipText: YokkoStrings.Get("main.settings")),
                     new HomeUtilityButton(string.Empty, FontAwesome.Solid.FolderOpen,
                         () => this.Push(new ChartLibraryScreen()), 72, FontAwesome.Solid.ArrowRight,
                         YokkoStrings.Get("main.utility_folder")),

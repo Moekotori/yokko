@@ -577,7 +577,7 @@ internal partial class SettingsBooleanToggle : ClickableContainer
                     Colour = Color4.White,
                 },
             },
-            stateText = new SpriteText
+            stateText = new SettingsReadableText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,

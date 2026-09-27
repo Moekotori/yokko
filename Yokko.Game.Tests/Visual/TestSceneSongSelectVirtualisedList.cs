@@ -324,7 +324,7 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                     ReferenceEquals(row.Entry, entries[0]))
                 .FocusShadowAlpha > 0.99f
             && Math.Abs(list.MaterialisedRows.Single(row =>
-                    ReferenceEquals(row.Entry, entries[0])).X - 11) < 0.05f
+                    ReferenceEquals(row.Entry, entries[0])).X - SongSelectSongRow.SelectedInset) < 0.05f
             && list.MaterialisedRows.Single(row =>
                     ReferenceEquals(row.Entry, entries[1]))
                 .FocusShadowAlpha < 0.01f
@@ -342,7 +342,7 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
             && Math.Abs(list.MaterialisedRows.Single(row =>
                     ReferenceEquals(row.Entry, entries[0])).X - 14) < 0.05f
             && Math.Abs(list.MaterialisedRows.Single(row =>
-                    ReferenceEquals(row.Entry, entries[1])).X - 11) < 0.05f
+                    ReferenceEquals(row.Entry, entries[1])).X - SongSelectSongRow.SelectedInset) < 0.05f
             && list.ItemCount == 2);
     }
 
@@ -374,7 +374,7 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                                                .ToArray();
             return Math.Abs(rows[0].X - 18) < 0.05f
                    && Math.Abs(rows[1].X - 14) < 0.05f
-                   && Math.Abs(rows[2].X - 11) < 0.05f
+                   && Math.Abs(rows[2].X - SongSelectSongRow.SelectedInset) < 0.05f
                    && Math.Abs(rows[3].X - 14) < 0.05f
                    && Math.Abs(rows[4].X - 18) < 0.05f
                    && rows[0].SelectionIndent == 4
@@ -397,7 +397,7 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                    && Math.Abs(rows[1].X - 22) < 0.05f
                    && Math.Abs(rows[2].X - 18) < 0.05f
                    && Math.Abs(rows[3].X - 14) < 0.05f
-                   && Math.Abs(rows[4].X - 11) < 0.05f
+                   && Math.Abs(rows[4].X - SongSelectSongRow.SelectedInset) < 0.05f
                    && rows[0].SelectionIndent == 12
                    && list.ItemCount == 5;
         });
@@ -471,7 +471,7 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                 .ChildrenOfType<SongSelectInlineDifficultyRating>()
                 .Single();
             return Math.Abs(rating.X - 650) < 0.05f
-                   && Math.Abs(rating.Y - 17) < 0.05f
+                   && Math.Abs(rating.Y - 21) < 0.05f
                    && Math.Abs(rating.Width - 112) < 0.05f
                    && Math.Abs(rating.Height - 22) < 0.05f
                    && Math.Abs(rating.UnitText.Width - 42) < 0.05f
@@ -554,7 +554,7 @@ public partial class TestSceneSongSelectVirtualisedList : YokkoTestScene
                          .CompactSelectionOutlineThickness) < 0.05f
             && Math.Abs(SongSelectSongRow
                             .CompactSelectedFillOpacity
-                        - 0.18f) < 0.001f);
+                        - 0.96f) < 0.001f);
     }
 
     [Test]

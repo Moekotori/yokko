@@ -28,6 +28,7 @@ internal partial class SettingsSidebar : CompositeDrawable
     private readonly Dictionary<SettingsPageKind, SettingsNavItem> navigationItems = new();
     private readonly Action<SettingsPageKind> onPageSelected;
     private readonly SettingsSearchTextBox searchBox;
+    private readonly Func<string, bool> quickAction;
     private readonly SpriteText noResults;
     private readonly Box divider;
     private readonly Container selectionGlider;
@@ -44,9 +45,11 @@ internal partial class SettingsSidebar : CompositeDrawable
         Texture logoTexture,
         Action onBack,
         SettingsPageKind selectedPage,
-        Action<SettingsPageKind> onPageSelected)
+        Action<SettingsPageKind> onPageSelected,
+        Func<string, bool> quickAction = null)
     {
         this.onPageSelected = onPageSelected;
+        this.quickAction = quickAction;
         RelativeSizeAxes = Axes.Y;
         Width = 320;
 
@@ -79,7 +82,7 @@ internal partial class SettingsSidebar : CompositeDrawable
                     HomeControlColours.Navy.B,
                     0.1f),
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(38, 126),
                 Text = YokkoStrings.Get("settings.title"),
@@ -106,7 +109,7 @@ internal partial class SettingsSidebar : CompositeDrawable
                 Spacing = Vector2.Zero,
                 Children = navigation,
             },
-            noResults = new SpriteText
+            noResults = new SettingsReadableText
             {
                 Position = new Vector2(38, 310),
                 Text = YokkoStrings.Get("settings.no_matches"),
@@ -242,6 +245,11 @@ internal partial class SettingsSidebar : CompositeDrawable
         if (string.IsNullOrWhiteSpace(SearchQuery))
             return false;
 
+        if (quickAction?.Invoke(SearchQuery) == true)
+        {
+            searchBox.Current.Value = string.Empty;
+            return true;
+        }
         SettingsNavItem result =
             orderedNavigationItems.FirstOrDefault(
                 item => item.IsFilteredVisible);
@@ -338,6 +346,13 @@ internal partial class SettingsSidebar : CompositeDrawable
             anyResults |= anyVisible;
         }
 
+        SettingsQuickAction shortcut = SettingsQuickActions.Find(query);
+        noResults.Text = YokkoStrings.Get(shortcut switch
+        {
+            SettingsQuickAction.Calibration => "settings.guide.search_calibration",
+            SettingsQuickAction.Presets => "settings.guide.search_presets",
+            _ => "settings.no_matches",
+        });
         noResults.FadeTo(normalized.Length > 0 && !anyResults ? 1 : 0, 120, Easing.OutQuint);
     }
 }
@@ -391,14 +406,14 @@ internal partial class SettingsSearchTextBox : BasicTextBox
         return base.OnKeyDown(e);
     }
 
-    protected override Drawable GetDrawableCharacter(char c) => new SpriteText
+    protected override Drawable GetDrawableCharacter(char c) => new SettingsReadableText
     {
         Text = c.ToString(),
         Font = HomeTypography.SearchInput(18),
         Colour = HomeControlColours.Navy,
     };
 
-    protected override SpriteText CreatePlaceholder() => new SpriteText
+    protected override SpriteText CreatePlaceholder() => new SettingsReadableText
     {
         Font = HomeTypography.SearchInput(18),
         Colour = SettingsTheme.MutedNavy,
@@ -493,7 +508,7 @@ internal partial class SettingsOutlineButton : ClickableContainer
                 Icon = buttonIcon,
                 Colour = HomeControlColours.Navy,
             },
-            text = new SpriteText
+            text = new SettingsReadableText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
@@ -579,7 +594,7 @@ internal partial class SettingsNavHeader : CompositeDrawable
     public SettingsNavHeader(LocalisableString label)
     {
         Size = new Vector2(252, 18);
-        InternalChild = new SpriteText
+        InternalChild = new SettingsReadableText
         {
             Anchor = Anchor.BottomLeft,
             Origin = Anchor.BottomLeft,
@@ -660,7 +675,7 @@ internal partial class SettingsNavItem : ClickableContainer
                 Icon = itemIcon,
                 Colour = HomeControlColours.Navy,
             },
-            text = new SpriteText
+            text = new SettingsReadableText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,

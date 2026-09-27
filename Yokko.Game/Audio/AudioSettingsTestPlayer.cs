@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Yokko.Audio;
+using Yokko.Core.Timing;
 
 namespace Yokko.Game.Audio;
 
@@ -27,7 +29,7 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
     }
 
     private const int sample_rate = 48000;
-    private const double calibration_duration_seconds = 30;
+    private const double calibration_duration_seconds = InputCalibrationSession.DurationMilliseconds / 1000;
     private const double calibration_lead_in_seconds = 1;
     private const double calibration_beat_seconds = 0.5;
     private readonly YokkoAudioSettings settings;
@@ -38,6 +40,22 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
     private readonly CancellationTokenSource disposalCancellation = new();
     private readonly object mixLock = new();
     private IAudioMixControl activeMix;
+    private IAudioEngine calibrationEngine;
+
+    internal bool TryGetCalibrationTime(long timestamp, out double time, out AudioEngineStatus status)
+    {
+        lock (mixLock)
+        {
+            time = 0;
+            status = default;
+            if (calibrationEngine is not ITimestampedAudioClock clock)
+                return false;
+            AudioEngineSnapshot snapshot = calibrationEngine.Snapshot;
+            status = snapshot.Status;
+            return status.IsRunning && !status.IsFaulted && !status.HasUnderrun
+                   && clock.TryGetPlaybackTimeAtTimestamp(snapshot, timestamp, Stopwatch.Frequency, out time);
+        }
+    }
     private TestMixBus activeMixBus;
     private bool filesReady;
 
@@ -149,9 +167,12 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
             try
             {
                 await engine.StartAsync(
-                                settings.CreateStartRequest(calibrationPath),
+                                settings.CreateStartRequest(calibrationPath) with { UserOffsetMilliseconds = 0 },
                                 token)
                             .ConfigureAwait(false);
+                requireActiveOutput(engine);
+                lock (mixLock) calibrationEngine = engine;
+                token.ThrowIfCancellationRequested();
                 playbackStarted?.Invoke();
                 await delay(
                           TimeSpan.FromSeconds(calibration_duration_seconds),
@@ -161,6 +182,7 @@ internal sealed class AudioSettingsTestPlayer : IAsyncDisposable
             }
             finally
             {
+                lock (mixLock) calibrationEngine = null;
                 deactivateMix(mix);
             }
         }

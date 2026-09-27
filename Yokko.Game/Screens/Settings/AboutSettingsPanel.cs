@@ -82,14 +82,14 @@ internal partial class AboutSettingsPanel : CompositeDrawable
                 Icon = icon,
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(92, 16),
                 Text = title,
                 Font = HomeTypography.Display(21),
                 Colour = HomeControlColours.Navy,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(92, 48),
                 Text = value,

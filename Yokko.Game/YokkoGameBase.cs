@@ -52,6 +52,9 @@ namespace Yokko.Game
         [Cached]
         private readonly YokkoAudioSettings audioSettings = new();
         [Cached]
+        private readonly YokkoAccessibilitySettings accessibilitySettings = new();
+        private AudioDeviceProfiles audioDeviceProfiles;
+        [Cached]
         private readonly YokkoImportSettings importSettings = new();
         [Cached]
         private readonly ImportedChartLibrary importedChartLibrary = new();
@@ -163,6 +166,10 @@ namespace Yokko.Game
             gameHost = host;
             yokkoConfig ??= new YokkoConfigManager(host.Storage);
             yokkoConfig.BindAudioSettings(audioSettings);
+            yokkoConfig.BindAccessibilitySettings(accessibilitySettings);
+            audioDeviceProfiles?.Dispose();
+            audioDeviceProfiles = new AudioDeviceProfiles(audioSettings,
+                yokkoConfig.GetBindable<string>(YokkoSetting.AudioDeviceProfiles));
             yokkoConfig.BindDisplaySettings(displaySettings);
             yokkoConfig.BindDiagnosticSettings(diagnostics);
             yokkoConfig.BindImportSettings(importSettings);
@@ -320,6 +327,7 @@ namespace Yokko.Game
                     window.Resized -= onWindowResized;
                 }
 
+                audioDeviceProfiles?.Dispose();
                 skinHudLayoutStore.Dispose();
                 yokkoConfig?.Dispose();
                 frameRateController?.Dispose();

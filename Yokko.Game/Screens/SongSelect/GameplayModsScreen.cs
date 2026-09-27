@@ -26,7 +26,7 @@ namespace Yokko.Game.Screens.SongSelect;
 /// Dedicated full-screen workspace for selecting and configuring gameplay
 /// modifiers before starting a chart.
 /// </summary>
-internal partial class GameplayModsScreen : Screen
+internal partial class GameplayModsScreen : YokkoScreen
 {
     private const float detail_panel_width = 448;
     private const float detail_panel_right_margin = 48;
@@ -282,8 +282,6 @@ internal partial class GameplayModsScreen : Screen
         rebuildModList();
         updateSelection();
         selectDetail(detailMod);
-        stage.Alpha = 0;
-        stage.Y = 12;
     }
 
     protected override void LoadComplete()
@@ -301,15 +299,11 @@ internal partial class GameplayModsScreen : Screen
     public override void OnEntering(ScreenTransitionEvent e)
     {
         base.OnEntering(e);
-        stage.FadeIn(220, Easing.OutQuint)
-             .MoveToY(0, 360, Easing.OutQuint);
     }
 
     public override bool OnExiting(ScreenExitEvent e)
     {
         CommitSelection();
-        stage.FadeOut(150, Easing.OutQuint)
-             .MoveToY(8, 180, Easing.OutQuint);
         return base.OnExiting(e);
     }
 

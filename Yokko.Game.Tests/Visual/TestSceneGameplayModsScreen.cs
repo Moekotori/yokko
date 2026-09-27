@@ -338,11 +338,14 @@ public partial class TestSceneGameplayModsScreen : YokkoTestScene
             modsScreen.SetCategory(ManiaModCategory.DifficultyIncrease);
             nodes = this.ChildrenOfType<OrbitModNode>().ToArray();
         });
-        AddAssert("every visible Mod uses circular node geometry", () =>
+        AddAssert("bottom arc nodes leave room for their neighbours", () =>
             nodes.Length == 7
-            && nodes.All(node =>
+            && nodes.Take(5).All(node =>
                 node.Width == 284
-                && node.Height == 86));
+                && node.Height == 86)
+            && nodes.Skip(5).All(node =>
+                node.Width == 88
+                && node.Height == 124));
         AddAssert("nodes follow the authored right-hand arc", () =>
             nodes.Select(node => node.Position)
                 .SequenceEqual(Enumerable.Range(0, 7)

@@ -8,6 +8,8 @@ internal interface ISongSelectPreviewHost
 {
     IAudioEngine AudioEngine { get; }
 
+    Task SuspendOutputAsync();
+
     void AdoptPreview(YokkoBeatmap beatmap);
 
     void CompletePreviewHandoff(Task playbackSettled);

@@ -1,8 +1,12 @@
 using System;
+using osu.Framework.Allocation;
+using Yokko.Game.Presentation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Localisation;
+using Yokko.Game.Localisation;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
 using osuTK;
@@ -13,6 +17,10 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal partial class SongSelectFooterBackButton : ClickableContainer
 {
+    [Resolved(CanBeNull = true)]
+    private YokkoAccessibilitySettings accessibility { get; set; }
+    private bool reduceMotion => accessibility?.ReduceMotion.Value == true;
+
     private readonly Box background;
     private readonly Container keycap;
     private readonly Box underline;
@@ -34,7 +42,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
 
         Container panel = SongSelectSurface.CreateCard(
             out background,
-            SongSelectSurface.Ivory(0.99f),
+            SongSelectSurface.Ivory(SongSelectSurface.FooterCardOpacity),
             new Color4(
                 SongSelectTheme.Navy.R,
                 SongSelectTheme.Navy.G,
@@ -81,7 +89,7 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
                 Origin = Anchor.CentreLeft,
                 X = 68,
                 Y = -2,
-                Text = "BACK",
+                Text = YokkoStrings.Get("song_select.back_label"),
                 Font = HomeTypography.Display(24),
                 Colour = SongSelectTheme.Navy,
             },
@@ -133,41 +141,45 @@ internal partial class SongSelectFooterBackButton : ClickableContainer
         backLabel.FadeColour(Color4.White, 120, Easing.OutQuint);
         underline.ResizeWidthTo(58, 150, Easing.OutQuint);
         chevron.MoveToX(-9, 150, Easing.OutQuint);
-        keycap.RotateTo(-4, 140, Easing.OutQuint);
-        diamondDecoration.RotateTo(8, 160, Easing.OutQuint);
-        this.ScaleTo(1.018f, 120, Easing.OutQuint);
+        keycap.RotateTo(reduceMotion ? 0 : -4, reduceMotion ? 0 : 140, Easing.OutQuint);
+        diamondDecoration.RotateTo(reduceMotion ? 0 : 8, reduceMotion ? 0 : 160, Easing.OutQuint);
+        this.ScaleTo(reduceMotion ? 1 : 1.018f, reduceMotion ? 0 : 120, Easing.OutQuint);
         return true;
     }
 
     protected override void OnHoverLost(HoverLostEvent e)
     {
         background.FadeColour(
-            SongSelectSurface.Ivory(0.99f),
+            SongSelectSurface.Ivory(SongSelectSurface.FooterCardOpacity),
             140,
             Easing.OutQuint);
         backLabel.FadeColour(SongSelectTheme.Navy, 140, Easing.OutQuint);
         underline.ResizeWidthTo(0, 130, Easing.OutQuint);
         chevron.MoveToX(-13, 130, Easing.OutQuint);
-        keycap.RotateTo(0, 180, Easing.OutQuint);
-        diamondDecoration.RotateTo(0, 200, Easing.OutQuint);
-        this.ScaleTo(1, 140, Easing.OutQuint);
+        keycap.RotateTo(0, reduceMotion ? 0 : 180, Easing.OutQuint);
+        diamondDecoration.RotateTo(0, reduceMotion ? 0 : 200, Easing.OutQuint);
+        this.ScaleTo(1, reduceMotion ? 0 : 140, Easing.OutQuint);
     }
 
     protected override bool OnMouseDown(MouseDownEvent e)
     {
-        this.ScaleTo(0.975f, 80, Easing.OutQuint);
+        this.ScaleTo(reduceMotion ? 1 : 0.975f, reduceMotion ? 0 : 80, Easing.OutQuint);
         return base.OnMouseDown(e);
     }
 
     protected override void OnMouseUp(MouseUpEvent e)
     {
-        this.ScaleTo(IsHovered ? 1.018f : 1, 180, Easing.OutBack);
+        this.ScaleTo(reduceMotion ? 1 : (IsHovered ? 1.018f : 1), reduceMotion ? 0 : 180, Easing.OutBack);
         base.OnMouseUp(e);
     }
 }
 
 internal partial class SongSelectFooterToolButton : ClickableContainer
 {
+    [Resolved(CanBeNull = true)]
+    private YokkoAccessibilitySettings accessibility { get; set; }
+    private bool reduceMotion => accessibility?.ReduceMotion.Value == true;
+
     private readonly Box background;
     private readonly Color4 accent;
     private readonly Container iconTile;
@@ -175,7 +187,7 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
     private readonly Box bottomAccent;
 
     public SongSelectFooterToolButton(
-        string label,
+        LocalisableString label,
         IconUsage icon,
         Color4 accent,
         Action action)
@@ -246,10 +258,10 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
             SongSelectTheme.PaleCyan,
             110,
             Easing.OutQuint);
-        iconTile.RotateTo(-5, 130, Easing.OutQuint);
-        icon.RotateTo(12, 150, Easing.OutQuint);
+        iconTile.RotateTo(reduceMotion ? 0 : -5, reduceMotion ? 0 : 130, Easing.OutQuint);
+        icon.RotateTo(reduceMotion ? 0 : 12, reduceMotion ? 0 : 150, Easing.OutQuint);
         bottomAccent.ResizeWidthTo(64, 150, Easing.OutQuint);
-        this.ScaleTo(1.025f, 110, Easing.OutQuint);
+        this.ScaleTo(reduceMotion ? 1 : 1.025f, reduceMotion ? 0 : 110, Easing.OutQuint);
         return true;
     }
 
@@ -259,21 +271,21 @@ internal partial class SongSelectFooterToolButton : ClickableContainer
             Color4.Transparent,
             130,
             Easing.OutQuint);
-        iconTile.RotateTo(0, 180, Easing.OutQuint);
-        icon.RotateTo(0, 200, Easing.OutQuint);
+        iconTile.RotateTo(0, reduceMotion ? 0 : 180, Easing.OutQuint);
+        icon.RotateTo(0, reduceMotion ? 0 : 200, Easing.OutQuint);
         bottomAccent.ResizeWidthTo(36, 150, Easing.OutQuint);
-        this.ScaleTo(1, 130, Easing.OutQuint);
+        this.ScaleTo(1, reduceMotion ? 0 : 130, Easing.OutQuint);
     }
 
     protected override bool OnMouseDown(MouseDownEvent e)
     {
-        this.ScaleTo(0.97f, 70, Easing.OutQuint);
+        this.ScaleTo(reduceMotion ? 1 : 0.97f, reduceMotion ? 0 : 70, Easing.OutQuint);
         return base.OnMouseDown(e);
     }
 
     protected override void OnMouseUp(MouseUpEvent e)
     {
-        this.ScaleTo(IsHovered ? 1.025f : 1, 180, Easing.OutBack);
+        this.ScaleTo(reduceMotion ? 1 : (IsHovered ? 1.025f : 1), reduceMotion ? 0 : 180, Easing.OutBack);
         base.OnMouseUp(e);
     }
 }

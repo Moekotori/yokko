@@ -6085,3 +6085,118 @@ Post-fix evidence in the full-view and both focused comparisons shows comfortabl
 - Native Song Select preview captured and reviewed at `1920 x 1080`.
 
 final result: passed
+
+---
+
+# Song Select: beatmap-backed translucent layout (2026-09-27)
+
+## Target and final evidence
+
+- Approved target: `docs/design/song-select/yokko-song-select-transparent-selected.png` (1672 x 941, normalized proportionally to the shared 1920 x 1080 canvas).
+- Native current-workspace capture: `F:\YokkoArtifacts\songselect-design\native-final.png` (1920 x 1080, Chinese, Comfortable, selected Flight of the Bamboo Cutter, expanded package, empty ranking).
+- Side-by-side source/native comparison: `F:\YokkoArtifacts\songselect-design\comparison-final.jpg`.
+- Readable focused comparisons: `details-comparison-final.jpg` and `footer-comparison-final.jpg` in the same directory. The selected row was also inspected in the full native capture at original size.
+- The preview reads the actual local Amei's Handstream Collection 2 charts and their original artwork. The screenshot/mock is never used as a runtime background or panel. No chart files were modified or redistributed.
+
+## Findings and repairs
+
+1. P2, initial native pass: the difficulty title lacked emphasis and left an oversized gap before the collection title. Increased the primary title and moved the collection line up for a one-line title; retained bounded two-line/truncation behaviour for long names.
+2. P2, initial native pass: the selected row's pink pointer fell outside the clipped carousel. Moved the icon inside its visible bounds and reserved text space. Selected titles stay ivory, values yellow, and the outline cyan, including after difficulty refreshes.
+3. P2, initial native pass: the density strip protruded below the detail panel. Reduced it to a clipped 3-unit inset strip.
+4. P2, current-workspace pass: the full-screen artwork was decoded through the 512px list thumbnail cache. Added an independent two-entry, 1920px / 1920x1080-pixel-budget background cache. The final capture shows sharp background detail; the list retains its 512px cache and preload budget.
+5. P2, current-workspace pass: the localized back caption included a second ESC next to the existing keycap. Gave the caption its own localization key; the final footer contains one keycap and one translated label.
+
+## Required fidelity surfaces
+
+- Typography: existing Plus Jakarta Sans / CJK fallback families retained. Chart difficulty leads the details, collection title is secondary, STAR is grouped into its own badge. Native text remains fully opaque. The body/metadata density retains the production page's compact rhythm rather than rasterizing generated lettering.
+- Spacing/layout: left details/ranking, right search/filter/virtualised list and bottom action bar stay in their original regions. Empty ranking remains compact; lower-left space is free artwork. The production header retains its selected-chart summary and extra KPS/rate controls, so it is slightly denser than the concept.
+- Colors: ivory paper opacity is 84% for details, 78% for rows and 80% for ranking. The global wash falls from 58% to 6%. The footer base uses 80% and its nested paper 36%, keeping readable controls without an opaque wall. The selected navy row and yellow PLAY action stay strong.
+- Imagery: actual beatmap background is preserved, including its cooler original grading and framing. The generator had repainted some details and warm highlights; those were deliberately not reproduced. Existing independently loaded star/tape/avatar sprites are retained.
+- Content: names, modifiers, chart facts, ratings and scores remain data-driven. Runtime STAR 5.69 differs from the concept's illustrative 6.47; no rating algorithm or displayed value was changed to imitate the image. No fake scores or custom mascot wallpaper was introduced.
+
+## Verification
+
+- Final current-workspace `Yokko.Game.Tests` build, including Desktop and referenced projects: success, 0 warnings / 0 errors.
+- Focused current-workspace run: 14 passed, 0 failed (about 2 seconds). Covers text layout, original-artwork fallback policy, compact row hierarchy, rating refresh, selection disclosure, and full-resolution background/thumbnail cache separation and bounds.
+- Results: `F:\YokkoArtifacts\songselect-design\test-results\songselect-final.trx`.
+- Native capture uses the existing preview host with NullAudioEngine. This is UI/render verification, not audible playback or a full gameplay/device test. All controls retain their existing handlers.
+- Preview logs report the optional native Etterna MinaCalc library unavailable in this isolated build; STAR rendering and visual checks completed. Native MSD calculation was not validated by this run.
+- Earlier shared-workspace builds were interrupted by unrelated in-progress settings/transition changes. A temporary HEAD-plus-presentation snapshot was used for an intermediate pass, then superseded by the successful final current-workspace build, tests and capture above.
+
+## Reproduction and scope
+
+Set `YOKKO_SONGSELECT_PACKAGE_DIRECTORY` to a local directory containing `.osu` files, and `YOKKO_SONGSELECT_SELECTED_DIFFICULTY` to its difficulty name, then run the SongSelect preview with `YOKKO_PREVIEW_1080P=1`, locale `zh`, and a screenshot path. These optional preview-only inputs read the directory without copying it into the managed library. Without them, the existing synthetic fixtures are unchanged.
+
+No outstanding P0/P1/P2 visual finding remains in this approved state. P3 differences are the retained production metadata density, real artwork grading, and live rating values described above. Full-suite, audio playback and gameplay verification were intentionally outside this UI pass.
+
+final result: passed
+
+---
+
+# Song Select interaction and motion refinement (2026-09-27)
+
+## Scope and visual contract
+
+Continue the approved translucent beatmap-background design above. Typography, palette, artwork assets, 1920x1080 layout and existing action handlers are preserved. Motion communicates selection, hover, press, list navigation and popover lifetime; it does not change gameplay timing or scoring.
+
+## Behaviour changes
+
+- Artwork uses two layers with the lower one fully opaque. A running 180ms dissolve finishes before the newest pending request begins. Repeated keys replace the pending request, avoiding full-size decoding of skipped artwork and avoiding visible layer replacement. A restrained 1.012-to-1 scale settles over 480ms. Same-artwork selection skips the dissolve.
+- Details retain one translucent content layer. Interruptions continue from the current vertical offset rather than restarting from a fresh offset; no overlapping text/paper layers make the panel flash opaque.
+- Package relayout starts from visible animated row/header positions. Keyboard navigation maintains one row of edge context and reasons against the scroll destination, so reversal does not fight an earlier scroll target. Long random jumps retain the bounded materialisation path.
+- Row hover and press feedback are interruptible. The star and selection rail are no longer restarted for unchanged selection/hover bookkeeping. Press state resets when a pooled row is rebound.
+- Filter, sorting and beatmap-option popovers share a 130ms fade / 180ms scale reveal and a 100ms close. Input propagation stops immediately on close while the visual fade completes. Delayed focus callbacks check the popover is still open.
+- Reduced-motion settings suppress background travel/queueing, list layout travel and row motion, remove footer scale/rotation feedback, and stop the PLAY sweep. Colour/state feedback remains available.
+
+## Verification and repairs
+
+- Initial focused tests exposed a one-frame gap at background handover: the parent's completion callback ran before the incoming child's final alpha transform. Completion now explicitly finishes incoming opacity before retiring the outgoing layer. Both burst and reversal regression tests pass.
+- Latest current-workspace test-project build: success, 0 warnings / 0 errors.
+- Focused suite: 9 passed, 0 failed, approximately 4 seconds. Includes four new motion tests (latest-request coalescing and constant coverage, reversal/same artwork, reduced-motion interruption, popover close/reopen input), plus existing selection transition, full song-select interactions, package-header anchoring and mode-pill disclosure checks.
+- Result log: `F:\YokkoArtifacts\songselect-motion\results\motion.trx`; detailed steps in `tests.log`.
+- Native expanded filter capture: `F:\YokkoArtifacts\songselect-motion\filters-native.png` at 1920x1080.
+- Actual renderer capture sequence: `songselect-motion.mp4`, with `motion-final-contact-sheet.jpg`, `motion-rest.png`, `motion-filters.png`, `motion-sort.png` and `capture-timing.csv` in the same directory.
+- The video uses 960x540 readback samples averaging about 7.6 fps, encoded using the measured sample interval. It demonstrates state changes and popover lifecycle, not display refresh rate or a frame-time benchmark. The first attempt that batched scheduled captures was discarded because catch-up captures repeated stale frames. Final capture waits for page entry and schedules only one next sample after each capture.
+- As before, the native preview uses NullAudioEngine; audible preview transitions and complete gameplay runs are outside this UI-motion check. No long full-suite run was performed.
+
+## Visual review
+
+Viewed the real capture contact sheet and full-resolution filter state. The resting screen retains the chosen fonts, spacing, palette, image quality and dynamic copy. Both menus reveal above the list and return cleanly to the resting state. Selection keeps its pink pointer, navy fill and yellow rating throughout. No P0/P1/P2 layout or clipping issue was observed in these states. Exact high-refresh motion feel remains a live-client observation rather than a claim inferred from the sampled video.
+
+Optional reproduction: set `YOKKO_SONGSELECT_MOTION_DIRECTORY` to an artifact directory when running the existing native SongSelect preview. It records a short burst/reversal plus filter and sort open/close sequence, writes frame timing, and exits. Without that environment variable, screenshot and ordinary preview behaviour are unchanged.
+
+final result: passed
+
+---
+
+# Song Select whole-page visual polish and travelling selection (2026-09-27)
+
+This pass responds to the request for a visibly more polished complete page and a smoother-looking selected state, retaining the approved translucent beatmap-background layout.
+
+## Final evidence
+
+- Actual 1920x1080 render: `F:\YokkoArtifacts\songselect-polish\native-final.png`.
+- Previous native implementation beside the new one: `before-after.jpg` in the same directory.
+- Original approved concept beside the new render: `target-comparison.jpg`.
+- Focus crops: `details-comparison.jpg`, `selection-comparison.jpg`, `footer-comparison.jpg`.
+- Native selection/menu samples: `selection-motion.mp4` and `motion-contact-sheet.jpg`. Renderer readback remained about 6.9 samples/second, despite a shorter requested interval; the clip is not a display-refresh or frame-time benchmark.
+
+## Changes and visual review
+
+- Selection: one shared hollow cyan focus outline travels between row positions over 230ms. Interrupted movement starts from the visible position and repeated layout updates do not restart it. The row's dark-blue gradient, ivory title, pink mode chip and yellow value retain separate fades. Selected rows now rest inside the viewport instead of projecting into a clipped left edge; full rounded corners remain visible.
+- List: row height increases from 56 to 64 logical units, titles have a clearer size hierarchy, ordinary STAR labels use legible ink instead of low-contrast yellow, and redundant connector ticks are removed. Paper is slightly more opaque under titles and more transparent toward the trailing metadata. One fewer complete row is visible; this is the intended readability tradeoff.
+- Details: artwork is 250px, text begins at x292, and the card is 336px tall. Title/collection/byline have explicit hierarchy. Length, BPM, notes, OD and HP occupy a full-width bottom row with larger values. Performance and pattern metrics no longer compete in the same narrow region. The simplified preview caption removes the hardcoded ACTIVE / READY and SYNC / 04 ornamentation; it does not claim an audio state that the component cannot observe.
+- Surfaces/footer: hard offset shadows become soft edge shadows. The footer fades from translucent to stronger paper behind the controls. Its four-line shortcut block now fits the same 82px height as the buttons. PLAY fills its rounded surface cleanly and uses a lighter border.
+- Assets: the real beatmap background, existing tape/star sprites and avatar remain intact. No screenshot or generated UI is used as a runtime asset.
+- First native pass found two P2 issues: the smaller cover's star used an old absolute x-coordinate and touched the title; the travelling outline's glow also tinted its interior. The star now follows cover width and the glow is hollow. The final full and focused render confirms both fixes.
+- The five fidelity surfaces were checked: existing fonts and CJK fallback retained; spacing intentionally relaxed; navy/cyan/pink/yellow/ivory tokens retained; real artwork stays sharp; chart and score values remain live data. No P0/P1/P2 clipping or overlap remains in the reviewed state.
+
+## Verification and limits
+
+- Latest full `Yokko.Game.Tests` build with referenced Desktop/Game projects: success, 0 warnings / 0 errors.
+- Focused run: 12 passed, 0 failed, about 3 seconds; `F:\YokkoArtifacts\songselect-polish\results\polish.trx`.
+- Covers interruptible selection travel, non-restarting repeated targets, reduced-motion settling, selected-row geometry and neighbour curve, rating refresh, popover/background motion regressions and the existing full SongSelect interaction scenario.
+- A subsequent optional recorder build briefly encountered unrelated in-progress audio-settings compilation errors. Preview-only verification used the already verified Game binary during that interval; the final ordinary full build subsequently passed again. No unrelated source was reset or repaired by this pass.
+- No full test suite, audible playback or high-refresh frame-time benchmark was run. The direct visual evidence is the native render; mathematical transition behaviour is covered by focused clock-driven tests.
+
+final result: passed

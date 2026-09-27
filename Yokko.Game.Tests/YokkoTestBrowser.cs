@@ -13,6 +13,7 @@ using osu.Framework.Testing;
 using osuTK;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using Yokko.Core.Beatmaps;
 using Yokko.Core.Gameplay;
 using Yokko.Core.Mods;
@@ -28,6 +29,7 @@ using Yokko.Game.Screens.SongSelect;
 using Yokko.Game.Tests.Development;
 using Yokko.Game.Tests.Visual;
 using Yokko.Import;
+using Yokko.Import.Osu;
 
 namespace Yokko.Game.Tests
 {
@@ -386,6 +388,9 @@ namespace Yokko.Game.Tests
                     "YOKKO_SONGSELECT_PREVIEW") == "1")
             {
                 seedSongSelectPreview();
+                string previewPackageDirectory = Environment.GetEnvironmentVariable(
+                    "YOKKO_SONGSELECT_PACKAGE_DIRECTORY");
+                bool realPackagePreview = !string.IsNullOrWhiteSpace(previewPackageDirectory);
                 if (Environment.GetEnvironmentVariable(
                         "YOKKO_SONGSELECT_SCORE_PREVIEW") == "1")
                 {
@@ -422,6 +427,8 @@ namespace Yokko.Game.Tests
                     ?? @"C:\Charts\Harmonic Bloom - Symphony of the Dreaming Petals.osz";
                 Scheduler.AddDelayed(() =>
                 {
+                    if (realPackagePreview)
+                        return;
                     for (int i = 0; i < 4; i++)
                         songSelect.SelectPrevious();
                     songSelect.SetKeyModeFilter(
@@ -470,8 +477,29 @@ namespace Yokko.Game.Tests
                     }, 520);
                 }
                 Scheduler.AddDelayed(
-                    () => songSelect.TogglePackage(packageToToggle),
+                    () =>
+                    {
+                        if (!realPackagePreview)
+                            songSelect.TogglePackage(packageToToggle);
+                    },
                     packageToggleDelay);
+                if (realPackagePreview)
+                {
+                    string difficulty = Environment.GetEnvironmentVariable(
+                        "YOKKO_SONGSELECT_SELECTED_DIFFICULTY");
+                    Scheduler.AddDelayed(() =>
+                    {
+                        for (int i = 0; i < songSelect.VisibleEntryCount; i++)
+                        {
+                            if (songSelect.SelectedEntry?.Beatmap.DifficultyName == difficulty)
+                                break;
+                            songSelect.SelectNext();
+                        }
+                        songSelect.ChildrenOfType<SongSelectVirtualisedList>()
+                            .Single().ScrollPackageToTop(
+                                songSelect.SelectedEntry.PackageId, false);
+                    }, 900);
+                }
                 if (double.TryParse(
                         Environment.GetEnvironmentVariable(
                             "YOKKO_SONGSELECT_SECOND_TOGGLE_DELAY_MS"),
@@ -544,7 +572,11 @@ namespace Yokko.Game.Tests
                         .Single(control => Math.Abs(control.X - targetX) < 0.01f)
                         .TriggerClick(), 700);
                 }
-                schedulePreviewScreenshot(1200);
+                string motionDirectory = Environment.GetEnvironmentVariable("YOKKO_SONGSELECT_MOTION_DIRECTORY");
+                if (!string.IsNullOrWhiteSpace(motionDirectory))
+                    scheduleSongSelectMotionPreview(songSelect, motionDirectory);
+                else
+                    schedulePreviewScreenshot(1200);
                 return;
             }
 
@@ -779,6 +811,24 @@ namespace Yokko.Game.Tests
                     }, 500);
                 }
 
+                string settingsTool = Environment.GetEnvironmentVariable("YOKKO_SETTINGS_TOOL");
+                if (settingsTool == "Calibration")
+                    Scheduler.AddDelayed(settingsScreen.OpenCalibration, 650);
+                else if (settingsTool == "Presets")
+                    Scheduler.AddDelayed(settingsScreen.OpenPresets, 650);
+                else if (settingsTool == "Help")
+                    Scheduler.AddDelayed(settingsScreen.OpenHelp, 650);
+                else if (settingsTool is "CalibrationResult" or "CalibrationDetails")
+                    Scheduler.AddDelayed(() =>
+                    {
+                        settingsScreen.OpenCalibration();
+                        var overlay = settingsScreen.ChildrenOfType<Screens.Settings.AudioCalibrationOverlay>().Single();
+                        var session = new InputCalibrationSession();
+                        for (int beat = 0; beat < 36; beat++) session.TryRecordTap(3000 + beat * 500 + 24);
+                        overlay.ShowCompletedMeasurement(session);
+                        if (settingsTool == "CalibrationDetails") overlay.ToggleDetails();
+                    }, 650);
+
                 schedulePreviewScreenshot(1200);
                 return;
             }
@@ -900,9 +950,83 @@ namespace Yokko.Game.Tests
             }
         }
 
+        private void scheduleSongSelectMotionPreview(SongSelectScreen songSelect, string directory)
+        {
+            // Start after the page's own loading/reveal so a recording does not
+            // confuse startup frames with selection or popover transitions.
+            if (!songSelect.IsLoaded || songSelect.EntryTransitionInProgress)
+            {
+                Scheduler.AddDelayed(() => scheduleSongSelectMotionPreview(songSelect, directory), 150);
+                return;
+            }
+            Directory.CreateDirectory(directory);
+            for (int index = 0; index < 6; index++)
+            {
+                bool forward = index < 3;
+                Scheduler.AddDelayed(() =>
+                {
+                    if (forward) songSelect.SelectNext();
+                    else songSelect.SelectPrevious();
+                }, 1200 + index * 70);
+            }
+            Scheduler.AddDelayed(() => songSelect.ChildrenOfType<SongSelectVirtualisedList>()
+                .Single().ScrollPackageToTop(songSelect.SelectedEntry.PackageId, true), 2200);
+
+            void toggleTool(float x) => songSelect.ChildrenOfType<SongSelectBrowseToolButton>()
+                .Single(control => Math.Abs(control.X - x) < 0.01f).TriggerClick();
+            Scheduler.AddDelayed(() => toggleTool(570), 3000);
+            Scheduler.AddDelayed(() => toggleTool(570), 4000);
+            Scheduler.AddDelayed(() => toggleTool(780), 4800);
+            Scheduler.AddDelayed(() => toggleTool(780), 5800);
+
+            MethodInfo capture = renderer.GetType().GetMethod("TakeScreenshot",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException("Renderer cannot capture the motion preview.");
+            string timingPath = Path.Combine(directory, "timing.csv");
+            File.WriteAllText(timingPath, "frame,time,filters,sort\n");
+            int frameNumber = 0;
+            double captureStarted = Time.Current;
+            Action captureNext = null;
+            captureNext = () =>
+            {
+                using var screenshot = (Image<Rgba32>)capture.Invoke(renderer, null);
+                ensureUsableScreenshot(screenshot);
+                screenshot.Mutate(context => context.Resize(960, 540));
+                screenshot.SaveAsPng(Path.Combine(directory, $"{frameNumber:D3}.png"));
+                File.AppendAllText(timingPath, $"{frameNumber},{Time.Current:0.000},{songSelect.FiltersPopoverOpen},{songSelect.SortPopoverOpen}\n");
+                // Schedule from this frame, never catch up multiple captures in
+                // one update (which would prevent the renderer from advancing).
+                if (++frameNumber < 450 && Time.Current - captureStarted < 7000)
+                    Scheduler.AddDelayed(captureNext, 16);
+                else
+                    host.Exit();
+            };
+            Scheduler.AddDelayed(captureNext, 200);
+        }
+
         private void seedSongSelectPreview()
         {
             ImportedCharts.Clear();
+            // Optional read-only local fixture for matching a real beatmap's
+            // content and artwork during native visual QA. Nothing is copied
+            // into the managed library or bundled as an application resource.
+            string packageDirectory = Environment.GetEnvironmentVariable(
+                "YOKKO_SONGSELECT_PACKAGE_DIRECTORY");
+            if (!string.IsNullOrWhiteSpace(packageDirectory))
+            {
+                ChartImportResult[] charts = Directory.EnumerateFiles(
+                        packageDirectory, "*.osu", SearchOption.TopDirectoryOnly)
+                    .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                    .Select(path => new ChartImportResult(
+                        OsuManiaBeatmapIO.ReadBeatmapFromFile(path),
+                        [],
+                        OsuManiaBeatmapIO.ReadBackgroundPathFromFile(path)))
+                    .ToArray();
+                if (charts.Length == 0)
+                    throw new InvalidDataException("The preview directory contains no osu! charts.");
+                ImportedCharts.AddOrReplace(charts, packageDirectory);
+                return;
+            }
             string harmonicPackagePath = Environment.GetEnvironmentVariable(
                     "YOKKO_SONGSELECT_LONG_PACKAGE_PREVIEW") == "1"
                 ? @"C:\Charts\Harmonic Bloom - Symphony of the Dreaming Petals Beyond the Infinite Starlight Archive of the Last Celestial Horizon.osz"

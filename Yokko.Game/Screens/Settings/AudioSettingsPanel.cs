@@ -39,6 +39,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
     private readonly SettingsAudioDeviceSelector deviceSelector;
     private readonly SettingsAudioTestControl testControl;
     private readonly AudioSettingsTestPlayer testPlayer;
+    private readonly GameplayCompactButton calibrationLauncher;
     private IAudioEngine deviceEnumerator;
     private IReadOnlyList<AudioDeviceInfo> outputDevices = [];
     private bool nativeAvailable;
@@ -58,12 +59,14 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
     internal double CurrentHitSoundVolume => settings.HitSoundVolume.Value;
     internal bool HitSoundsEnabled =>
         gameplaySettings.KeysoundsEnabled.Value;
+    internal bool IsAudioTestPlaying => testPlaying;
     internal bool IsDeviceMenuOpen => deviceSelector.IsOpen;
 
     public AudioSettingsPanel(
         YokkoAudioSettings settings,
         YokkoGameplaySettings gameplaySettings,
-        string testDirectory)
+        string testDirectory,
+        Action openCalibration = null)
     {
         this.settings = settings;
         this.gameplaySettings = gameplaySettings;
@@ -132,6 +135,21 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
                 new SettingsOffsetStepper(
                     settings.UserOffsetMilliseconds)),
         };
+
+        AddInternal(new SettingsReadableText
+        {
+            Position = new Vector2(378, 638), Width = 840, Truncate = true,
+            Font = HomeTypography.Body(12), Colour = SettingsTheme.MutedNavy,
+            Text = YokkoStrings.Get("settings.offset.hint"),
+        });
+        AddInternal(calibrationLauncher = new GameplayCompactButton(YokkoStrings.Get("calibration.title"),
+            () => openCalibration?.Invoke(), 220) { Position = new Vector2(998, 652) });
+        AddInternal(new SettingsReadableText
+        {
+            Position = new Vector2(378, 657), Font = HomeTypography.Body(13),
+            Width = 598, Truncate = true,
+            Colour = HomeControlColours.Navy, Text = YokkoStrings.Get("audio.profiles_note"),
+        });
 
         selectedDeviceId.BindValueChanged(
             onSelectedDeviceChanged);
@@ -359,12 +377,12 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
                 Spacing = new Vector2(0, 4),
                 Children = new Drawable[]
                 {
-                    title = new SpriteText
+                    title = new SettingsReadableText
                     {
                         Font = HomeTypography.Display(22),
                         Colour = HomeControlColours.Navy,
                     },
-                    metadata = new SpriteText
+                    metadata = new SettingsReadableText
                     {
                         Font = HomeTypography.Body(17),
                         Colour = HomeControlColours.Navy,
@@ -397,7 +415,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
             Depth = depth,
             Children = new Drawable[]
             {
-                new SpriteText
+                new SettingsReadableText
                 {
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
@@ -508,6 +526,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
     private async Task runAudioTestAsync(AudioSettingsTestKind kind)
     {
         testPlaying = true;
+        calibrationLauncher.IsEnabled = false;
         refreshSelection();
         testControl.SetPlaying(kind);
         AudioBackendKind requestedBackend =
@@ -540,6 +559,7 @@ internal partial class AudioSettingsPanel : CompositeDrawable, ISettingsTransien
         finally
         {
             testPlaying = false;
+            calibrationLauncher.IsEnabled = true;
             testControl.SetIdle();
             if (!failed && testedStatus.HasValue)
             {
@@ -702,7 +722,7 @@ internal partial class SettingsAudioDeviceSelector : CompositeDrawable
                     RelativeSizeAxes = Axes.Both,
                     Colour = Color4.White,
                 },
-                valueText = new SpriteText
+                valueText = new SettingsReadableText
                 {
                     Anchor = Anchor.CentreLeft,
                     Origin = Anchor.CentreLeft,
@@ -884,7 +904,7 @@ internal partial class SettingsAudioDeviceOption : ClickableContainer
                 RelativeSizeAxes = Axes.Both,
                 Colour = Color4.White,
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
@@ -991,15 +1011,15 @@ internal partial class SettingsVolumeMixer : CompositeDrawable
                 Children = new Drawable[]
                 {
                     new SettingsVolumeSlider(
-                        "MASTER",
+                        YokkoStrings.Get("settings.volume.master"),
                         master,
                         true),
                     new SettingsVolumeSlider(
-                        "MUSIC",
+                        YokkoStrings.Get("settings.volume.music"),
                         music,
                         true),
                     new SettingsVolumeSlider(
-                        "HIT",
+                        YokkoStrings.Get("settings.volume.hits"),
                         hitSound,
                         false),
                 },
@@ -1024,7 +1044,7 @@ internal partial class SettingsVolumeSlider : CompositeDrawable
     public override bool AcceptsFocus => true;
 
     public SettingsVolumeSlider(
-        string label,
+        LocalisableString label,
         Bindable<double> volume,
         bool showDivider)
     {
@@ -1043,14 +1063,14 @@ internal partial class SettingsVolumeSlider : CompositeDrawable
                     Colour = SettingsTheme.Divider,
                 }
                 : new Container(),
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(track_x, 5),
                 Text = label,
                 Font = HomeTypography.Body(12),
                 Colour = SettingsTheme.MutedNavy,
             },
-            valueText = new SpriteText
+            valueText = new SettingsReadableText
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
@@ -1244,11 +1264,11 @@ internal partial class SettingsAudioTestControl : CompositeDrawable
                 Children = new Drawable[]
                 {
                     musicButton = new SettingsAudioTestButton(
-                        "MUSIC",
+                        YokkoStrings.Get("settings.volume.music"),
                         FontAwesome.Solid.Music,
                         playMusic),
                     hitSoundButton = new SettingsAudioTestButton(
-                        "HIT",
+                        YokkoStrings.Get("settings.volume.hits"),
                         FontAwesome.Solid.VolumeUp,
                         playHitSound),
                 },
@@ -1280,7 +1300,7 @@ internal partial class SettingsAudioTestButton : ClickableContainer
     public override bool AcceptsFocus => true;
 
     public SettingsAudioTestButton(
-        string label,
+        LocalisableString label,
         IconUsage iconUsage,
         Action action)
     {
@@ -1317,7 +1337,7 @@ internal partial class SettingsAudioTestButton : ClickableContainer
                         Icon = iconUsage,
                         Colour = HomeControlColours.Navy,
                     },
-                    text = new SpriteText
+                    text = new SettingsReadableText
                     {
                         Text = label,
                         Font = HomeTypography.Control(16),
@@ -1420,7 +1440,7 @@ internal partial class SettingsAudioToggle : ClickableContainer
                 RelativeSizeAxes = Axes.Both,
                 Colour = Color4.White,
             },
-            stateText = new SpriteText
+            stateText = new SettingsReadableText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,
@@ -1517,127 +1537,6 @@ internal partial class SettingsAudioToggle : ClickableContainer
     {
         if (isDisposing)
             value.ValueChanged -= onValueChanged;
-
-        base.Dispose(isDisposing);
-    }
-}
-
-internal partial class SettingsOffsetStepper : CompositeDrawable
-{
-    private readonly Bindable<double> offset;
-    private readonly SpriteText valueText;
-
-    public override bool AcceptsFocus => true;
-
-    public SettingsOffsetStepper(Bindable<double> offset)
-    {
-        this.offset = offset;
-        Size = new Vector2(598, 50);
-        Masking = true;
-        CornerRadius = 7;
-        BorderThickness = 1.4f;
-        BorderColour = HomeControlColours.Navy;
-
-        InternalChildren = new Drawable[]
-        {
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = Color4.White,
-            },
-            createButton(FontAwesome.Solid.Minus, Anchor.CentreLeft, -1),
-            valueText = new SpriteText
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Font = HomeTypography.Display(19),
-                Colour = HomeControlColours.Navy,
-            },
-            createButton(FontAwesome.Solid.Plus, Anchor.CentreRight, 1),
-        };
-
-        offset.BindValueChanged(onOffsetChanged, true);
-    }
-
-    private Drawable createButton(IconUsage icon, Anchor anchor, double delta) =>
-        new ClickableContainer
-        {
-            Anchor = anchor,
-            Origin = anchor,
-            Width = 72,
-            RelativeSizeAxes = Axes.Y,
-            Action = () => offset.Value =
-                Math.Clamp(Math.Round(offset.Value + delta), -200, 200),
-            Child = new SpriteIcon
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                Size = new Vector2(16),
-                Icon = icon,
-                Colour = HomeControlColours.Pink,
-            },
-        };
-
-    internal static double AdjustForKey(
-        double value,
-        Key key,
-        bool largeStep = false)
-    {
-        double step = largeStep ? 10 : 1;
-        return key switch
-        {
-            Key.Left or Key.Down =>
-                Math.Clamp(Math.Round(value - step), -200, 200),
-            Key.Right or Key.Up =>
-                Math.Clamp(Math.Round(value + step), -200, 200),
-            Key.Home => 0,
-            _ => value,
-        };
-    }
-
-    protected override bool OnKeyDown(KeyDownEvent e)
-    {
-        double adjusted = AdjustForKey(
-            offset.Value,
-            e.Key,
-            e.ShiftPressed);
-        if (adjusted == offset.Value
-            && e.Key is not Key.Home
-            and not Key.Left and not Key.Right
-            and not Key.Up and not Key.Down)
-        {
-            return base.OnKeyDown(e);
-        }
-
-        offset.Value = adjusted;
-        return true;
-    }
-
-    protected override void OnFocus(FocusEvent e)
-    {
-        base.OnFocus(e);
-        BorderColour = HomeControlColours.Pink;
-        BorderThickness = 2.4f;
-    }
-
-    protected override void OnFocusLost(FocusLostEvent e)
-    {
-        base.OnFocusLost(e);
-        BorderColour = HomeControlColours.Navy;
-        BorderThickness = 1.4f;
-    }
-
-    private void refresh()
-    {
-        valueText.Text = $"{offset.Value:+0;-0;0} ms";
-    }
-
-    private void onOffsetChanged(ValueChangedEvent<double> _) => refresh();
-
-    protected override void Dispose(bool isDisposing)
-    {
-        if (isDisposing)
-            offset.ValueChanged -= onOffsetChanged;
 
         base.Dispose(isDisposing);
     }

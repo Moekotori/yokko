@@ -22,6 +22,33 @@ interaction, while shared theme tokens and components own reusable appearance.
 All full-screen layouts continue to target the shared `1920x1080` reference
 space through `YokkoUiScalingContainer`.
 
+## Navigation animation
+
+`Screens/YokkoScreen` owns the page lifecycle transition for home, settings,
+song select, mods, chart library and editor. `Presentation/YokkoMotion` owns
+the reusable choreography: 240 ms page reveal, 180 ms exit, 320 ms content
+travel with 35 ms staggering. Reduced motion uses an 80 ms fade without travel
+or staggering. Existing hover/state theme tokens remain component-specific.
+
+The application uses `ScreenStack(suspendImmediately: false)`: the previous
+page stays visible while its destination loads. Suspended pages retain their
+opaque surface until the next page is loaded and fully revealed, including a
+gameplay session's nested initial reveal. A returning page is restored below
+the exiting page, so simultaneous fades never expose the clear colour. The
+framework continues to route input only to the current screen.
+
+New ordinary pages should inherit `YokkoScreen`, call base lifecycle methods,
+and leave their root alpha to the base class. Use `YokkoMotion.Reveal` on content
+containers with explicit resting positions; don't translate the full-screen
+background. Avoid a second root fade, delayed navigation callbacks, or clearing
+all descendant transforms. Gameplay timing and retry choreography remain in
+their existing session implementation.
+
+Lifecycle behavior was checked against osu!framework `2026.728.1`,
+[`osu.Framework/Screens/ScreenStack.cs`](https://github.com/ppy/osu-framework/blob/2026.728.1/osu.Framework/Screens/ScreenStack.cs)
+(suspension/expiration, resumption and input routing); no upstream code was copied.
+Focused coverage lives in `YokkoMotionTest` and `TestSceneScreenTransitions`.
+
 ## Theme-file development
 
 Theme JSON is a strict, versioned overlay on the built-in complete theme.

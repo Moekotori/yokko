@@ -131,6 +131,12 @@ internal enum YokkoSetting
     PlayerDisplayName,
     PlayerId,
     SettingsLastPage,
+    AudioDeviceProfiles,
+    GameplayPresets,
+    AccessibilityReduceMotion,
+    AccessibilityReduceFlashes,
+    AccessibilityHideComboBursts,
+    AccessibilityHighContrastText,
 }
 
 internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
@@ -144,6 +150,12 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
 
     protected override void InitialiseDefaults()
     {
+        SetDefault(YokkoSetting.AudioDeviceProfiles, "{}");
+        SetDefault(YokkoSetting.GameplayPresets, "{}");
+        SetDefault(YokkoSetting.AccessibilityReduceMotion, false);
+        SetDefault(YokkoSetting.AccessibilityReduceFlashes, false);
+        SetDefault(YokkoSetting.AccessibilityHideComboBursts, false);
+        SetDefault(YokkoSetting.AccessibilityHighContrastText, false);
         SetDefault(YokkoSetting.HomeMusicEnabled, true);
         SetDefault(
             YokkoSetting.HomeExitHoldDurationMilliseconds,
@@ -538,6 +550,14 @@ internal sealed class YokkoConfigManager : IniConfigManager<YokkoSetting>
             Random.Shared.Next(10_000_000, 100_000_000).ToString(
                 CultureInfo.InvariantCulture));
         SetDefault(YokkoSetting.SettingsLastPage, "Display");
+    }
+
+    public void BindAccessibilitySettings(YokkoAccessibilitySettings settings)
+    {
+        BindWith(YokkoSetting.AccessibilityReduceMotion, settings.ReduceMotion);
+        BindWith(YokkoSetting.AccessibilityReduceFlashes, settings.ReduceFlashes);
+        BindWith(YokkoSetting.AccessibilityHideComboBursts, settings.HideComboBursts);
+        BindWith(YokkoSetting.AccessibilityHighContrastText, settings.HighContrastText);
     }
 
     public void BindAudioSettings(YokkoAudioSettings settings)

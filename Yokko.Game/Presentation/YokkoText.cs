@@ -34,6 +34,7 @@ public enum YokkoTextColourRole
 public partial class YokkoText : SpriteText
 {
     private IBindable<YokkoUiTheme> currentTheme;
+    private IBindable<bool> highContrast;
     private YokkoUiTheme appliedTheme = YokkoUiTheme.Default;
     private YokkoTextStyle textStyle;
     private YokkoTextColourRole colourRole;
@@ -100,8 +101,10 @@ public partial class YokkoText : SpriteText
     }
 
     [BackgroundDependencyLoader]
-    private void load(YokkoUiThemeStore themeStore)
+    private void load(YokkoUiThemeStore themeStore, YokkoAccessibilitySettings accessibility = null)
     {
+        highContrast = accessibility?.HighContrastText.GetBoundCopy();
+        highContrast?.BindValueChanged(_ => applyTheme(appliedTheme));
         currentTheme = themeStore.Current.GetBoundCopy();
         currentTheme.BindValueChanged(
             change => applyTheme(change.NewValue),
@@ -111,7 +114,10 @@ public partial class YokkoText : SpriteText
     protected override void Dispose(bool isDisposing)
     {
         if (isDisposing)
+        {
             currentTheme?.UnbindAll();
+            highContrast?.UnbindAll();
+        }
 
         base.Dispose(isDisposing);
     }
@@ -134,8 +140,8 @@ public partial class YokkoText : SpriteText
         YokkoDarkColourTokens dark = theme.Colours.Dark;
         Colour = colourOverride ?? colourRole switch
         {
-            YokkoTextColourRole.Muted => dark.TextMuted,
-            YokkoTextColourRole.Dim => dark.TextDim,
+            YokkoTextColourRole.Muted => highContrast?.Value == true ? dark.Text : dark.TextMuted,
+            YokkoTextColourRole.Dim => highContrast?.Value == true ? dark.Text : dark.TextDim,
             YokkoTextColourRole.Accent => dark.Cyan,
             YokkoTextColourRole.Positive => dark.Lime,
             YokkoTextColourRole.Warning => theme.Colours.Brand.Yellow,

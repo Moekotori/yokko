@@ -1,3 +1,4 @@
+using osu.Framework.Allocation;
 using System;
 using System.Linq;
 using osu.Framework.Graphics;
@@ -18,6 +19,8 @@ namespace Yokko.Game.Screens.Gameplay;
 
 public partial class GameplayHud : CompositeDrawable
 {
+    [Resolved(CanBeNull = true)] private YokkoAccessibilitySettings accessibility { get; set; }
+
     private readonly YokkoBeatmap beatmap;
     private readonly ManiaModSet mods;
     private readonly JudgementConfiguration judgementConfiguration;
@@ -365,6 +368,7 @@ public partial class GameplayHud : CompositeDrawable
     public void ShowExtraLifeUsed()
     {
         ExtraLifePulseCount++;
+        if (accessibility?.ReduceFlashes.Value == true) return;
         healthFill.FlashColour(
             new Color4(1f, 0.82f, 0.2f, 1f),
             520,

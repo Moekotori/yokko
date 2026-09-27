@@ -1,8 +1,12 @@
 using System;
+using osu.Framework.Allocation;
+using osu.Framework.Bindables;
+using Yokko.Game.Presentation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using Yokko.Game.Localisation;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
 using osuTK;
@@ -13,6 +17,10 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal partial class SongSelectPlayButton : ClickableContainer
 {
+    [Resolved(CanBeNull = true)]
+    private YokkoAccessibilitySettings accessibility { get; set; }
+    private bool reduceMotion => accessibility?.ReduceMotion.Value == true;
+
     private readonly Box background;
     private readonly SpriteIcon chevron;
     private readonly SpriteIcon stateIcon;
@@ -43,18 +51,18 @@ internal partial class SongSelectPlayButton : ClickableContainer
                 SongSelectTheme.Navy.R,
                 SongSelectTheme.Navy.G,
                 SongSelectTheme.Navy.B,
-                0.52f),
-            11,
-            1.5f);
+                0.20f),
+            14,
+            1.25f);
 
         InternalChildren =
         [
             SongSelectSurface.CreateShadow(11, 0.24f, 4),
             new Container
             {
-                Size = new Vector2(397, 77),
+                RelativeSizeAxes = Axes.Both,
                 Masking = true,
-                CornerRadius = 11,
+                CornerRadius = 14,
                 Children =
                 [
                     panel,
@@ -67,7 +75,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
                     },
                     playTile = new Container
                     {
-                        Position = new Vector2(13, 7),
+                        Position = new Vector2(11, 9),
                         Size = new Vector2(64),
                         Masking = true,
                         CornerRadius = 8,
@@ -93,7 +101,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
                     eyebrowText = new SpriteText
                     {
                         Position = new Vector2(96, 13),
-                        Text = "START SELECTED CHART",
+                        Text = YokkoStrings.Get("song_select.start_selected"),
                         Font = HomeTypography.Display(14),
                         Spacing = new Vector2(1.1f, 0),
                         Colour = new Color4(
@@ -146,12 +154,12 @@ internal partial class SongSelectPlayButton : ClickableContainer
         Enabled.Value = true;
         eyebrowText.Text = ambientSelection
             ? "NO VISIBLE RESULT · AMBIENT SELECTION"
-            : "START SELECTED CHART";
+            : YokkoStrings.Get("song_select.start_selected");
         actionText.Text = ambientSelection ? "PLAY PREVIOUS" : "PLAY";
         stateIcon.Icon = FontAwesome.Solid.Play;
         background.FadeColour(readyColour(), 120, Easing.OutQuint);
         chevron.FadeTo(ambientSelection ? 0.72f : 1, 120, Easing.OutQuint);
-        shine.FadeTo(ambientSelection ? 0.42f : 1, 120, Easing.OutQuint);
+        shine.FadeTo(reduceMotion ? 0 : ambientSelection ? 0.42f : 1, 120, Easing.OutQuint);
     }
 
     internal void SetAmbientSelection(bool value)
@@ -173,7 +181,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
             100,
             Easing.OutQuint);
         chevron.FadeTo(0.38f, 100, Easing.OutQuint);
-        shine.FadeTo(0.28f, 100, Easing.OutQuint);
+        shine.FadeTo(reduceMotion ? 0 : 0.28f, 100, Easing.OutQuint);
     }
 
     internal void SetError()
@@ -188,7 +196,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
             120,
             Easing.OutQuint);
         chevron.FadeTo(1, 120, Easing.OutQuint);
-        shine.FadeTo(0.55f, 120, Easing.OutQuint);
+        shine.FadeTo(reduceMotion ? 0 : 0.55f, 120, Easing.OutQuint);
     }
 
     protected override bool OnHover(HoverEvent e)
@@ -199,10 +207,10 @@ internal partial class SongSelectPlayButton : ClickableContainer
                 : new Color4(1f, 0.95f, 0.42f, 1f),
             110,
             Easing.OutQuint);
-        chevron.MoveToX(-10, 130, Easing.OutQuint);
-        playTile.RotateTo(-3, 150, Easing.OutQuint);
-        tape.RotateTo(6, 170, Easing.OutQuint);
-        this.ScaleTo(1.018f, 110, Easing.OutQuint);
+        chevron.MoveToX(reduceMotion ? -15 : -10, reduceMotion ? 0 : 130, Easing.OutQuint);
+        playTile.RotateTo(reduceMotion ? 0 : -3, reduceMotion ? 0 : 150, Easing.OutQuint);
+        tape.RotateTo(reduceMotion ? 0 : 6, reduceMotion ? 0 : 170, Easing.OutQuint);
+        this.ScaleTo(reduceMotion ? 1 : 1.018f, reduceMotion ? 0 : 110, Easing.OutQuint);
         return true;
     }
 
@@ -210,9 +218,9 @@ internal partial class SongSelectPlayButton : ClickableContainer
     {
         background.FadeColour(readyColour(), 130, Easing.OutQuint);
         chevron.MoveToX(-15, 130, Easing.OutQuint);
-        playTile.RotateTo(0, 190, Easing.OutQuint);
-        tape.RotateTo(0, 210, Easing.OutQuint);
-        this.ScaleTo(1, 130, Easing.OutQuint);
+        playTile.RotateTo(0, reduceMotion ? 0 : 190, Easing.OutQuint);
+        tape.RotateTo(0, reduceMotion ? 0 : 210, Easing.OutQuint);
+        this.ScaleTo(1, reduceMotion ? 0 : 130, Easing.OutQuint);
     }
 
     private Color4 readyColour() => ambientSelection
@@ -226,15 +234,32 @@ internal partial class SongSelectPlayButton : ClickableContainer
     protected override void LoadComplete()
     {
         base.LoadComplete();
-        shine.MoveToX(-88)
-             .Then()
-             .MoveToX(438, 820, Easing.InOutQuart)
-             .Loop(2500);
+        if (accessibility != null)
+            accessibility.ReduceMotion.BindValueChanged(onMotionChanged, true);
+        else
+            updateShine(false);
+    }
+
+    private void onMotionChanged(ValueChangedEvent<bool> change) => updateShine(change.NewValue);
+
+    private void updateShine(bool reduced)
+    {
+        shine.ClearTransforms();
+        shine.Alpha = reduced ? 0 : 1;
+        if (!reduced)
+            shine.MoveToX(-88).Then().MoveToX(438, 820, Easing.InOutQuart).Loop(2500);
+    }
+
+    protected override void Dispose(bool isDisposing)
+    {
+        if (accessibility != null)
+            accessibility.ReduceMotion.ValueChanged -= onMotionChanged;
+        base.Dispose(isDisposing);
     }
 
     protected override bool OnMouseDown(MouseDownEvent e)
     {
-        this.ScaleTo(0.975f, 75, Easing.OutQuint);
+        this.ScaleTo(reduceMotion ? 1 : 0.975f, reduceMotion ? 0 : 75, Easing.OutQuint);
         return base.OnMouseDown(e);
     }
 
@@ -252,7 +277,7 @@ internal partial class SongSelectPlayButton : ClickableContainer
 
     protected override void OnMouseUp(MouseUpEvent e)
     {
-        this.ScaleTo(IsHovered ? 1.018f : 1, 190, Easing.OutBack);
+        this.ScaleTo(reduceMotion ? 1 : (IsHovered ? 1.018f : 1), reduceMotion ? 0 : 190, Easing.OutBack);
         base.OnMouseUp(e);
     }
 }

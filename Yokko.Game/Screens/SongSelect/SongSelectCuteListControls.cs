@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
@@ -11,6 +12,7 @@ using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
 using osuTK;
 using osuTK.Graphics;
+using osuTK.Input;
 using Yokko.Core.Analysis;
 using Yokko.Core.Difficulty;
 using Yokko.Game.Presentation;
@@ -20,14 +22,20 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal partial class SongSelectSongRow : PoolableDrawable
 {
+    [Resolved(CanBeNull = true)]
+    private YokkoAccessibilitySettings accessibility { get; set; }
+    private bool reduceMotion => accessibility?.ReduceMotion.Value == true;
+    private bool pressed;
+
     internal const float RowWidth = 980;
-    internal const float CompactHeight = 56;
+    internal const float CompactHeight = 64;
+    internal const float SelectedInset = 4;
     internal const float StandaloneHeight = 132;
     internal static readonly Vector2 StandaloneArtworkSize = new(220, 124);
     internal const float CompactLeadingAccentWidth = 3;
     internal const float CompactLeadingAccentOpacity = 0.48f;
     internal const float CompactSelectionOutlineThickness = 1.25f;
-    internal const float CompactSelectedFillOpacity = 0.18f;
+    internal const float CompactSelectedFillOpacity = 0.96f;
 
     private Box surface;
     private Box selectedSurface;
@@ -125,6 +133,8 @@ internal partial class SongSelectSongRow : PoolableDrawable
         ClearTransforms();
         ClearInternal(true);
         Alpha = 1;
+        Scale = Vector2.One;
+        pressed = false;
         accentBoxes.Clear();
         accentBorders.Clear();
         difficultyValueTexts.Clear();
@@ -163,22 +173,19 @@ internal partial class SongSelectSongRow : PoolableDrawable
                 panelBorderAlpha);
         Container panel = SongSelectSurface.CreateCard(
             out surface,
-            SongSelectSurface.Ivory(0.98f),
+            SongSelectSurface.Ivory(SongSelectSurface.RowOpacity),
             panelBorder,
-            9,
+            12,
             1);
+        surface.Colour = rowPaper(false);
         if (!compact)
             accentBorders.Add((panel, panelBorderAlpha));
         selectedSurface = new Box
         {
             RelativeSizeAxes = Axes.Both,
-            Colour = compact
-                ? new Color4(
-                    1f,
-                    0.96f,
-                    0.66f,
-                    CompactSelectedFillOpacity)
-                : new Color4(1f, 0.98f, 0.78f, 1f),
+            Colour = ColourInfo.GradientHorizontal(
+                new Color4(0.035f, 0.085f, 0.37f, CompactSelectedFillOpacity),
+                new Color4(0.075f, 0.16f, 0.43f, CompactSelectedFillOpacity)),
             Alpha = 0,
         };
         focusShadow = SongSelectSurface.CreateShadow(
@@ -218,9 +225,13 @@ internal partial class SongSelectSongRow : PoolableDrawable
                     accent.B,
                     compact ? 0.008f : 0.06f),
             }, compact ? 0.008f : 0.06f),
-            // Keep the selected surface genuinely ivory. Placing it after the
-            // accent wash avoids the muddy blue tint seen in the first pass.
-            selectedSurface,
+            new Container
+            {
+                RelativeSizeAxes = Axes.Both,
+                Masking = true,
+                CornerRadius = 12,
+                Child = selectedSurface,
+            },
         };
 
         children.Add(selectionOutline = new Container
@@ -230,13 +241,11 @@ internal partial class SongSelectSongRow : PoolableDrawable
                 ? new Vector2(RowWidth - restingX - 2, rowHeight - 2)
                 : new Vector2(RowWidth - restingX - 4, rowHeight - 4),
             Masking = true,
-            CornerRadius = 8,
+            CornerRadius = 11,
             BorderThickness = compact
                 ? CompactSelectionOutlineThickness
                 : 2,
-            BorderColour = compact
-                ? SongSelectTheme.Yellow
-                : SongSelectTheme.Cyan,
+            BorderColour = SongSelectTheme.Cyan,
             Alpha = 0,
             Child = new Box
             {
@@ -259,8 +268,8 @@ internal partial class SongSelectSongRow : PoolableDrawable
         {
             Anchor = Anchor.CentreLeft,
             Origin = Anchor.CentreLeft,
-            X = compact ? -9 : 8,
-            Size = new Vector2(12),
+            X = compact ? 24 : 8,
+            Size = new Vector2(18),
             Icon = FontAwesome.Solid.Play,
             Colour = SongSelectTheme.Pink,
             Alpha = 0,
@@ -278,28 +287,6 @@ internal partial class SongSelectSongRow : PoolableDrawable
 
         if (compact)
         {
-            children.Add(addAccent(new Box
-            {
-                Position = new Vector2(-7, -5),
-                Width = 1,
-                Height = rowHeight + 5,
-                Colour = new Color4(
-                    accent.R,
-                    accent.G,
-                    accent.B,
-                    0.18f),
-            }, 0.18f));
-            children.Add(addAccent(new Box
-            {
-                Position = new Vector2(-7, rowHeight / 2),
-                Width = 7,
-                Height = 1,
-                Colour = new Color4(
-                    accent.R,
-                    accent.G,
-                    accent.B,
-                    0.22f),
-            }, 0.22f));
             addCompactContent(
                 children,
                 entry,
@@ -336,8 +323,10 @@ internal partial class SongSelectSongRow : PoolableDrawable
         foreach (SpriteText text in difficultyUnitTexts)
         {
             text.Text = ManiaDifficultyPresentation.Unit(mode);
-            text.Colour = accent;
+            text.Colour = selected ? SongSelectTheme.Pink : SongSelectSurface.Border(0.72f);
         }
+        foreach (SpriteText text in difficultyValueTexts)
+            text.Colour = selected ? SongSelectTheme.Yellow : SongSelectTheme.Navy;
 
         foreach ((Box box, float alpha) in accentBoxes)
         {
@@ -371,32 +360,40 @@ internal partial class SongSelectSongRow : PoolableDrawable
         if (Entry == null)
             return;
 
+        animated &= !reduceMotion;
+        double duration = animated ? 140 : 0;
         bool selectionChanged = selected != value;
         selected = value;
         selectionIndent = compact
             ? Math.Clamp(neighbourIndent, 0, 12)
             : 0;
         surface.FadeColour(
-            SongSelectSurface.Ivory(0.98f),
-            140,
+            rowPaper(IsHovered),
+            duration,
             Easing.OutQuint);
-        selectedSurface.FadeTo(selected ? 1 : 0, 140, Easing.OutQuint);
+        selectedSurface.FadeTo(selected ? 1 : 0, duration, Easing.OutQuint);
         foreach ((SpriteText text, Color4 normal, Color4 selectedColour)
                  in adaptiveTexts)
         {
             text.FadeColour(
                 selected ? selectedColour : normal,
-                140,
+                duration,
                 Easing.OutQuint);
         }
-        selectionOutline.FadeTo(selected ? 1 : 0, 140, Easing.OutQuint);
-        updateSelectionSignalRail(selectionChanged, animated);
-        focusShadow.FadeTo(selected ? 1 : 0, 170, Easing.OutQuint);
-        arrow.FadeTo(selected && compact ? 1 : 0, 120, Easing.OutQuint);
-        updateSelectedSticker(animated && selectionChanged, animated);
+        foreach (SpriteText text in difficultyValueTexts)
+            text.FadeColour(selected ? SongSelectTheme.Yellow : SongSelectTheme.Navy, duration);
+        foreach (SpriteText text in difficultyUnitTexts)
+            text.FadeColour(selected ? SongSelectTheme.Pink : SongSelectSurface.Border(0.72f), duration);
+        selectionOutline.FadeTo(selected ? 0.32f : 0, duration, Easing.OutQuint);
+        if (selectionChanged || !animated)
+            updateSelectionSignalRail(selectionChanged, animated);
+        focusShadow.FadeTo(selected ? 1 : IsHovered ? 0.42f : 0, duration, Easing.OutQuint);
+        arrow.FadeTo(selected && compact ? 1 : 0, duration, Easing.OutQuint);
+        if (selectionChanged || !animated)
+            updateSelectedSticker(animated && selectionChanged, animated);
         compactModePill?.SetExpanded(selected, animated);
         updatePatternSummaryVisibility(animated);
-        float targetX = selectionTargetX();
+        float targetX = selectionTargetX() - (IsHovered && !selected && !reduceMotion ? 3 : 0);
         if (animated)
         {
             this.MoveToX(targetX, 170, Easing.OutQuint);
@@ -532,6 +529,13 @@ internal partial class SongSelectSongRow : PoolableDrawable
         }
 
         float targetAlpha = compact ? 0.92f : 0.78f;
+        if (!animated)
+        {
+            selectedSticker.Alpha = targetAlpha;
+            selectedSticker.Scale = Vector2.One;
+            selectedSticker.Rotation = 3;
+            return;
+        }
         double introDuration = playIntro ? 230 : 0;
         if (playIntro)
         {
@@ -568,31 +572,45 @@ internal partial class SongSelectSongRow : PoolableDrawable
     {
         if (Entry == null)
             return false;
-
-        surface.FadeColour(
-            compact
-                ? new Color4(0.95f, 0.99f, 1f, 0.99f)
-                : SongSelectTheme.PaleCyan,
-            100);
-        focusShadow.FadeTo(selected ? 1 : 0.42f, 120, Easing.OutQuint);
-        float targetX = selectionTargetX() - 3;
-        this.MoveToX(targetX, 120, Easing.OutQuint);
-        this.ResizeWidthTo(
-            RowWidth - targetX,
-            120,
-            Easing.OutQuint);
+        SetSelectionState(selected, selectionIndent);
         return true;
     }
 
-    protected override void OnHoverLost(HoverLostEvent e) =>
-        SetSelected(selected);
+    protected override void OnHoverLost(HoverLostEvent e)
+    {
+        if (Entry == null)
+            return;
+        pressed = false;
+        this.ScaleTo(1, reduceMotion ? 0 : 130, Easing.OutQuint);
+        SetSelectionState(selected, selectionIndent);
+    }
+
+    protected override bool OnMouseDown(MouseDownEvent e)
+    {
+        if (Entry != null && e.Button == MouseButton.Left)
+        {
+            pressed = true;
+            this.ScaleTo(reduceMotion ? 1 : 0.995f, reduceMotion ? 0 : 65, Easing.OutQuint);
+        }
+        return base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseUpEvent e)
+    {
+        if (Entry != null && pressed)
+        {
+            pressed = false;
+            this.ScaleTo(1, reduceMotion ? 0 : 150, Easing.OutQuint);
+        }
+        base.OnMouseUp(e);
+    }
 
     private float selectionTargetX() =>
-        restingX
-        + selectionIndent
-        // Matches lazer Panel.active_x_offset: the active carousel item
-        // projects towards the information side instead of only changing fill.
-        - (selected ? 25 : 0);
+        selected ? SelectedInset : restingX + selectionIndent;
+
+    private static ColourInfo rowPaper(bool hovered) => ColourInfo.GradientHorizontal(
+        SongSelectSurface.Ivory(hovered ? 0.94f : 0.86f),
+        SongSelectSurface.Ivory(hovered ? 0.86f : 0.74f));
 
     protected override bool OnClick(ClickEvent e)
     {
@@ -634,7 +652,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             Text = ManiaDifficultyPresentation.Unit(
                 difficultyRatingMode),
             Font = HomeTypography.Display(16),
-            Colour = accent,
+            Colour = SongSelectSurface.Border(0.72f),
         });
         SpriteText difficultyValue = addDifficultyValue(new SpriteText
         {
@@ -648,21 +666,21 @@ internal partial class SongSelectSongRow : PoolableDrawable
             difficultyUnit,
             difficultyValue)
         {
-            Position = new Vector2(650, 17),
+            Position = new Vector2(650, 21),
         });
         children.Add(compactPrimaryText = adaptiveLabel(
             primaryText ?? entry.Beatmap.DifficultyName,
-            28,
-            5,
+            46,
+            7,
             540,
-            23,
+            25,
             SongSelectTheme.Navy,
-            SongSelectTheme.Navy,
+            SongSelectTheme.Ivory,
             true));
         children.Add(compactSecondaryText = adaptiveLabel(
             $"mapped by {entry.Beatmap.Creator}",
-            28,
-            33,
+            46,
+            39,
             540,
             16,
             new Color4(
@@ -671,24 +689,24 @@ internal partial class SongSelectSongRow : PoolableDrawable
                 SongSelectTheme.Navy.B,
                 0.82f),
             new Color4(
-                SongSelectTheme.Navy.R,
-                SongSelectTheme.Navy.G,
-                SongSelectTheme.Navy.B,
-                0.84f),
+                SongSelectTheme.PaleCyan.R,
+                SongSelectTheme.PaleCyan.G,
+                SongSelectTheme.PaleCyan.B,
+                1f),
             true,
             false));
         children.Add(patternSummary = new SpriteText
         {
-            Position = new Vector2(330, 34),
+            Position = new Vector2(330, 40),
             Width = 300,
             Truncate = true,
             Font = HomeTypography.Display(15),
-            Colour = SongSelectTheme.Navy,
+            Colour = SongSelectTheme.PaleCyan,
             Alpha = 0,
         });
         children.Add(compactModePill = new SongSelectProgressiveModePill(
             entry,
-            13));
+            17));
     }
 
     private void addStandaloneContent(
@@ -724,7 +742,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             514,
             26,
             SongSelectTheme.Navy,
-            SongSelectTheme.Navy,
+            SongSelectTheme.Ivory,
             true));
         children.Add(adaptiveLabel(
             entry.Beatmap.Artist,
@@ -737,11 +755,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
                 SongSelectTheme.Navy.G,
                 SongSelectTheme.Navy.B,
                 0.72f),
-            new Color4(
-                SongSelectTheme.Navy.R,
-                SongSelectTheme.Navy.G,
-                SongSelectTheme.Navy.B,
-                0.72f),
+            SongSelectTheme.PaleCyan,
             true));
         children.Add(adaptiveLabel(
             $"mapped by {entry.Beatmap.Creator}",
@@ -759,7 +773,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
             Width = 472,
             Truncate = true,
             Font = HomeTypography.Display(15),
-            Colour = SongSelectTheme.Navy,
+            Colour = SongSelectTheme.PaleCyan,
             Alpha = 0,
         });
         children.Add(createFullModePill(entry, 728, 90));
@@ -857,7 +871,7 @@ internal partial class SongSelectSongRow : PoolableDrawable
                 ratings,
                 mode),
             Font = HomeTypography.Display(20),
-            Colour = SongSelectTheme.Ivory,
+            Colour = SongSelectTheme.Navy,
         });
         adaptiveTexts.Add((
             unitText,
@@ -865,8 +879,8 @@ internal partial class SongSelectSongRow : PoolableDrawable
             DifficultyColour(ratings, mode)));
         adaptiveTexts.Add((
             valueText,
-            SongSelectTheme.Ivory,
-            SongSelectTheme.Navy));
+            SongSelectTheme.Navy,
+            SongSelectTheme.Yellow));
         flow.Add(unitText);
         flow.Add(valueText);
         return flow;
@@ -1169,8 +1183,8 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
             {
                 RelativeSizeAxes = Axes.Both,
                 Colour = selected
-                    ? SongSelectSurface.Ivory(0.995f)
-                    : SongSelectSurface.Ivory(0.98f),
+                    ? SongSelectSurface.Ivory(SongSelectSurface.DetailOpacity)
+                    : SongSelectSurface.Ivory(SongSelectSurface.RowOpacity),
             },
             new Box
             {
@@ -1368,8 +1382,8 @@ internal partial class SongSelectPackageHeader : PoolableDrawable
         if (stateBackground != null)
         {
             Color4 target = selected
-                ? SongSelectSurface.Ivory(0.995f)
-                : SongSelectSurface.Ivory(0.98f);
+                ? SongSelectSurface.Ivory(SongSelectSurface.DetailOpacity)
+                : SongSelectSurface.Ivory(SongSelectSurface.RowOpacity);
             if (animated)
                 stateBackground.FadeColour(target, 140, Easing.OutQuint);
             else

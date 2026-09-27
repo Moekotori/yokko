@@ -1,3 +1,4 @@
+using Yokko.Game.Presentation;
 using System;
 using System.Linq;
 using osu.Framework.Allocation;
@@ -25,6 +26,8 @@ namespace Yokko.Game.Screens.Gameplay;
 
 internal partial class GameplayPauseOverlay : CompositeDrawable
 {
+    [Resolved(CanBeNull = true)] private YokkoAccessibilitySettings accessibility { get; set; }
+
     // Legacy internal artboard. The stage is fitted to the shared 1920x1080
     // viewport in Update(); new full-screen layouts must use
     // YokkoDisplaySettings.ReferenceLayoutSize instead.
@@ -196,8 +199,12 @@ internal partial class GameplayPauseOverlay : CompositeDrawable
     /// </summary>
     private void updateParallax()
     {
-        if (parallaxBack == null || parallaxFront == null)
+        if (parallaxBack == null || parallaxFront == null) return;
+        if (accessibility?.ReduceMotion.Value == true)
+        {
+            parallaxBack.Position = parallaxFront.Position = Vector2.Zero;
             return;
+        }
 
         var inputManager = GetContainingInputManager();
         if (inputManager == null)

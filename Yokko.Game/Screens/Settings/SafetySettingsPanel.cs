@@ -68,7 +68,7 @@ internal partial class SafetySettingsPanel : CompositeDrawable
                 402,
                 YokkoStrings.Get("settings.safety.exit_hold_duration"),
                 new HomeExitHoldDurationSlider(exitHoldDuration)),
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(SettingsChrome.ContentX, 486),
                 Width = SettingsChrome.ContentWidth,
@@ -129,7 +129,7 @@ internal partial class HomeExitHoldDurationSlider : CompositeDrawable
 
         InternalChildren = new Drawable[]
         {
-            valueText = new SpriteText
+            valueText = new SettingsReadableText
             {
                 Position = new Vector2(track_x, 5),
                 Font = HomeTypography.Display(18),

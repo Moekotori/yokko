@@ -15,15 +15,55 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
 {
     internal const int Capacity = 24;
     internal const int MaximumThumbnailDimension = 512;
+    internal const int BackgroundCapacity = 2;
+    internal const int MaximumBackgroundDimension = 1920;
     private const long maximum_thumbnail_pixels =
         (long)MaximumThumbnailDimension * MaximumThumbnailDimension;
     private readonly object syncRoot = new();
     private readonly Dictionary<string, CachedArtwork> cachedTextures =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly LinkedList<string> lru = new();
+    private readonly int capacity;
+    private readonly int maximumDimension;
+    private readonly long maximumPixels;
+    private SongSelectArtworkTextureCache backgrounds;
     private LargeTextureStore textureStore;
     private IRenderer renderer;
     private bool disposed;
+
+    public SongSelectArtworkTextureCache()
+        : this(Capacity, MaximumThumbnailDimension, maximum_thumbnail_pixels)
+    {
+    }
+
+    private SongSelectArtworkTextureCache(int capacity, int maximumDimension, long maximumPixels)
+    {
+        this.capacity = capacity;
+        this.maximumDimension = maximumDimension;
+        this.maximumPixels = maximumPixels;
+    }
+
+    // Keep only the current and outgoing wallpaper at full display resolution.
+    // The virtualised list and its preloader retain the small thumbnail budget.
+    internal Texture GetBackground(string path, IRenderer currentRenderer)
+    {
+        lock (syncRoot)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            backgrounds ??= new SongSelectArtworkTextureCache(
+                BackgroundCapacity, MaximumBackgroundDimension, 1920L * 1080);
+            return backgrounds.Get(path, currentRenderer);
+        }
+    }
+
+    internal int CachedBackgroundCount
+    {
+        get
+        {
+            lock (syncRoot)
+                return backgrounds?.CachedArtworkCount ?? 0;
+        }
+    }
 
     internal Texture Get(string path, IRenderer currentRenderer)
     {
@@ -37,7 +77,7 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
             {
                 renderer = currentRenderer;
                 int maximumDimension = Math.Min(
-                    MaximumThumbnailDimension,
+                    this.maximumDimension,
                     currentRenderer.MaxTextureSize);
                 textureStore = new LargeTextureStore(
                     currentRenderer,
@@ -46,7 +86,7 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
                             new ChartArtworkResourceStore(),
                             maximumDimension,
                             maximumPixelCount: Math.Min(
-                                maximum_thumbnail_pixels,
+                                maximumPixels,
                                 (long)maximumDimension * maximumDimension))),
                     manualMipmaps: false);
             }
@@ -114,6 +154,8 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
                 return;
 
             disposed = true;
+            backgrounds?.Dispose();
+            backgrounds = null;
             foreach (CachedArtwork cached in cachedTextures.Values)
                 cached.Texture.Dispose();
             textureStore?.Dispose();
@@ -126,7 +168,7 @@ internal sealed class SongSelectArtworkTextureCache : IDisposable
 
     private void trimToCapacity()
     {
-        while (cachedTextures.Count > Capacity)
+        while (cachedTextures.Count > capacity)
         {
             LinkedListNode<string> oldest = lru.Last!;
             lru.RemoveLast();

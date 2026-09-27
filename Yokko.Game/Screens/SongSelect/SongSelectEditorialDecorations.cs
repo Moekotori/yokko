@@ -1,3 +1,4 @@
+using Yokko.Game.Localisation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
@@ -205,124 +206,61 @@ internal partial class SongSelectPosterBlock : CompositeDrawable
 /// </summary>
 internal partial class SongSelectPreviewSignalStrip : CompositeDrawable
 {
-    private readonly Circle statusPulse;
-
-    internal SongSelectPreviewSignalStrip()
+    internal SongSelectPreviewSignalStrip(string keyMode)
     {
-        Size = new Vector2(522, 40);
-        Masking = true;
-        CornerRadius = 9;
-        BorderThickness = 1;
-        BorderColour = new Color4(
-            SongSelectTheme.Cyan.R,
-            SongSelectTheme.Cyan.G,
-            SongSelectTheme.Cyan.B,
-            0.24f);
-
+        Size = new Vector2(540, 32);
         InternalChildren =
         [
-            new Box
+            new SpriteIcon
             {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(
-                    SongSelectTheme.PaleCyan.R,
-                    SongSelectTheme.PaleCyan.G,
-                    SongSelectTheme.PaleCyan.B,
-                    0.22f),
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 2,
+                Size = new Vector2(18),
+                Icon = FontAwesome.Solid.Headphones,
+                Colour = SongSelectTheme.Cyan,
+            },
+            new SpriteText
+            {
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 32,
+                Text = YokkoStrings.Get("song_select.preview_caption"),
+                Font = HomeTypography.Display(16),
+                Colour = SongSelectTheme.Navy,
             },
             new Box
             {
-                RelativeSizeAxes = Axes.Y,
-                Width = 4,
-                Colour = SongSelectTheme.Pink,
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                X = 188,
+                Size = new Vector2(238, 1),
+                Colour = new Color4(0.29f, 0.81f, 0.94f, 0.32f),
             },
             new Container
             {
-                Position = new Vector2(12, 7),
-                Size = new Vector2(26),
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreRight,
+                Size = new Vector2(88, 28),
                 Masking = true,
-                CornerRadius = 13,
-                BorderThickness = 1,
-                BorderColour = new Color4(
-                    SongSelectTheme.Cyan.R,
-                    SongSelectTheme.Cyan.G,
-                    SongSelectTheme.Cyan.B,
-                    0.40f),
+                CornerRadius = 9,
                 Children =
                 [
                     new Box
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Colour = SongSelectSurface.Ivory(0.86f),
+                        Colour = new Color4(1f, 0.22f, 0.65f, 0.10f),
                     },
-                    new SpriteIcon
+                    new SpriteText
                     {
                         Anchor = Anchor.Centre,
                         Origin = Anchor.Centre,
-                        Size = new Vector2(12),
-                        Icon = FontAwesome.Solid.Headphones,
-                        Colour = SongSelectTheme.Cyan,
+                        Text = keyMode,
+                        Font = HomeTypography.Display(16),
+                        Colour = SongSelectTheme.Pink,
                     },
                 ],
             },
-            new SpriteText
-            {
-                Position = new Vector2(48, 5),
-                Text = "PREVIEW SIGNAL",
-                Font = HomeTypography.Display(13),
-                Spacing = new Vector2(0.7f, 0),
-                Colour = new Color4(
-                    SongSelectTheme.Navy.R,
-                    SongSelectTheme.Navy.G,
-                    SongSelectTheme.Navy.B,
-                    0.82f),
-            },
-            new SpriteText
-            {
-                Position = new Vector2(48, 19),
-                Text = "ACTIVE / READY",
-                Font = HomeTypography.Display(15),
-                Colour = SongSelectTheme.Navy,
-            },
-            new HomeSignalWave(new Color4(
-                SongSelectTheme.Cyan.R,
-                SongSelectTheme.Cyan.G,
-                SongSelectTheme.Cyan.B,
-                0.72f))
-            {
-                Position = new Vector2(342, 5),
-                Scale = new Vector2(0.72f),
-            },
-            new SpriteText
-            {
-                Anchor = Anchor.CentreRight,
-                Origin = Anchor.CentreRight,
-                X = -24,
-                Text = "SYNC / 04",
-                Font = HomeTypography.Display(13),
-                Colour = new Color4(
-                    SongSelectTheme.Navy.R,
-                    SongSelectTheme.Navy.G,
-                    SongSelectTheme.Navy.B,
-                    0.82f),
-            },
-            statusPulse = new Circle
-            {
-                Anchor = Anchor.CentreRight,
-                Origin = Anchor.CentreRight,
-                X = -10,
-                Size = new Vector2(6),
-                Colour = SongSelectTheme.Pink,
-            },
         ];
-    }
-
-    protected override void LoadComplete()
-    {
-        base.LoadComplete();
-        statusPulse.FadeTo(0.32f, 620, Easing.InOutSine)
-                   .Then()
-                   .FadeTo(1, 620, Easing.InOutSine)
-                   .Loop();
     }
 }

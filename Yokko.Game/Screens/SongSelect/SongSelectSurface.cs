@@ -1,5 +1,6 @@
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Effects;
 using osu.Framework.Graphics.Shapes;
 using osuTK;
 using osuTK.Graphics;
@@ -15,6 +16,14 @@ internal static class SongSelectSurface
 {
     public const float CardRadius = 10;
 
+    // Only the paper transmits the beatmap artwork; text and icons stay opaque.
+    public const float DetailOpacity = 0.84f;
+    public const float RowOpacity = 0.78f;
+    public const float RankingOpacity = 0.80f;
+    public const float ControlOpacity = 0.88f;
+    public const float FooterOpacity = 0.80f;
+    public const float FooterCardOpacity = 0.36f;
+
     public static Drawable CreateShadow(
         float cornerRadius = CardRadius,
         float opacity = 0.18f,
@@ -24,6 +33,16 @@ internal static class SongSelectSurface
         Position = new Vector2(0, yOffset),
         Masking = true,
         CornerRadius = cornerRadius,
+        EdgeEffect = new EdgeEffectParameters
+        {
+            Type = EdgeEffectType.Shadow,
+            Radius = 10,
+            Colour = new Color4(
+                SongSelectTheme.DeepNavy.R,
+                SongSelectTheme.DeepNavy.G,
+                SongSelectTheme.DeepNavy.B,
+                opacity * 0.6f),
+        },
         Child = new Box
         {
             RelativeSizeAxes = Axes.Both,
@@ -31,7 +50,7 @@ internal static class SongSelectSurface
                 SongSelectTheme.DeepNavy.R,
                 SongSelectTheme.DeepNavy.G,
                 SongSelectTheme.DeepNavy.B,
-                opacity),
+                opacity * 0.22f),
         },
     };
 

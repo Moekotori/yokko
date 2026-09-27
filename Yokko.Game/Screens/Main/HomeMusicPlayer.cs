@@ -255,6 +255,21 @@ public partial class HomeMusicPlayer : CompositeDrawable, ISongSelectPreviewHost
     void ISongSelectPreviewHost.CompletePreviewHandoff(
         Task playbackSettled) => completePreviewHandoff(playbackSettled);
 
+    Task ISongSelectPreviewHost.SuspendOutputAsync()
+    {
+        lock (audioQueueLock)
+        {
+            // Wait for an already queued song start before releasing an exclusive output.
+            // The covering settings screen has already deactivated this player.
+            audioQueue = audioQueue.ContinueWith(async _ =>
+            {
+                if (!disposed && audioEngine != null)
+                    await audioEngine.PauseAsync().ConfigureAwait(false);
+            }, TaskScheduler.Default).Unwrap();
+            return audioQueue;
+        }
+    }
+
     [BackgroundDependencyLoader]
     private void load()
     {

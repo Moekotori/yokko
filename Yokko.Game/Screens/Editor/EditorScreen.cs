@@ -28,7 +28,7 @@ using Yokko.Import.Quaver;
 
 namespace Yokko.Game.Screens.Editor;
 
-public partial class EditorScreen : Screen
+public partial class EditorScreen : YokkoScreen
 {
     // Legacy internal editor coordinates. The centred stage is scaled against
     // the shared 1920x1080 viewport and shrinks further for smaller windows.

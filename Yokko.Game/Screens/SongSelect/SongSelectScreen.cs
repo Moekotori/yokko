@@ -47,7 +47,7 @@ using Yokko.Game.Skinning.OsuMania;
 
 namespace Yokko.Game.Screens.SongSelect;
 
-public partial class SongSelectScreen : Screen
+public partial class SongSelectScreen : YokkoScreen
 {
     private const double playbackRateShortcutStep = 0.05;
     private const double minimumPlaybackRate = 0.5;
@@ -61,20 +61,20 @@ public partial class SongSelectScreen : Screen
     private const float details_top = 24;
     private const float details_left = 36;
     private const float details_width = 850;
-    private const float details_panel_height = 320;
-    private const float details_artwork_size = 280;
-    private const float selected_artwork_rotation = -1.25f;
-    private const float details_content_left = 310;
-    private const float details_content_width = 522;
+    private const float details_panel_height = 336;
+    private const float details_artwork_size = 250;
+    private const float selected_artwork_rotation = -0.6f;
+    private const float details_content_left = 292;
+    private const float details_content_width = 540;
     private const double details_title_units_per_line = 26;
-    private const float ranking_top = 340;
+    private const float ranking_top = 356;
     private const float ranking_height = 508;
     private const float browse_top = 132;
     private const float browse_width = 980;
     private const float browse_right = 24;
     private const float browse_height =
         designed_height - footer_height - browse_top - 16;
-    private const float background_isolation_alpha = 0.58f;
+    private const float background_isolation_alpha = 0.06f;
     private const int initial_artwork_preload_limit = 16;
     private const int page_navigation_step = 5;
     private const int library_delta_max_operations_per_frame = 128;
@@ -115,9 +115,7 @@ public partial class SongSelectScreen : Screen
     private Container ambientAccents;
     private SongSelectPosterBlock posterBlock;
     private Container header;
-    private Sprite backgroundA;
-    private Sprite backgroundB;
-    private Sprite activeBackground;
+    private SongSelectBackground artworkBackground;
     private Container detailsHost;
     private Container activeDetailsContent;
     private Container selectedChartFactsRow;
@@ -185,14 +183,14 @@ public partial class SongSelectScreen : Screen
     private SongSelectFilterOptionButton sevenKeyFilterButton;
     private SongSelectFilterOptionButton includeConvertsFilterButton;
     private SongSelectFilterOptionButton excludeConvertsFilterButton;
-    private Container beatmapOptionsPopover;
+    private SongSelectPopover beatmapOptionsPopover;
     private SpriteText beatmapOptionsTitle;
     private SongSelectBrowseToolButton sourceFolderButton;
     private SongSelectBrowseToolButton manageLibraryButton;
     private SongSelectBrowseToolButton reloadLibraryButton;
     private YokkoButton filtersResetButton;
     private Container browseToolbar;
-    private Container filtersPopover;
+    private SongSelectPopover filtersPopover;
     private SpriteText filtersPopoverSummary;
     private Container filterStatus;
     private SpriteText filterStatusText;
@@ -397,9 +395,7 @@ public partial class SongSelectScreen : Screen
     internal int DetailsTransitionVersion => detailsTransitionVersion;
     internal int DetailsLayerCount =>
         detailsHost?.Children.Count() ?? 0;
-    internal float BackgroundCoverageAlpha => Math.Max(
-        backgroundA?.Alpha ?? 0,
-        backgroundB?.Alpha ?? 0);
+    internal float BackgroundCoverageAlpha => artworkBackground?.CoverageAlpha ?? 0;
     internal float StageAlpha => stage?.Alpha ?? 0;
     internal bool EntryTransitionInProgress => entryTransitionInProgress;
     internal int EntryTransitionVersion => entryTransitionVersion;
@@ -702,14 +698,16 @@ public partial class SongSelectScreen : Screen
             ? selectedEntry.PackageId
             : null);
 
-        Texture firstWallpaper = textureFor(selectedEntry);
+        Texture firstWallpaper = textureFor(selectedEntry, fullSize: true);
         Texture logo = textures.Get(
             "SongSelect/Ui/home-logo-light-512");
 
         InternalChildren = new Drawable[]
         {
-            backgroundA = createBackground(firstWallpaper),
-            backgroundB = createBackground(textureFor(selectedEntry)),
+            artworkBackground = new SongSelectBackground(
+                SongSelectArtworkPolicy.Resolve(selectedEntry?.WallpaperTexture),
+                firstWallpaper,
+                () => ReduceMotionEnabled),
             createBackgroundIsolation(),
             createBackgroundMoodWash(),
             stage = new Container
@@ -748,8 +746,6 @@ public partial class SongSelectScreen : Screen
         };
         logLoadStage("static UI");
 
-        backgroundB.Alpha = 0;
-        activeBackground = backgroundA;
         rebuildDetails();
         logLoadStage("selected details");
         refreshDifficultyFilterBar();
@@ -855,7 +851,6 @@ public partial class SongSelectScreen : Screen
         if (!scoreResultVisible)
             playSelectedPreview();
         scheduleGameplayPreload();
-        this.FadeIn(180, Easing.OutQuint);
     }
 
     internal void RefreshImportedReplayScores(string chartId)
@@ -893,7 +888,6 @@ public partial class SongSelectScreen : Screen
         diagnostics.Trace("SONG_SELECT", "suspended");
         if (!KeepsPreviewPlaying(e.Next))
             previewPlayer?.Stop();
-        this.FadeTo(0.35f, 180, Easing.OutQuint);
     }
 
     public override bool OnExiting(ScreenExitEvent e)
@@ -920,66 +914,44 @@ public partial class SongSelectScreen : Screen
 
     private void playEntryTransition()
     {
-        // Match the motion language used by SettingsScreen: the page surface
-        // is present on the navigation frame, primary content settles over
-        // 180 ms, and the browser rail follows with the same 28 px / 520 ms
-        // OutQuint movement as the settings sidebar. Keeping the surface
-        // opaque means there is never an empty ScreenStack frame between pages.
+        // The page crossfade is owned by YokkoScreen; only content moves here.
         stage.ClearTransforms();
         stage.Alpha = 1;
         stage.Position = Vector2.Zero;
         entryTransitionInProgress = true;
         entryTransitionVersion++;
-        Scheduler.AddDelayed(() => entryTransitionInProgress = false, 520);
+        Scheduler.AddDelayed(() => entryTransitionInProgress = false,
+            ReduceMotionEnabled ? YokkoMotion.ReducedDuration : YokkoMotion.ContentDuration + YokkoMotion.Stagger * 3);
 
-        header.ClearTransforms();
-        header.Y = -10;
-        header.Alpha = 0;
-        header.MoveToY(0, 180, Easing.OutQuint)
-              .FadeIn(180, Easing.OutQuint);
+        YokkoMotion.Reveal(header, new Vector2(header.X, 0), new Vector2(0, -10), ReduceMotionEnabled);
+        YokkoMotion.Reveal(detailsHost, new Vector2(details_left, detailsHost.Y), new Vector2(12, 0), ReduceMotionEnabled, YokkoMotion.Stagger);
+        YokkoMotion.Reveal(songBrowser, new Vector2(-browse_right, songBrowser.Y), new Vector2(20, 0), ReduceMotionEnabled, YokkoMotion.Stagger);
+        YokkoMotion.Reveal(footer, new Vector2(footer.X, 0), new Vector2(0, 10), ReduceMotionEnabled, YokkoMotion.Stagger * 2);
 
-        detailsHost.ClearTransforms();
-        detailsHost.X = details_left + 10;
-        detailsHost.Alpha = 0;
-        detailsHost.MoveToX(details_left, 180, Easing.OutQuint)
-                   .FadeIn(180, Easing.OutQuint);
+        playHeaderControlEntry(searchBox, YokkoMotion.Stagger, 12);
+        playHeaderControlEntry(difficultyFilterBar, YokkoMotion.Stagger * 2, 10);
+        playHeaderControlEntry(browseToolbar, YokkoMotion.Stagger * 3, 8);
 
-        songBrowser.ClearTransforms();
-        songBrowser.X = -browse_right + 28;
-        songBrowser.Alpha = 0;
-        songBrowser.MoveToX(-browse_right, 520, Easing.OutQuint)
-                   .FadeIn(360, Easing.OutQuint);
-
-        footer.ClearTransforms();
-        footer.Y = 10;
-        footer.Alpha = 0;
-        footer.MoveToY(0, 180, Easing.OutQuint)
-              .FadeIn(180, Easing.OutQuint);
-
-        playHeaderControlEntry(searchBox, 70, 18);
-        playHeaderControlEntry(difficultyFilterBar, 110, 12);
-        playHeaderControlEntry(browseToolbar, 140, 10);
-
-        for (int i = 0; i < ambientStickers.Count; i++)
-            ambientStickers[i].Play(120 + i * 42);
-        for (int i = 0; i < ambientSignals.Count; i++)
-            ambientSignals[i].Play(220 + i * 70);
-
-        posterBlock?.Play(180);
+        if (!ReduceMotionEnabled)
+        {
+            for (int i = 0; i < ambientStickers.Count; i++)
+                ambientStickers[i].Play(120 + i * 42);
+            for (int i = 0; i < ambientSignals.Count; i++)
+                ambientSignals[i].Play(220 + i * 70);
+            posterBlock?.Play(180);
+        }
+        else if (posterBlock != null)
+            posterBlock.Alpha = 1;
 
         if (ambientAccents != null)
         {
-            ambientAccents.ClearTransforms();
-            ambientAccents.Alpha = 0;
-            ambientAccents.Y = 5;
-            ambientAccents.Delay(260)
-                          .FadeIn(360, Easing.OutQuint)
-                          .MoveToY(0, 420, Easing.OutBack);
+            YokkoMotion.Reveal(ambientAccents, new Vector2(ambientAccents.X, 0),
+                new Vector2(0, 5), ReduceMotionEnabled, YokkoMotion.Stagger * 3);
         }
 
     }
 
-    private static void playHeaderControlEntry(
+    private void playHeaderControlEntry(
         Drawable drawable,
         double delay,
         float horizontalOffset)
@@ -987,19 +959,8 @@ public partial class SongSelectScreen : Screen
         if (drawable == null)
             return;
 
-        float restingX = drawable.X;
-        float restingY = drawable.Y;
-        drawable.ClearTransforms();
-        drawable.Position = new Vector2(
-            restingX + horizontalOffset,
-            restingY + 6);
-        drawable.Alpha = 0;
-        drawable.Delay(delay)
-                .MoveToX(restingX, 300, Easing.OutBack);
-        drawable.Delay(delay)
-                .MoveToY(restingY, 240, Easing.OutQuint);
-        drawable.Delay(delay)
-                .FadeIn(190, Easing.OutQuint);
+        YokkoMotion.Reveal(drawable, drawable.Position,
+            new Vector2(horizontalOffset, 6), ReduceMotionEnabled, delay);
     }
 
     protected override void Dispose(bool isDisposing)
@@ -3484,7 +3445,7 @@ public partial class SongSelectScreen : Screen
             SongSelectSurface.Border(0.24f),
             10,
             1);
-        filtersPopover = new Container
+        filtersPopover = new SongSelectPopover
         {
             Anchor = Anchor.TopRight,
             Origin = Anchor.TopRight,
@@ -3649,7 +3610,7 @@ public partial class SongSelectScreen : Screen
             ],
         };
 
-        return beatmapOptionsPopover = new Container
+        return beatmapOptionsPopover = new SongSelectPopover
         {
             Anchor = Anchor.BottomRight,
             Origin = Anchor.BottomRight,
@@ -3980,7 +3941,9 @@ public partial class SongSelectScreen : Screen
                 new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = SongSelectSurface.Ivory(0.98f),
+                    Colour = ColourInfo.GradientVertical(
+                        SongSelectSurface.Ivory(0.62f),
+                        SongSelectSurface.Ivory(0.94f)),
                 },
                 new Box
                 {
@@ -4050,11 +4013,11 @@ public partial class SongSelectScreen : Screen
                         new Box
                         {
                             RelativeSizeAxes = Axes.Both,
-                            Colour = SongSelectSurface.Ivory(0.99f),
+                            Colour = SongSelectSurface.Ivory(SongSelectSurface.FooterCardOpacity),
                         },
                         mods,
                         randomFooterButton = new SongSelectFooterToolButton(
-                            "RANDOM",
+                            YokkoStrings.Get("song_select.random"),
                             FontAwesome.Solid.Random,
                             SongSelectTheme.Cyan,
                             selectRandomEntry)
@@ -4062,7 +4025,7 @@ public partial class SongSelectScreen : Screen
                             Position = new Vector2(154, 0),
                         },
                         optionsFooterButton = new SongSelectFooterToolButton(
-                            "OPTIONS",
+                            YokkoStrings.Get("song_select.options"),
                             FontAwesome.Solid.Cog,
                             SongSelectTheme.Pink,
                             OpenOptions)
@@ -4080,7 +4043,7 @@ public partial class SongSelectScreen : Screen
     private Drawable createShortcutLegend() => shortcutLegend = new Container
     {
         Position = new Vector2(786, 24),
-        Size = new Vector2(220, 106),
+        Size = new Vector2(220, 82),
         Masking = true,
         CornerRadius = 10,
         BorderThickness = 1,
@@ -4090,16 +4053,16 @@ public partial class SongSelectScreen : Screen
             new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = SongSelectSurface.Ivory(0.92f),
+                Colour = SongSelectSurface.Ivory(SongSelectSurface.FooterCardOpacity),
             },
-            shortcutHint("U/D", "BROWSE", 12, 10),
-            shortcutHint("C+F", "SEARCH", 116, 10),
-            shortcutHint("F1", "MODS", 12, 34),
-            shortcutHint("F3", "OPTIONS", 116, 34),
-            shortcutHint("F2", "RANDOM", 12, 58),
-            shortcutHint("S+F2", "REWIND", 116, 58),
-            shortcutHint("L/R", "SETS", 12, 82),
-            shortcutHint("ENT", "PLAY", 116, 82),
+            shortcutHint("U/D", "BROWSE", 12, 7),
+            shortcutHint("C+F", "SEARCH", 116, 7),
+            shortcutHint("F1", "MODS", 12, 25),
+            shortcutHint("F3", "OPTIONS", 116, 25),
+            shortcutHint("F2", "RANDOM", 12, 43),
+            shortcutHint("S+F2", "REWIND", 116, 43),
+            shortcutHint("L/R", "SETS", 12, 61),
+            shortcutHint("ENT", "PLAY", 116, 61),
         ],
     };
 
@@ -4218,8 +4181,7 @@ public partial class SongSelectScreen : Screen
         updateBeatmapOptions();
         beatmapOptionsOpen = true;
         searchBox?.SetHoldFocus(false);
-        beatmapOptionsPopover?.ClearTransforms();
-        beatmapOptionsPopover?.FadeIn(120, Easing.OutQuint);
+        beatmapOptionsPopover?.Open();
         Scheduler.AddDelayed(() =>
         {
             if (beatmapOptionsOpen)
@@ -4552,9 +4514,10 @@ public partial class SongSelectScreen : Screen
             selectedEntry,
             displayedChartAnalysis.PatternProfile);
         string[] detailsTitleLines = LayoutDetailsTitle(
-            selectedEntry.Beatmap.Title);
-        float artistY = detailsTitleLines.Length == 1 ? 102 : 111;
-        float mapperY = detailsTitleLines.Length == 1 ? 126 : 134;
+            selectedEntry.IsPackage
+                ? selectedEntry.Beatmap.DifficultyName
+                : selectedEntry.Beatmap.Title);
+        float collectionY = detailsTitleLines.Length == 1 ? 57 : 82;
 
         rankingPanel = new SongSelectRankingPanel(
             selectedEntry,
@@ -4572,36 +4535,35 @@ public partial class SongSelectScreen : Screen
             {
                 createSongInfoPanel(),
                 createSelectedArtwork(),
-                createDifficultyPill(appliedBeatmap),
                 createDifficultyValuePill(
                     difficultyRatings,
                     displaySettings.DifficultyRatingMode.Value),
                 createAdaptiveDetailsTitle(detailsTitleLines),
                 new SpriteText
                 {
-                    Position = new Vector2(details_content_left, artistY),
-                    Width = details_content_width,
+                    Position = new Vector2(details_content_left, collectionY),
+                    Width = details_content_width - 106,
                     Truncate = true,
-                    Text = selectedEntry.Beatmap.Artist,
-                    Font = HomeTypography.Display(17),
+                    Text = selectedEntry.IsPackage
+                        ? selectedEntry.Beatmap.Title
+                        : selectedEntry.Beatmap.DifficultyName,
+                    Font = HomeTypography.Display(22),
                     Colour = SongSelectTheme.Navy,
                 },
                 new SpriteText
                 {
-                    Position = new Vector2(details_content_left, mapperY),
+                    Position = new Vector2(details_content_left, 112),
                     Width = details_content_width,
                     Truncate = true,
-                    Text = $"mapped by {selectedEntry.Beatmap.Creator}",
-                    Font = HomeTypography.Body(17),
-                    Colour = new Color4(
-                        SongSelectTheme.Navy.R,
-                        SongSelectTheme.Navy.G,
-                        SongSelectTheme.Navy.B,
-                        0.82f),
+                    Text = $"{selectedEntry.Beatmap.Artist} · mapped by {selectedEntry.Beatmap.Creator}",
+                    Font = HomeTypography.Display(17),
+                    Colour = SongSelectTheme.Navy,
                 },
-                new SongSelectPreviewSignalStrip
+                new SongSelectPreviewSignalStrip(appliedBeatmap.StageCount == 2
+                    ? $"{appliedBeatmap.KeysPerStage}K + {appliedBeatmap.KeysPerStage}K"
+                    : $"{(int)appliedBeatmap.KeyMode}K")
                 {
-                    Position = new Vector2(details_content_left, 158),
+                    Position = new Vector2(details_content_left, 150),
                 },
                 selectedChartFactsRow = createSelectedChartFactsRow(
                     displayedLengthMilliseconds,
@@ -4634,66 +4596,30 @@ public partial class SongSelectScreen : Screen
         bool animateSelection,
         float selectionDirection)
     {
-        if (!animateSelection || activeDetailsContent == null)
-        {
-            detailsTransitionInProgress = false;
-            detailsHost.Clear();
-            next.Alpha = 1;
-            next.Y = 0;
-            detailsHost.Add(activeDetailsContent = next);
-            return;
-        }
-
-        float direction = Math.Sign(selectionDirection);
-        if (direction == 0)
-            direction = 1;
-
-        int transitionVersion = ++detailsTransitionVersion;
-        if (detailsTransitionInProgress)
-        {
-            // A key-repeat or RANDOM jump can request several selections in
-            // one update. Retire the superseded paper immediately so complete
-            // ranking tables never stack in the same visible frame.
-            detailsHost.Clear();
-            next.Alpha = 1;
-            next.Y = direction * 10;
-            detailsHost.Add(activeDetailsContent = next);
-            next.MoveToY(0, 170, Easing.OutQuint);
-            Scheduler.AddDelayed(() =>
-            {
-                if (detailsTransitionVersion == transitionVersion
-                    && ReferenceEquals(activeDetailsContent, next))
-                {
-                    detailsTransitionInProgress = false;
-                }
-            }, 190);
-            return;
-        }
-
-        detailsTransitionInProgress = true;
-        Container outgoing = activeDetailsContent;
-        outgoing.ClearTransforms();
-        outgoing.FadeOut(90, Easing.OutQuint);
-        outgoing.MoveToY(-direction * 8, 170, Easing.OutQuint);
-
-        // Keep the incoming paper and text opaque. Cross-fading two complete
-        // ranking tables creates a cheap-looking double image; direction and
-        // the existing wallpaper blend already communicate the selection.
+        animateSelection &= !ReduceMotionEnabled;
+        float direction = selectionDirection < 0 ? -1 : 1;
+        // Retain the current travel when key repeat interrupts a change. Only
+        // one translucent paper/text layer exists, so rapid navigation cannot
+        // double the paper opacity or ghost two song titles over one another.
+        float startY = detailsTransitionInProgress && activeDetailsContent != null
+            ? activeDetailsContent.Y
+            : direction * 8;
+        bool animate = animateSelection && activeDetailsContent != null;
+        detailsHost.Clear();
         next.Alpha = 1;
-        next.Y = direction * 10;
+        next.Y = animate ? startY : 0;
         detailsHost.Add(activeDetailsContent = next);
-        next.MoveToY(0, 210, Easing.OutQuint);
+        detailsTransitionInProgress = animate;
+        if (!animate)
+            return;
 
+        int version = ++detailsTransitionVersion;
+        next.MoveToY(0, 180, Easing.OutQuint);
         Scheduler.AddDelayed(() =>
         {
-            if (outgoing.Parent == detailsHost)
-                detailsHost.Remove(outgoing, true);
-            if (detailsTransitionVersion == transitionVersion
-                && ReferenceEquals(activeDetailsContent, next))
-            {
+            if (version == detailsTransitionVersion && ReferenceEquals(activeDetailsContent, next))
                 detailsTransitionInProgress = false;
-            }
-        }, 240);
+        }, 190);
     }
 
     private Drawable createPersonalPerformanceStrip()
@@ -4803,7 +4729,7 @@ public partial class SongSelectScreen : Screen
     {
         Container panel = SongSelectSurface.CreateCard(
             out _,
-            SongSelectSurface.Ivory(0.975f),
+            SongSelectSurface.Ivory(SongSelectSurface.DetailOpacity),
             SongSelectSurface.Border(0.26f),
             14,
             1);
@@ -4868,8 +4794,8 @@ public partial class SongSelectScreen : Screen
     {
         var flow = new FillFlowContainer
         {
-            Position = new Vector2(details_content_left, 49),
-            Width = details_content_width,
+            Position = new Vector2(details_content_left, 18),
+            Width = details_content_width - 106,
             AutoSizeAxes = Axes.Y,
             Direction = FillDirection.Vertical,
             Spacing = new Vector2(0, -2),
@@ -4878,11 +4804,11 @@ public partial class SongSelectScreen : Screen
         {
             flow.Add(new SpriteText
             {
-                Width = details_content_width,
+                Width = details_content_width - 106,
                 Truncate = true,
                 Text = line,
                 Font = HomeTypography.Display(
-                    lines.Length == 1 ? 28 : 21),
+                    lines.Length == 1 ? 34 : 28),
                 Colour = SongSelectTheme.Navy,
             });
         }
@@ -4902,8 +4828,8 @@ public partial class SongSelectScreen : Screen
         double overallDifficulty,
         double drainRate) => new()
         {
-            Position = new Vector2(details_content_left, 210),
-            Size = new Vector2(details_content_width, 34),
+            Position = new Vector2(22, 286),
+            Size = new Vector2(806, 40),
             Children =
             [
                 createSongStat(
@@ -4913,30 +4839,30 @@ public partial class SongSelectScreen : Screen
                     "LENGTH",
                     TimeSpan.FromMilliseconds(lengthMilliseconds)
                             .ToString(@"mm\:ss")),
-                createDetailsVerticalDivider(102),
+                createDetailsVerticalDivider(152),
                 createSongStat(
-                    108,
+                    164,
                     0,
                     FontAwesome.Solid.WaveSquare,
                     "BPM",
                     bpm),
-                createDetailsVerticalDivider(206),
+                createDetailsVerticalDivider(316),
                 createSongStat(
-                    212,
+                    328,
                     0,
                     FontAwesome.Solid.Music,
                     "NOTES",
                     noteCount.ToString("N0")),
-                createDetailsVerticalDivider(310),
+                createDetailsVerticalDivider(480),
                 createSongStat(
-                    316,
+                    492,
                     0,
                     FontAwesome.Solid.Bullseye,
                     "OD",
                     overallDifficulty.ToString("0.0")),
-                createDetailsVerticalDivider(414),
+                createDetailsVerticalDivider(644),
                 createSongStat(
-                    420,
+                    656,
                     0,
                     FontAwesome.Regular.Heart,
                     "HP",
@@ -4946,8 +4872,8 @@ public partial class SongSelectScreen : Screen
 
     private static Drawable createSelectedDetailsDivider() => new Box
     {
-        Position = new Vector2(details_content_left, 247),
-        Size = new Vector2(details_content_width, 1),
+        Position = new Vector2(22, 276),
+        Size = new Vector2(806, 1),
         Colour = new Color4(
             SongSelectTheme.Navy.R,
             SongSelectTheme.Navy.G,
@@ -4958,33 +4884,24 @@ public partial class SongSelectScreen : Screen
     private Container createSelectedPerformanceRow(
         string rateLabel) => new()
         {
-            Position = new Vector2(details_content_left, 255),
-            Size = new Vector2(details_content_width, 35),
+            Position = new Vector2(details_content_left, 224),
+            Size = new Vector2(details_content_width, 40),
             Masking = true,
             CornerRadius = 8,
             Children =
         [
-            new Box
-            {
-                RelativeSizeAxes = Axes.Both,
-                Colour = new Color4(
-                    SongSelectTheme.PaleCyan.R,
-                    SongSelectTheme.PaleCyan.G,
-                    SongSelectTheme.PaleCyan.B,
-                    0.24f),
-            },
             createBestScoreStat(12, -3, 158),
             createDetailsVerticalDivider(178, 27),
             createBestAccuracyStat(192, -3, 154),
             createDetailsVerticalDivider(360, 27),
-            createPlaybackRateStat(374, -3, 136, rateLabel),
+            createPlaybackRateStat(374, -3, 160, rateLabel),
         ],
         };
 
     private static Drawable createSelectedAnalysisRow(
         ManiaChartAnalysisResult analysis) => new Container
         {
-            Position = new Vector2(details_content_left, 294),
+            Position = new Vector2(details_content_left, 195),
             Size = new Vector2(details_content_width, 20),
             Children =
             [
@@ -5082,8 +4999,9 @@ public partial class SongSelectScreen : Screen
 
         return new Container
         {
-            Position = new Vector2(details_content_left, 318),
-            Size = new Vector2(details_content_width, 12),
+            Position = new Vector2(292, 332),
+            Size = new Vector2(details_content_width, 3),
+            Masking = true,
             Child = lanes,
         };
     }
@@ -5203,7 +5121,7 @@ public partial class SongSelectScreen : Screen
                 new Sprite
                 {
                     Origin = Anchor.Centre,
-                    Position = new Vector2(268, 3),
+                    Position = new Vector2(details_artwork_size - 12, 3),
                     Size = new Vector2(34, 36),
                     Rotation = 6,
                     Texture = textures.Get(
@@ -5256,7 +5174,7 @@ public partial class SongSelectScreen : Screen
             Anchor = Anchor.TopRight,
             Origin = Anchor.TopRight,
             Position = new Vector2(-18, 17),
-            Size = new Vector2(122, 23),
+            Size = new Vector2(88, 94),
             Masking = true,
             CornerRadius = 7,
             Children =
@@ -5272,13 +5190,21 @@ public partial class SongSelectScreen : Screen
                 },
                 new SpriteText
                 {
-                    Anchor = Anchor.Centre,
-                    Origin = Anchor.Centre,
-                    Text = $"{ManiaDifficultyPresentation.Unit(mode)}  "
-                           + ManiaDifficultyPresentation.FormatValue(
-                               ratings,
-                               mode),
-                    Font = HomeTypography.Display(12),
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Y = 18,
+                    Text = ManiaDifficultyPresentation.Unit(mode),
+                    Font = HomeTypography.Display(14),
+                    Colour = SongSelectTheme.Navy,
+                },
+                new SpriteText
+                {
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Y = 40,
+                    Text = ManiaDifficultyPresentation.FormatValue(ratings, mode),
+                    Font = HomeTypography.Display(28),
+                    Truncate = true,
                     Colour = SongSelectTheme.Navy,
                 },
             ],
@@ -5318,7 +5244,7 @@ public partial class SongSelectScreen : Screen
                 Truncate = true,
                 Text = selectedEntry.BestScore > 0
                     ? $"{selectedEntry.BestScore:N0}"
-                    : "NO SCORE",
+                    : "—",
                 Font = HomeTypography.Display(
                     selectedEntry.BestScore > 0 ? 18 : 17),
                 Colour = SongSelectTheme.Navy,
@@ -5425,7 +5351,7 @@ public partial class SongSelectScreen : Screen
         string value) => new Container
     {
         Position = new Vector2(x, y),
-        Size = new Vector2(96, 34),
+        Size = new Vector2(148, 40),
         Children = new Drawable[]
         {
             new SpriteIcon
@@ -5438,7 +5364,7 @@ public partial class SongSelectScreen : Screen
             new SpriteText
             {
                 Position = new Vector2(15, 0),
-                Width = 81,
+                Width = 125,
                 Truncate = true,
                 Text = label,
                 Font = HomeTypography.Display(14),
@@ -5450,11 +5376,11 @@ public partial class SongSelectScreen : Screen
             },
             new SpriteText
             {
-                Position = new Vector2(15, 15),
-                Width = 81,
+                Position = new Vector2(15, 17),
+                Width = 125,
                 Truncate = true,
                 Text = value,
-                Font = HomeTypography.Display(18),
+                Font = HomeTypography.Display(23),
                 Colour = SongSelectTheme.Navy,
             },
         },
@@ -6193,7 +6119,9 @@ public partial class SongSelectScreen : Screen
                 + $" | difficulty={entry.Beatmap.DifficultyName}"
                 + $" | keys={(int)entry.Beatmap.KeyMode}"
                 + $" | format={entry.Beatmap.SourceFormat}");
-            crossFadeBackground(textureFor(entry));
+            artworkBackground.Request(
+                SongSelectArtworkPolicy.Resolve(entry.WallpaperTexture),
+                () => textureFor(entry, fullSize: true));
             rebuildDetails(
                 animateSelection: true,
                 selectionDirection: selectionDirection);
@@ -6224,23 +6152,6 @@ public partial class SongSelectScreen : Screen
                 displayedChartAnalysis?.PatternProfile);
             songList?.ScrollEntryIntoView(entry, true);
         }
-    }
-
-    private void crossFadeBackground(Texture texture)
-    {
-        Sprite outgoing = activeBackground;
-        Sprite incoming = outgoing == backgroundA ? backgroundB : backgroundA;
-        outgoing.ClearTransforms();
-        incoming.ClearTransforms();
-        // Restart an interrupted blend from a fully covered frame. Without
-        // this, alternating the two sprites several times in one update can
-        // leave both near zero alpha and expose the neutral stage beneath.
-        outgoing.Alpha = 1;
-        incoming.Texture = texture;
-        incoming.Alpha = 0;
-        incoming.FadeIn(220, Easing.OutQuint);
-        outgoing.FadeOut(220, Easing.OutQuint);
-        activeBackground = incoming;
     }
 
     private void playSelectedPreview()
@@ -6606,7 +6517,9 @@ public partial class SongSelectScreen : Screen
         selectionMemory.ChartId = selectedEntry.ChartId;
     }
 
-    private Texture textureFor(SongSelectEntry entry)
+    private Texture textureFor(SongSelectEntry entry) => textureFor(entry, fullSize: false);
+
+    private Texture textureFor(SongSelectEntry entry, bool fullSize)
     {
         if (entry != null
             && Path.IsPathRooted(entry.WallpaperTexture)
@@ -6614,9 +6527,9 @@ public partial class SongSelectScreen : Screen
         {
             try
             {
-                Texture artwork = artworkTextureCache.Get(
-                    entry.WallpaperTexture,
-                    renderer);
+                Texture artwork = fullSize
+                    ? artworkTextureCache.GetBackground(entry.WallpaperTexture, renderer)
+                    : artworkTextureCache.Get(entry.WallpaperTexture, renderer);
                 if (artwork != null)
                     return artwork;
             }
@@ -6631,8 +6544,8 @@ public partial class SongSelectScreen : Screen
                ?? textures.Get(SongSelectArtworkPolicy.FallbackTexture);
     }
 
-    // Song-select uses bounded 512 px thumbnails. Gameplay intentionally
-    // loads its own 1920x1080-capped artwork instead of reusing a thumbnail.
+    // Gameplay owns its background lifetime independently of the small list
+    // thumbnails and the two full-resolution song-select wallpapers.
     private static Texture gameplayArtworkTextureFor(SongSelectEntry entry) =>
         null;
 
@@ -7535,12 +7448,14 @@ public partial class SongSelectScreen : Screen
 
         filtersPopoverOpen = true;
         searchBox?.SetHoldFocus(false);
-        filtersPopover?.ClearTransforms();
-        filtersPopover?.FadeIn(120, Easing.OutQuint);
+        filtersPopover?.Open();
         filtersButton?.SetActive(true);
         Scheduler.AddDelayed(
-            () => GetContainingFocusManager()?.ChangeFocus(
-                selectedKeyFilterButton()),
+            () =>
+            {
+                if (filtersPopoverOpen)
+                    GetContainingFocusManager()?.ChangeFocus(selectedKeyFilterButton());
+            },
             50);
     }
 
@@ -7550,8 +7465,7 @@ public partial class SongSelectScreen : Screen
             return;
 
         filtersPopoverOpen = false;
-        filtersPopover?.ClearTransforms();
-        filtersPopover?.FadeOut(90, Easing.OutQuint);
+        filtersPopover?.Close();
         filtersButton?.SetActive(false);
         if (restoreSearchFocus)
             restoreSearchFocusAfterPopover();
@@ -7574,8 +7488,7 @@ public partial class SongSelectScreen : Screen
             return;
 
         beatmapOptionsOpen = false;
-        beatmapOptionsPopover?.ClearTransforms();
-        beatmapOptionsPopover?.FadeOut(90, Easing.OutQuint);
+        beatmapOptionsPopover?.Close();
         if (restoreSearchFocus)
             restoreSearchFocusAfterPopover();
     }
@@ -7740,8 +7653,8 @@ public partial class SongSelectScreen : Screen
     private static Drawable createBackgroundIsolation() => new Box
     {
         RelativeSizeAxes = Axes.Both,
-        // Keep the selected artwork bright enough to remain part of the page
-        // while a neutral paper wash protects the foreground controls.
+        // Preserve the beatmap's colour and detail in the open stage. Local
+        // translucent paper protects text instead of bleaching the wallpaper.
         Colour = new Color4(
             1f,
             0.995f,
@@ -7762,12 +7675,12 @@ public partial class SongSelectScreen : Screen
                         SongSelectTheme.Cyan.R,
                         SongSelectTheme.Cyan.G,
                         SongSelectTheme.Cyan.B,
-                        0.14f),
+                        0.025f),
                     new Color4(
                         SongSelectTheme.Pink.R,
                         SongSelectTheme.Pink.G,
                         SongSelectTheme.Pink.B,
-                        0.05f)),
+                        0.015f)),
             },
             new Box
             {
@@ -7778,7 +7691,7 @@ public partial class SongSelectScreen : Screen
                         SongSelectTheme.Cyan.R,
                         SongSelectTheme.Cyan.G,
                         SongSelectTheme.Cyan.B,
-                        0.075f)),
+                        0.025f)),
             },
         ],
     };

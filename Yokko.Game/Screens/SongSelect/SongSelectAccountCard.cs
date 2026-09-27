@@ -1,4 +1,6 @@
 using System;
+using osu.Framework.Allocation;
+using Yokko.Game.Presentation;
 using System.Collections.Generic;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -14,6 +16,10 @@ namespace Yokko.Game.Screens.SongSelect;
 
 internal partial class SongSelectAccountCard : ClickableContainer
 {
+    [Resolved(CanBeNull = true)]
+    private YokkoAccessibilitySettings accessibility { get; set; }
+    private bool reduceMotion => accessibility?.ReduceMotion.Value == true;
+
     private static readonly string[] metricLabels = ["PLAYS", "ACC", "GLOBAL"];
     private static readonly string[] metricValues = ["0", "0.00%", "#0"];
 
@@ -37,7 +43,7 @@ internal partial class SongSelectAccountCard : ClickableContainer
 
         Container panel = SongSelectSurface.CreateCard(
             out background,
-            SongSelectSurface.Ivory(0.98f),
+            SongSelectSurface.Ivory(SongSelectSurface.FooterCardOpacity),
             new Color4(
                 SongSelectTheme.Cyan.R,
                 SongSelectTheme.Cyan.G,
@@ -168,39 +174,39 @@ internal partial class SongSelectAccountCard : ClickableContainer
     {
         base.LoadComplete();
         star.RotateTo(-4)
-            .Then().RotateTo(5, 1500, Easing.InOutSine)
-            .Then().RotateTo(-4, 1500, Easing.InOutSine)
+            .Then().RotateTo(reduceMotion ? 0 : 5, reduceMotion ? 0 : 1500, Easing.InOutSine)
+            .Then().RotateTo(reduceMotion ? 0 : -4, reduceMotion ? 0 : 1500, Easing.InOutSine)
             .Loop();
     }
 
     protected override bool OnHover(HoverEvent e)
     {
         background.FadeColour(new Color4(0.96f, 0.995f, 1f, 1f), 120, Easing.OutQuint);
-        avatarContainer.RotateTo(-3, 150, Easing.OutQuint);
+        avatarContainer.RotateTo(reduceMotion ? 0 : -3, reduceMotion ? 0 : 150, Easing.OutQuint);
         focusLine.ResizeWidthTo(286, 180, Easing.OutQuint);
-        star.ScaleTo(1.12f, 170, Easing.OutBack);
-        this.ScaleTo(1.012f, 120, Easing.OutQuint);
+        star.ScaleTo(reduceMotion ? 1 : 1.12f, reduceMotion ? 0 : 170, Easing.OutBack);
+        this.ScaleTo(reduceMotion ? 1 : 1.012f, reduceMotion ? 0 : 120, Easing.OutQuint);
         return true;
     }
 
     protected override void OnHoverLost(HoverLostEvent e)
     {
-        background.FadeColour(SongSelectSurface.Ivory(0.98f), 140, Easing.OutQuint);
-        avatarContainer.RotateTo(0, 190, Easing.OutQuint);
+        background.FadeColour(SongSelectSurface.Ivory(SongSelectSurface.FooterCardOpacity), 140, Easing.OutQuint);
+        avatarContainer.RotateTo(0, reduceMotion ? 0 : 190, Easing.OutQuint);
         focusLine.ResizeWidthTo(0, 150, Easing.OutQuint);
-        star.ScaleTo(1, 190, Easing.OutQuint);
-        this.ScaleTo(1, 140, Easing.OutQuint);
+        star.ScaleTo(1, reduceMotion ? 0 : 190, Easing.OutQuint);
+        this.ScaleTo(1, reduceMotion ? 0 : 140, Easing.OutQuint);
     }
 
     protected override bool OnMouseDown(MouseDownEvent e)
     {
-        this.ScaleTo(0.985f, 70, Easing.OutQuint);
+        this.ScaleTo(reduceMotion ? 1 : 0.985f, reduceMotion ? 0 : 70, Easing.OutQuint);
         return base.OnMouseDown(e);
     }
 
     protected override void OnMouseUp(MouseUpEvent e)
     {
-        this.ScaleTo(IsHovered ? 1.012f : 1, 180, Easing.OutBack);
+        this.ScaleTo(reduceMotion ? 1 : (IsHovered ? 1.012f : 1), reduceMotion ? 0 : 180, Easing.OutBack);
         base.OnMouseUp(e);
     }
 
@@ -209,11 +215,11 @@ internal partial class SongSelectAccountCard : ClickableContainer
         int version = ++reactionVersion;
         statusLabel.Text = "HELLO!";
         statusLabel.FlashColour(SongSelectTheme.Pink, 360);
-        avatarContainer.ScaleTo(0.92f, 70, Easing.OutQuint)
-                       .Then().ScaleTo(1.08f, 140, Easing.OutBack)
-                       .Then().ScaleTo(1, 100, Easing.OutQuint);
-        star.RotateTo(24, 150, Easing.OutBack)
-            .Then().RotateTo(0, 220, Easing.OutQuint);
+        avatarContainer.ScaleTo(reduceMotion ? 1 : 0.92f, reduceMotion ? 0 : 70, Easing.OutQuint)
+                       .Then().ScaleTo(reduceMotion ? 1 : 1.08f, reduceMotion ? 0 : 140, Easing.OutBack)
+                       .Then().ScaleTo(1, reduceMotion ? 0 : 100, Easing.OutQuint);
+        star.RotateTo(reduceMotion ? 0 : 24, reduceMotion ? 0 : 150, Easing.OutBack)
+            .Then().RotateTo(0, reduceMotion ? 0 : 220, Easing.OutQuint);
         Scheduler.AddDelayed(() =>
         {
             if (reactionVersion == version)

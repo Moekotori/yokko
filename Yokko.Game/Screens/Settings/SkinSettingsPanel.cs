@@ -37,7 +37,7 @@ internal partial class SkinSettingsPanel : CompositeDrawable
                 FontAwesome.Solid.PaintBrush,
                 6),
             createDropCard(),
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(378, 272),
                 Text = YokkoStrings.Get("settings.skins.section_library"),
@@ -57,7 +57,7 @@ internal partial class SkinSettingsPanel : CompositeDrawable
                     Spacing = new Vector2(0, 10),
                 },
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Position = new Vector2(378, 512),
                 Text = YokkoStrings.Get("settings.skins.section_gameplay"),
@@ -128,13 +128,13 @@ internal partial class SkinSettingsPanel : CompositeDrawable
                 Spacing = new Vector2(0, 5),
                 Children = new Drawable[]
                 {
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Text = YokkoStrings.Get("settings.skins.section_import"),
                         Font = HomeTypography.Display(22),
                         Colour = HomeControlColours.Navy,
                     },
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Text = YokkoStrings.Get("settings.skins.drop_hint"),
                         Font = HomeTypography.Body(17),
@@ -142,7 +142,7 @@ internal partial class SkinSettingsPanel : CompositeDrawable
                     },
                 },
             },
-            new SpriteText
+            new SettingsReadableText
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
@@ -288,7 +288,7 @@ internal partial class AdditionalLongNoteCutSlider : CompositeDrawable
                 BorderThickness = 2.5f,
                 BorderColour = HomeControlColours.Pink,
             },
-            valueText = new SpriteText
+            valueText = new SettingsReadableText
             {
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreRight,
@@ -475,13 +475,13 @@ internal partial class EmptySkinLibraryCard : CompositeDrawable
                 Spacing = new Vector2(0, 5),
                 Children = new Drawable[]
                 {
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Text = YokkoStrings.Get("settings.skins.empty"),
                         Font = HomeTypography.Display(22),
                         Colour = HomeControlColours.Navy,
                     },
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Text = YokkoStrings.Get("settings.skins.empty_note"),
                         Font = HomeTypography.Body(17),
@@ -545,7 +545,7 @@ internal partial class SkinLibraryRow : CompositeDrawable
                 Spacing = new Vector2(0, 4),
                 Children = new Drawable[]
                 {
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Width = 510,
                         Truncate = true,
@@ -553,7 +553,7 @@ internal partial class SkinLibraryRow : CompositeDrawable
                         Font = HomeTypography.Display(21),
                         Colour = HomeControlColours.Navy,
                     },
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Width = 510,
                         Truncate = true,
@@ -650,7 +650,7 @@ internal partial class SettingsSkinActionButton : ClickableContainer
                     ? Color4.White
                     : destructive ? HomeControlColours.Pink : HomeControlColours.Navy,
             },
-            label = new SpriteText
+            label = new SettingsReadableText
             {
                 Anchor = Anchor.Centre,
                 Origin = Anchor.Centre,

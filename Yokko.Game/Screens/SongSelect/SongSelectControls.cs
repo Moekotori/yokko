@@ -58,7 +58,7 @@ internal partial class SongSelectSearchBox : BasicTextBox
             SongSelectTheme.Cyan.G,
             SongSelectTheme.Cyan.B,
             0.56f);
-        BackgroundUnfocused = SongSelectSurface.Ivory(0.98f);
+        BackgroundUnfocused = SongSelectSurface.Ivory(SongSelectSurface.ControlOpacity);
         BackgroundFocused = SongSelectSurface.Ivory(0.995f);
         FontSize = 24;
         PlaceholderText = YokkoStrings.Get("song_select.search");
@@ -409,7 +409,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
             background = new Box
             {
                 RelativeSizeAxes = Axes.Both,
-                Colour = SongSelectSurface.Ivory(0.96f),
+                Colour = SongSelectSurface.Ivory(SongSelectSurface.ControlOpacity),
             },
             new Container
             {
@@ -494,7 +494,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
                 SongSelectTheme.PaleCyan.G,
                 SongSelectTheme.PaleCyan.B,
                 0.78f)
-            : SongSelectSurface.Ivory(0.96f);
+            : SongSelectSurface.Ivory(SongSelectSurface.ControlOpacity);
         activeRail.Alpha = active ? 1 : 0;
     }
 
@@ -555,7 +555,7 @@ internal partial class SongSelectBrowseToolButton : ClickableContainer
                     SongSelectTheme.PaleCyan.G,
                     SongSelectTheme.PaleCyan.B,
                     0.78f)
-                : SongSelectSurface.Ivory(0.96f),
+                : SongSelectSurface.Ivory(SongSelectSurface.ControlOpacity),
             130,
             Easing.OutQuint);
     }
@@ -669,7 +669,7 @@ internal partial class SongSelectFilterOptionButton : ClickableContainer
     }
 }
 
-internal partial class SongSelectSortPopover : CompositeDrawable
+internal partial class SongSelectSortPopover : SongSelectPopover
 {
     private readonly IReadOnlyDictionary<
         SongSelectSortMode,
@@ -680,7 +680,6 @@ internal partial class SongSelectSortPopover : CompositeDrawable
     private SongSelectSortMode mode;
     private SongSelectSortDirection direction;
 
-    internal bool IsOpen { get; private set; }
     internal SongSelectSortMode Mode => mode;
     internal SongSelectSortDirection Direction => direction;
 
@@ -811,23 +810,16 @@ internal partial class SongSelectSortPopover : CompositeDrawable
         descendingButton.SetSelected(direction == SongSelectSortDirection.Descending);
     }
 
-    internal void Open()
+    internal override void Open()
     {
-        IsOpen = true;
-        this.ClearTransforms();
-        this.FadeIn(120, Easing.OutQuint);
+        base.Open();
         Scheduler.AddDelayed(FocusSelected, 50);
-    }
-
-    internal void Close()
-    {
-        IsOpen = false;
-        this.ClearTransforms();
-        this.FadeOut(90, Easing.OutQuint);
     }
 
     internal void FocusSelected()
     {
+        if (!IsOpen)
+            return;
         ClickableContainer target = optionButtons.TryGetValue(mode, out SongSelectSortOptionButton selected)
             ? selected
             : focusableButtons[0];

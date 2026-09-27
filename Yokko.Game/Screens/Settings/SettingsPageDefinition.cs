@@ -56,8 +56,8 @@ internal static class SettingsPages
             YokkoStrings.SearchTerms("settings.general.title"),
             YokkoStrings.SearchTermsForPrefix(
                 "settings.general.",
-                "ui interface locale startup update scroll speed",
-                "界面 语言 启动 更新 滚速")),
+                "ui interface locale startup update scroll speed presets profiles backup",
+                "界面 语言 启动 更新 滚速 配置 预设 备份")),
         SettingsPageKind.Display => new(
             kind,
             YokkoStrings.Get("settings.display.title"),
@@ -98,8 +98,8 @@ internal static class SettingsPages
             YokkoStrings.SearchTerms("settings.audio.title"),
             YokkoStrings.SearchTermsForPrefix(
                 "settings.audio.",
-                "sound speaker headphones volume latency asio wasapi",
-                "声音 扬声器 耳机 音量 延迟")),
+                "sound speaker headphones volume latency asio wasapi calibration device profiles",
+                "声音 扬声器 耳机 音量 延迟 校准 设备配置")),
         SettingsPageKind.Gameplay => new(
             kind,
             YokkoStrings.Get("settings.gameplay.title"),
@@ -209,8 +209,8 @@ internal static class SettingsPages
             YokkoStrings.SearchTerms("settings.accessibility.title"),
             YokkoStrings.SearchTermsForPrefix(
                 "settings.accessibility.",
-                "reduce motion accessibility visual assistance",
-                "减少动画 无障碍 视觉辅助")),
+                "reduce motion accessibility visual assistance flashes contrast combo bursts",
+                "减少动画 无障碍 视觉辅助 闪光 对比度 连击 爆气")),
         SettingsPageKind.Safety => new(
             kind,
             YokkoStrings.Get("settings.safety.title"),

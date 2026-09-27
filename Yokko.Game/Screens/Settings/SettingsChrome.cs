@@ -41,7 +41,7 @@ internal static partial class SettingsChrome
             AutoSizeAxes = Axes.Both,
             Children = new Drawable[]
             {
-                new SpriteText
+                new SettingsReadableText
                 {
                     Position = new Vector2(2, -20),
                     Text = $"{index:00} // SETTINGS",
@@ -55,14 +55,14 @@ internal static partial class SettingsChrome
                     Size = new Vector2(5, 54),
                     Colour = HomeControlColours.Cyan,
                 },
-                new SpriteText
+                new SettingsReadableText
                 {
                     Text = title,
                     Font = HomeTypography.Display(58),
                     Spacing = new Vector2(0.45f, 0),
                     Colour = HomeControlColours.Navy,
                 },
-                new SpriteText
+                new SettingsReadableText
                 {
                     Position = new Vector2(0, 63),
                     Text = subtitle,
@@ -188,13 +188,13 @@ internal static partial class SettingsChrome
                 Spacing = new Vector2(0, 4),
                 Children = new Drawable[]
                 {
-                    new SpriteText
+                    new SettingsReadableText
                     {
                         Text = title,
                         Font = HomeTypography.Display(22),
                         Colour = HomeControlColours.Navy,
                     },
-                    metadataText = new SpriteText
+                    metadataText = new SettingsReadableText
                     {
                         Font = HomeTypography.Body(18),
                         Colour = HomeControlColours.Navy,
@@ -238,7 +238,7 @@ internal static partial class SettingsChrome
         Depth = depth,
         Children = new Drawable[]
         {
-            new SpriteText
+            new SettingsReadableText
             {
                 Anchor = Anchor.CentreLeft,
                 Origin = Anchor.CentreLeft,

@@ -25,6 +25,8 @@ using Yokko.Game.Importing;
 using Yokko.Game.Presentation;
 using Yokko.Game.Resources;
 using Yokko.Game.Screens.Main;
+using Yokko.Game.Localisation;
+using Yokko.Game.Screens.SongSelect;
 using Yokko.Game.Skinning.OsuMania;
 
 namespace Yokko.Game.Screens.Settings;
@@ -33,8 +35,10 @@ namespace Yokko.Game.Screens.Settings;
 /// Owns navigation into and out of settings. Individual settings areas own their
 /// own layout and interactions so future categories do not inflate this screen.
 /// </summary>
-public partial class SettingsScreen : Screen
+public partial class SettingsScreen : YokkoScreen
 {
+    [Resolved(CanBeNull = true)] private YokkoAccessibilitySettings accessibility { get; set; }
+
     // Legacy internal content coordinates. The outer stage and scale adapt
     // them to YokkoDisplaySettings.ReferenceLayoutSize.
     private const float designedWidth = 1280;
@@ -80,6 +84,19 @@ public partial class SettingsScreen : Screen
     private Container stage;
     private Container contentHost;
     private Drawable activePanel;
+    private Container utilityLayer;
+    private GameplayCompactButton quickCalibrationButton;
+    private SettingsHelpOverlay helpOverlay;
+    private AudioCalibrationOverlay calibrationOverlay;
+    private GameplayPresetsOverlay presetsOverlay;
+    private readonly ISongSelectPreviewHost previewHost;
+
+    public SettingsScreen() { }
+
+    internal SettingsScreen(ISongSelectPreviewHost previewHost)
+    {
+        this.previewHost = previewHost;
+    }
     private Vector2 lastResponsiveStageSize;
     private Container decorationLayer;
     private SpriteText watermark;
@@ -114,7 +131,8 @@ public partial class SettingsScreen : Screen
             textures.Get("home-logo"),
             this.Exit,
             CurrentPage,
-            OpenPage);
+            OpenPage,
+            OpenSearchAction);
         contentHost = new Container { RelativeSizeAxes = Axes.Both };
 
         InternalChildren = new Drawable[]
@@ -132,7 +150,7 @@ public partial class SettingsScreen : Screen
                 Scale = new Vector2(ReferenceLayoutScale),
                 Children = new Drawable[]
                 {
-                    watermark = new SpriteText
+                    watermark = new SettingsReadableText
                     {
                         Position = new Vector2(614, 548),
                         Rotation = -3,
@@ -149,6 +167,22 @@ public partial class SettingsScreen : Screen
                     new HomeTapRippleLayer(),
                     sidebar,
                     contentHost,
+                    utilityLayer = new Container
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Children = new Drawable[]
+                        {
+                            new SettingsReadableText
+                            {
+                                Position = new Vector2(675, 6), Text = YokkoStrings.Get("settings.guide.autosave"),
+                                Font = HomeTypography.Body(12), Colour = SettingsTheme.MutedNavy,
+                            },
+                            quickCalibrationButton = new GameplayCompactButton(YokkoStrings.Get("settings.guide.calibrate"), OpenCalibration, 140)
+                            { Position = new Vector2(918, 0), Height = 28 },
+                            new GameplayCompactButton(YokkoStrings.Get("settings.guide.help"), OpenHelp, 140)
+                            { Position = new Vector2(1078, 0), Height = 28 },
+                        },
+                    },
                     // 底部警示条纹收边，与主页构图呼应。
                     new Container
                     {
@@ -175,10 +209,8 @@ public partial class SettingsScreen : Screen
     {
         base.OnEntering(e);
 
-        sidebar.MoveToX(-28).MoveToX(0, 520, Easing.OutQuint)
-               .FadeInFromZero(360);
-        decorationLayer.Delay(180).FadeIn(560);
-        watermark.FadeInFromZero(700);
+        YokkoMotion.Reveal(sidebar, Vector2.Zero, new Vector2(-20, 0), ReduceMotionEnabled);
+        decorationLayer.FadeIn(YokkoMotion.EnterDuration);
     }
 
     protected override void LoadComplete()
@@ -331,7 +363,7 @@ public partial class SettingsScreen : Screen
                         HomeControlColours.Navy.B,
                         0.28f),
                 },
-                new SpriteText
+                new SettingsReadableText
                 {
                     Origin = Anchor.Centre,
                     Position = new Vector2(1256, 420),
@@ -378,6 +410,8 @@ public partial class SettingsScreen : Screen
             applyResponsiveLayout(stageSize);
         }
 
+        bool canCalibrate = activePanel is not AudioSettingsPanel { IsAudioTestPlaying: true };
+        if (quickCalibrationButton.IsEnabled != canCalibrate) quickCalibrationButton.IsEnabled = canCalibrate;
         updateParallax();
     }
 
@@ -389,6 +423,7 @@ public partial class SettingsScreen : Screen
     private void applyResponsiveLayout(Vector2 stageSize)
     {
         contentHost.Position = CalculateContentOffset(stageSize);
+        utilityLayer.Position = contentHost.Position;
 
         var stretch = new Vector2(
             stageSize.X / designedWidth,
@@ -414,6 +449,12 @@ public partial class SettingsScreen : Screen
 
     private void updateParallax()
     {
+        if (accessibility?.ReduceMotion.Value == true)
+        {
+            decorationLayer.Position = Vector2.Zero;
+            watermark.Position = watermarkHome;
+            return;
+        }
         var inputManager = GetContainingInputManager();
         if (inputManager == null || decorationLayer == null)
             return;
@@ -472,7 +513,8 @@ public partial class SettingsScreen : Screen
             SettingsPageKind.General => new GeneralSettingsPanel(
                 locale,
                 gameplaySettings,
-                diagnostics.ConsoleVisible),
+                diagnostics.ConsoleVisible,
+                OpenPresets),
             SettingsPageKind.Display => new DisplaySettingsPanel(
                 windowedSize,
                 windowMode,
@@ -490,12 +532,14 @@ public partial class SettingsScreen : Screen
             SettingsPageKind.Audio => new AudioSettingsPanel(
                 audioSettings,
                 gameplaySettings,
-                host.Storage.GetFullPath("audio-tests", true)),
+                host.Storage.GetFullPath("audio-tests", true),
+                OpenCalibration),
             SettingsPageKind.Gameplay => new GameplaySettingsPanel(
                 gameplaySettings,
                 audioSettings,
                 host.Storage.GetFullPath("audio-tests", true),
-                clipboard),
+                clipboard,
+                OpenCalibration),
             SettingsPageKind.Shortcuts => new ShortcutSettingsPanel(
                 gameplaySettings),
             SettingsPageKind.Skins => new SkinSettingsPanel(
@@ -508,6 +552,7 @@ public partial class SettingsScreen : Screen
                 resourceDirectoryPicker,
                 externalOsuSettings,
                 importedChartLibrary),
+            SettingsPageKind.Accessibility => new AccessibilitySettingsPanel(accessibility),
             SettingsPageKind.Safety => new SafetySettingsPanel(
                 host,
                 host.Storage.GetFullPath("crash-reports", true),
@@ -517,16 +562,72 @@ public partial class SettingsScreen : Screen
             _ => new SettingsPlaceholderPanel(SettingsPages.Get(page)),
         };
 
-        activePanel.Alpha = 0;
-        activePanel.X = 10;
         contentHost.Child = activePanel;
-        activePanel.FadeIn(180, Easing.OutQuint);
-        activePanel.MoveToX(0, 180, Easing.OutQuint);
+        YokkoMotion.Reveal(activePanel, Vector2.Zero, new Vector2(12, 0), ReduceMotionEnabled);
         diagnostics.Trace("SETTINGS", "page-opened", $"page={page}");
+    }
+
+    internal bool OpenSearchAction(string query)
+    {
+        switch (SettingsQuickActions.Find(query))
+        {
+            case SettingsQuickAction.Calibration: OpenCalibration(); return true;
+            case SettingsQuickAction.Presets: OpenPresets(); return true;
+            default: return false;
+        }
+    }
+
+    internal void OpenHelp()
+    {
+        if (helpOverlay != null) return;
+        helpOverlay = new SettingsHelpOverlay(CurrentPage, closeHelp);
+        stage.Add(helpOverlay);
+    }
+
+    private void closeHelp()
+    {
+        if (helpOverlay == null) return;
+        stage.Remove(helpOverlay, true);
+        helpOverlay = null;
+    }
+
+    internal void OpenPresets()
+    {
+        if (presetsOverlay != null) return;
+        var store = new GameplayPresetStore(gameplaySettings, skinSettings,
+            yokkoConfig.GetBindable<string>(YokkoSetting.GameplayPresets),
+            id => skinLibrary.GetInstalledSkins().Any(skin => skin.Id == id));
+        presetsOverlay = new GameplayPresetsOverlay(store, clipboard, closePresets);
+        stage.Add(presetsOverlay);
+    }
+
+    private void closePresets()
+    {
+        if (presetsOverlay == null) return;
+        stage.Remove(presetsOverlay, true);
+        presetsOverlay = null;
+    }
+
+    internal void OpenCalibration()
+    {
+        if (calibrationOverlay != null || activePanel is AudioSettingsPanel { IsAudioTestPlaying: true }) return;
+        calibrationOverlay = new AudioCalibrationOverlay(audioSettings,
+            host.Storage.GetFullPath("audio-tests", true), closeCalibration, previewHost);
+        stage.Add(calibrationOverlay);
+    }
+
+    private void closeCalibration()
+    {
+        if (calibrationOverlay == null) return;
+        stage.Remove(calibrationOverlay, true);
+        calibrationOverlay = null;
     }
 
     internal bool DismissTransientUi()
     {
+        if (helpOverlay != null) { closeHelp(); return true; }
+        if (calibrationOverlay != null) { closeCalibration(); return true; }
+        if (presetsOverlay != null) { if (!presetsOverlay.DismissTransientUi()) closePresets(); return true; }
         if (activePanel is ISettingsTransientUi transientUi && transientUi.DismissTransientUi())
             return true;
 
@@ -535,6 +636,9 @@ public partial class SettingsScreen : Screen
 
     public override bool OnExiting(ScreenExitEvent e)
     {
+        closeHelp();
+        closeCalibration();
+        closePresets();
         yokkoConfig.Save();
         frameworkConfig.Save();
         return base.OnExiting(e);

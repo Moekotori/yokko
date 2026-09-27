@@ -471,7 +471,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             && songSelectScreen.AmbientDecorationCount == 0
             && songSelectScreen.AmbientSignalCount == 0
             && songSelectScreen.AmbientAccentCount == 0
-            && Math.Abs(SongSelectScreen.BackgroundIsolationAlpha - 0.58f)
+            && Math.Abs(SongSelectScreen.BackgroundIsolationAlpha - 0.06f)
                < 0.001f);
         AddAssert("browser starts below search, rating and browse controls", () =>
             Math.Abs(songSelectScreen.SongBrowserTop - 132) < 0.01f);
@@ -508,20 +508,20 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             songSelectScreen.BrowseToolbarSize == new Vector2(980, 40));
         AddAssert("selected details separate chart facts from performance", () =>
             songSelectScreen.SelectedChartFactsPosition
-                == new Vector2(310, 210)
+                == new Vector2(22, 286)
             && songSelectScreen.SelectedChartFactsSize
-                == new Vector2(522, 34)
+                == new Vector2(806, 40)
             && songSelectScreen.SelectedPerformancePosition
-                == new Vector2(310, 255)
+                == new Vector2(292, 224)
             && songSelectScreen.SelectedPerformanceSize
-                == new Vector2(522, 35)
+                == new Vector2(540, 40)
             && SongSelectScreen.SelectedDetailsPanelSize
-                == new Vector2(850, 320)
+                == new Vector2(850, 336)
             && SongSelectScreen.SelectedArtworkSize
-                == new Vector2(280)
-            && Math.Abs(SongSelectScreen.SelectedArtworkRotation + 1.25f)
+                == new Vector2(250)
+            && Math.Abs(SongSelectScreen.SelectedArtworkRotation + 0.6f)
                 < 0.01f
-            && Math.Abs(SongSelectScreen.RankingTop - 340) < 0.01f);
+            && Math.Abs(SongSelectScreen.RankingTop - 356) < 0.01f);
         AddAssert("selected rows omit the redundant preview prompt", () =>
             !songSelectScreen.ChildrenOfType<SpriteText>().Any(text =>
                 text.Text.ToString().Contains(
@@ -529,7 +529,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
                     StringComparison.OrdinalIgnoreCase)));
         AddAssert("selected mods aligns with the ranking header", () =>
             songSelectScreen.SelectedModsButtonPosition
-                == new Vector2(696, 340)
+                == new Vector2(696, 356)
             && songSelectScreen.SelectedModsButtonSize
                 == new Vector2(154, 40));
         AddAssert("retired inline mod panel is not built on entry", () =>
@@ -568,7 +568,7 @@ public partial class TestSceneSongSelectScreen : YokkoManualInputTestScene
             && SongSelectScreen.FooterToolButtonWidthFor(
                 YokkoUiScale.Comfortable) == 154);
         AddAssert("high-frequency shortcuts are discoverable", () =>
-            songSelectScreen.ShortcutLegendSize == new Vector2(220, 106)
+            songSelectScreen.ShortcutLegendSize == new Vector2(220, 82)
             && songSelectScreen.PlayButtonEyebrow
                 == "START SELECTED CHART"
             && songSelectScreen.PlayButtonAction == "PLAY");
