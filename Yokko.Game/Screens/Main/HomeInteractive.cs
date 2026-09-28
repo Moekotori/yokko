@@ -1005,6 +1005,8 @@ internal partial class HomeSignalSnake : CompositeDrawable
 public partial class HomeKeyTestPad : CompositeDrawable
 {
     private const float cap_pitch = 34;
+    // 键帽行在 170 宽的逻辑面内水平居中：(170 - (3 * 34 + 26)) / 2。
+    private const float cap_row_x = 21;
     private const double combo_window_milliseconds = 1200;
     private const int combo_display_threshold = 4;
 
@@ -1044,13 +1046,14 @@ public partial class HomeKeyTestPad : CompositeDrawable
 
     public HomeKeyTestPad()
     {
-        Size = new Vector2(150, 74);
+        // 逻辑宽 170：两行左右文字各留出明确间隙，避免标题与计数互相压字。
+        Size = new Vector2(170, 74);
 
         // 错位阴影层，与其他卡片同一套贴纸语言。
         AddInternal(new Container
         {
             Position = new Vector2(-5, -4),
-            Size = new Vector2(166, 88),
+            Size = new Vector2(186, 88),
             Masking = true,
             CornerRadius = 10,
             Child = new Box
@@ -1065,7 +1068,7 @@ public partial class HomeKeyTestPad : CompositeDrawable
         AddInternal(new Container
         {
             Position = new Vector2(-8, -8),
-            Size = new Vector2(166, 88),
+            Size = new Vector2(186, 88),
             Masking = true,
             CornerRadius = 10,
             BorderThickness = 2,
@@ -1081,7 +1084,7 @@ public partial class HomeKeyTestPad : CompositeDrawable
         // 角落装饰：黄色角标 + 粉色小点，呼应按钮卡片。
         AddInternal(new Box
         {
-            Position = new Vector2(152, -8),
+            Position = new Vector2(172, -8),
             Size = new Vector2(7),
             Rotation = 45,
             Colour = HomeControlColours.Yellow,
@@ -1115,7 +1118,7 @@ public partial class HomeKeyTestPad : CompositeDrawable
             Y = 1,
             Text = "HITS 0000",
             Font = HomeTypography.Display(9),
-            Spacing = new Vector2(1.2f, 0),
+            Spacing = new Vector2(0.8f, 0),
             Colour = new Color4(
                 HomeControlColours.Yellow.R, HomeControlColours.Yellow.G, HomeControlColours.Yellow.B, 0.92f),
         });
@@ -1125,7 +1128,7 @@ public partial class HomeKeyTestPad : CompositeDrawable
         {
             AddInternal(lineSegments[i] = new Box
             {
-                Position = new Vector2(i * cap_pitch, 20),
+                Position = new Vector2(cap_row_x + i * cap_pitch, 20),
                 Size = new Vector2(26, 3),
                 Colour = laneAccents[i],
                 Alpha = 0.3f,
@@ -1137,7 +1140,7 @@ public partial class HomeKeyTestPad : CompositeDrawable
             int lane = i;
             AddInternal(caps[i] = new HomeKeycap(laneLabels[i])
             {
-                Position = new Vector2(i * cap_pitch, 30),
+                Position = new Vector2(cap_row_x + i * cap_pitch, 30),
                 Action = () =>
                 {
                     PressLane(lane);
@@ -1151,7 +1154,7 @@ public partial class HomeKeyTestPad : CompositeDrawable
             Position = new Vector2(0, 60),
             Text = "TAP OR PRESS KEYS",
             Font = HomeTypography.Display(8),
-            Spacing = new Vector2(1.4f, 0),
+            Spacing = new Vector2(0.6f, 0),
             Colour = hintColour,
         });
         AddInternal(kpsText = new SpriteText
@@ -1161,7 +1164,7 @@ public partial class HomeKeyTestPad : CompositeDrawable
             Position = new Vector2(0, 60),
             Text = "KPS 0",
             Font = HomeTypography.Display(8),
-            Spacing = new Vector2(1.2f, 0),
+            Spacing = new Vector2(0.8f, 0),
             Colour = hintColour,
         });
     }
@@ -1227,7 +1230,7 @@ public partial class HomeKeyTestPad : CompositeDrawable
         var note = new Circle
         {
             Origin = Anchor.Centre,
-            Position = new Vector2(lane * cap_pitch + 13, 28),
+            Position = new Vector2(cap_row_x + lane * cap_pitch + 13, 28),
             Size = new Vector2(5),
             Colour = laneAccents[lane],
         };
@@ -1306,7 +1309,7 @@ public partial class HomeKeyTestPad : CompositeDrawable
             var star = new SpriteIcon
             {
                 Origin = Anchor.Centre,
-                Position = new Vector2(75, 10),
+                Position = new Vector2(85, 10),
                 Size = new Vector2(11),
                 Icon = FontAwesome.Solid.Star,
                 Colour = i % 2 == 0 ? HomeControlColours.Yellow : Color4.White,
