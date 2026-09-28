@@ -436,18 +436,51 @@ public sealed class DisplaySettingsTest
     }
 
     [Test]
-    public void EditorPreservesItsLegacyCanvasScaleAt1080P()
+    public void EditorAnchorsOnTheShared1080PLayout()
     {
         Assert.Multiple(() =>
         {
+            // 编辑器与 Song Select 一样直接锚定共享 1920x1080 布局空间，
+            // 不再保留旧 1122x620 画布或屏内二次缩放。
             Assert.That(
-                EditorScreen.CalculateResponsiveStageScale(
-                    YokkoDisplaySettings.ReferenceLayoutSize),
-                Is.EqualTo(1.45f).Within(0.001f));
+                new osuTK.Vector2(
+                    EditorScreen.CanvasWidth,
+                    EditorScreen.CanvasHeight),
+                Is.EqualTo(YokkoDisplaySettings.ReferenceLayoutSize));
+
+            // 顶栏、工具行与状态栏铺满整幅宽度并贴住画布上下边。
             Assert.That(
-                EditorScreen.CalculateResponsiveStageScale(
-                    new osuTK.Vector2(960, 540)),
-                Is.EqualTo(960f / 1122f).Within(0.001f));
+                EditorScreen.ToolbarTop,
+                Is.EqualTo(EditorScreen.HeaderHeight));
+            Assert.That(
+                EditorScreen.StatusBarTop + EditorScreen.StatusBarHeight,
+                Is.EqualTo(EditorScreen.CanvasHeight));
+
+            // 左侧工作列（信号带 / 网格 / transport）不与右侧 Inspector
+            // 卡重叠，且两列底边对齐并停在状态栏之上。
+            Assert.That(
+                EditorScreen.WorkspaceLeft + EditorScreen.WorkspaceWidth,
+                Is.LessThanOrEqualTo(EditorScreen.InspectorLeft));
+            Assert.That(
+                EditorScreen.InspectorLeft + EditorScreen.InspectorWidth,
+                Is.EqualTo(
+                    EditorScreen.CanvasWidth - EditorScreen.WorkspaceLeft));
+            Assert.That(
+                EditorScreen.TransportTop + EditorScreen.TransportHeight,
+                Is.EqualTo(
+                    EditorScreen.InspectorTop + EditorScreen.InspectorHeight));
+            Assert.That(
+                EditorScreen.GridTop + EditorScreen.GridHeight,
+                Is.LessThan(EditorScreen.TransportTop));
+            Assert.That(
+                EditorScreen.InspectorTop + EditorScreen.InspectorHeight,
+                Is.LessThan(EditorScreen.StatusBarTop));
+
+            // 网格画布保留 96px 时间刻度 gutter。
+            Assert.That(EditorGrid.GutterWidth, Is.EqualTo(96));
+            Assert.That(
+                EditorGrid.GutterWidth,
+                Is.LessThan(EditorScreen.WorkspaceWidth));
         });
     }
 
