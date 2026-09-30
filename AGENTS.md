@@ -83,3 +83,26 @@ AI 在设计或实现功能前，可以主动搜索、阅读和对照以下成�
 - 修改核心规则、音频链路、导入转换、项目依赖或跨模块接口时，运行对应构建和 focused tests。
 - 大改、跨模块重构或发布前变更必须进行完整构建与相关测试。
 - 如果受环境或依赖限制无法完成验证，要明确说明已验证内容、未验证内容和剩余风险。
+
+## Cursor Cloud specific instructions
+
+本节面向在已装好依赖的 Cloud VM 上工作的后续 agent，只记录非显而易见的启动/运行注意事项。标准命令见 `README.md` 的 “Development” 一节。
+
+### .NET SDK 版本（关键）
+
+- 必须使用 **.NET 8 的 8.0.4xx 波段**（VM 已装 `8.0.424`，`dotnet` 默认解析到它）。Ubuntu 的 `apt` 包 `dotnet-sdk-8.0` 只提供 8.0.1xx 波段（如 `8.0.130`），其 Roslyn 在编译 `Yokko.Import/Quaver/QuaverChartImporter.cs` 时会因集合表达式 `[',', '|']` 的重载歧义报 `CS0121` 而**构建失败**。若 `dotnet build` 出现该错误，用 `dotnet --version` 确认解析到的是 8.0.4xx 而非 8.0.1xx。CI 用 `dotnet-version: 8.0.x`（Windows），因此在 Windows 上不会遇到此问题。
+
+### 运行桌面程序（Linux headless）
+
+- `Yokko.Desktop` 虽是 `WinExe` 且含 Windows-only 后端，但这些类都用 `OperatingSystem.IsWindows()` 守卫，在 Linux 上安全 no-op（raw-input 后端 `Attach` 返回 `false`，回退到 SDL），因此可在 Linux 上运行。
+- 桌面 `:1` 已存在（computerUse 用的桌面）。运行前设 `DISPLAY=:1`：`DISPLAY=:1 dotnet run --project ./Yokko.Desktop/Yokko.Desktop.csproj`。GL 通过 Mesa `llvmpipe` 软件渲染，能起但较慢；界面日志里的 “AUTO frame pacing reduced …” 属正常的软渲染降频。
+- 音频显示 “Audio unavailable”/“Audio not linked” 是**预期**行为：原生音频库（`Yokko.Audio.Native`，需 Windows/CMake/ASIO）未在 Linux 构建，`AudioEngineFactory` 回退到 `NullAudioEngine`。这不是错误。
+
+### 测试
+
+- `dotnet test ./Yokko.Game.Tests/Yokko.Game.Tests.csproj` 走 osu!framework 的 headless host，无需显示器。核心逻辑测试基本全过（约 1058/1084）。
+- Linux 上有一部分**预期失败**，不代表环境损坏：（1）少数 `Visual/TestScene*` 场景存在代码级问题；（2）用硬编码 `C:\...` 路径断言的导入测试（Windows 路径语义在 Linux 下不同）；（3）依赖可选原生 MinaCalc 库的 Etterna MSD 测试（Linux 未构建该库，难度显示 `--`）。CI 只在 windows-latest 上跑 `--filter "FullyQualifiedName~LocalisationTest"`。
+
+### 其他
+
+- 迭代用 `Yokko.Desktop.slnf`（已排除 iOS）。iOS、原生音频、原生 MinaCalc 都是平台/CMake 相关，Linux 上不构建。
